@@ -1,0 +1,8 @@
+#!/bin/bash -ex
+
+# This script is used as a convenience for reliably passing the --database-url
+
+# Use .env to set env var(s)
+. .env
+# Forward script arguments to diesel CLI tool with --database-url set appropriately.
+diesel migration --database-url "$IDP_DATAHOST_DATABASE_URL" $@

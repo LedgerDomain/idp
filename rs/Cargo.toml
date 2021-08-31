@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "idp",
+#     "idp_client",
+    "idp_core",
+    "idp_proto",
+    "idp_server",
+]

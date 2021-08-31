@@ -1,0 +1,13 @@
+# This silly rule is to make the error output of rustc parseable by KDevelop for easy error location clicking.
+# Note that the `idp` directory is removed in the sed rule so that KDevelop will open the correct relative path.
+.PHONY: rs-idp-build
+rs-idp-build:
+	cargo test --no-run 2>&1 | sed 's/ *--> idp\/\(.*\)/\1: error:/g'
+
+.PHONY: rs-idp-test
+rs-idp-test:
+	RUST_BACKTRACE=1 cargo test 2>&1 | sed 's/ *--> idp\/\(.*\)/\1: error:/g'
+
+.PHONY: rs-idp-test-nocapture
+rs-idp-test-nocapture:
+	RUST_BACKTRACE=1 cargo test -- --nocapture 2>&1 | sed 's/ *--> idp\/\(.*\)/\1: error:/g'

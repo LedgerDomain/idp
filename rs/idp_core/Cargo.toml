@@ -1,0 +1,22 @@
+[package]
+name = "idp_core"
+version = "0.0.0"
+authors = ["Victor Dods <victor.dods@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = { version = "0.4.19", features = ["serde"] }
+diesel = { version = "1.4.7", features = ["numeric", "sqlite"] }
+diesel_migrations = "1.4.0"
+dotenv = "0.15.0"
+env_logger = "0.8.4"
+failure = "0.1.8"
+failure_derive = "0.1.8"
+idp_proto = { path = "../idp_proto" }
+log = "0.4.14"
+uuid = { version = "0.8.2", features = ["v4"] }
+
+[dev-dependencies]
+serial_test = "0.5.1"

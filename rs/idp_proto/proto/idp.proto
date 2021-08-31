@@ -1,0 +1,229 @@
+syntax = "proto2"; // Used so `required` is available.
+
+package idp;
+
+// import public "idp_common.proto";
+
+//
+// Helper types
+//
+
+message ContentType {
+    required bytes value = 1;
+}
+
+message Did {
+    required string value = 1;
+}
+
+message Nonce {
+    required bytes value = 1;
+}
+
+// message Seal {
+//     oneof value {
+//         Sha256Sum Sha256Sum = 1;
+//         // TODO: Crypto signature types
+//     }
+// }
+
+message Seal {
+    // TEMP HACK -- it should support more seal types
+    required Sha256Sum sha256sum = 1;
+}
+
+message Sha256Sum {
+    required bytes value = 1;
+}
+
+message UnixSeconds {
+    required int64 value = 1;
+}
+
+//
+// Plum-specific types
+//
+
+message PlumHeadSeal {
+    required Seal value = 1;
+}
+
+message PlumBodySeal {
+    required Seal value = 1;
+}
+
+message PlumHead {
+    required PlumBodySeal body_seal = 1;
+    required ContentType body_content_type = 2;
+    required int64 body_length = 3;
+    optional Nonce head_nonce_o = 4;
+    optional Did owner_did_o = 5;
+    optional UnixSeconds created_at_o = 6;
+    optional bytes metadata_o = 7;
+}
+
+message PlumBody {
+    optional Nonce body_nonce_o = 1;
+    required bytes body_content = 2;
+}
+
+// This represents a single data entry; it's a head (metadata) and a body (file content).  Yes, a stupid name,
+// and I hate cute names in software, but it is distinct, and it's a noun.
+message Plum {
+    required PlumHead head = 1;
+    required PlumBody body = 2;
+}
+
+//
+// Requests and Responses
+//
+
+//
+// Push
+//
+
+message PushHeadRequest {
+    required PlumHead head = 1;
+}
+
+message PushBodyRequest {
+    required PlumBody body = 1;
+}
+
+message PushHeadAndBodyRequest {
+    required Plum plum = 1;
+}
+
+message PushRequest {
+    oneof value {
+        PushHeadRequest push_head_request = 1;
+        PushBodyRequest push_body_request = 2;
+        PushHeadAndBodyRequest push_head_and_body_request = 3;
+    }
+}
+
+message PushHeadResponse {
+    required PlumHeadSeal head_seal = 1;
+}
+
+message PushBodyResponse {
+    required PlumBodySeal body_seal = 1;
+}
+
+message PushHeadAndBodyResponse {
+    required PlumHeadSeal head_seal = 1;
+    required PlumBodySeal body_seal = 2;
+}
+
+message PushResponse {
+    oneof value {
+        PushHeadResponse push_head_response = 1;
+        PushBodyResponse push_body_response = 2;
+        PushHeadAndBodyResponse push_head_and_body_response = 3;
+    }
+}
+
+//
+// Pull
+//
+
+message PullHeadRequest {
+    required PlumHeadSeal head_seal = 1;
+}
+
+message PullBodyRequest {
+    required PlumBodySeal body_seal = 1;
+}
+
+message PullHeadAndBodyRequest {
+    required PlumHeadSeal head_seal = 1;
+    required PlumBodySeal body_seal = 2;
+}
+
+message PullRequest {
+    oneof value {
+        PullHeadRequest pull_head_request = 1;
+        PullBodyRequest pull_body_request = 2;
+        PullHeadAndBodyRequest pull_head_and_body_request = 3;
+    }
+}
+
+message PullHeadResponse {
+    required PlumHead head = 1;
+}
+
+message PullBodyResponse {
+    required PlumBody body = 1;
+}
+
+message PullHeadAndBodyResponse {
+    required Plum plum = 1;
+}
+
+message PullResponse {
+    oneof value {
+        PullHeadResponse pull_head_response = 1;
+        PullBodyResponse pull_body_response = 2;
+        PullHeadAndBodyResponse pull_head_and_body_response = 3;
+    }
+}
+
+//
+// Del
+//
+
+message DelHeadRequest {
+    required PlumHeadSeal head_seal = 1;
+}
+
+message DelBodyRequest {
+    required PlumBodySeal body_seal = 1;
+}
+
+message DelHeadAndBodyRequest {
+    required PlumHeadSeal head_seal = 1;
+    required PlumBodySeal body_seal = 2;
+}
+
+// TODO: Could implement bidirectional streaming of Del.
+message DelRequest {
+    oneof value {
+        DelHeadRequest del_head_request = 1;
+        DelBodyRequest del_body_request = 2;
+        DelHeadAndBodyRequest del_head_and_body_request = 3;
+    }
+}
+
+message DelHeadResponse {
+    // Nothing needed
+}
+
+message DelBodyResponse {
+    // Nothing needed
+}
+
+message DelHeadAndBodyResponse {
+    // Nothing needed
+}
+
+message DelResponse {
+    oneof value {
+        DelHeadResponse del_head_response = 1;
+        DelBodyResponse del_body_response = 2;
+        DelHeadAndBodyResponse del_head_and_body_response = 3;
+    }
+}
+
+//
+// Service definition
+//
+
+service IndoorDataPlumbing {
+    // TODO: Figure out what to pass so that the server could say "i already have that" and then
+    // not transfer the bulk of the data.
+    // TODO: Could implement bidirectional streaming of Push.
+    rpc Push (PushRequest) returns (PushResponse) {}
+    // TODO: Could implement bidirectional streaming of Pull.
+    rpc Pull (PullRequest) returns (PullResponse) {}
+    rpc Del (DelRequest) returns (DelResponse) {}
+}
