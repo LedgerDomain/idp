@@ -55,7 +55,7 @@ message PlumBodySeal {
 message PlumHead {
     required PlumBodySeal body_seal = 1;
     required ContentType body_content_type = 2;
-    required int64 body_length = 3;
+    required uint64 body_length = 3;
     optional Nonce head_nonce_o = 4;
     optional Did owner_did_o = 5;
     optional UnixSeconds created_at_o = 6;

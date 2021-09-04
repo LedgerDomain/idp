@@ -1,10 +1,13 @@
 use crate::{
+    BranchNode,
     models::{
         PlumBodyRow,
         PlumBodyRowInsertion,
         PlumHeadRow,
         PlumHeadRowInsertion,
     },
+    Relational,
+    RelationFlags,
 };
 use diesel::{
     Connection,
@@ -16,6 +19,7 @@ use diesel::{
 };
 use failure::ResultExt; // Needed for .context("...") on errors.
 use idp_proto::{Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal};
+use std::collections::HashMap;
 // use uuid::Uuid;
 
 // This makes it possible to run embedded_migrations::run(&conn) to apply migrations at runtime.
@@ -214,13 +218,14 @@ impl Datahost {
     // Methods for determining relations between Plums
     //
 
-    fn accumulate_relations_recursive(
+    pub fn accumulated_relations_recursive(
         &self,
         plum_head_seal: &PlumHeadSeal,
         mask: RelationFlags,
-    ) -> Result<(), failure::Error> {
-        let relation_m: mut HashMap<PlumHeadSeal, RelationFlags> = HashMap::new();
-        Ok(self.accumulate_relations_recursive_impl(plum_head_seal, mask, relation_m)?)
+    ) -> Result<HashMap<PlumHeadSeal, RelationFlags>, failure::Error> {
+        let mut relation_m = HashMap::new();
+        self.accumulate_relations_recursive_impl(plum_head_seal, mask, &mut relation_m)?;
+        Ok(relation_m)
     }
 
     fn accumulate_relations_recursive_impl(
@@ -229,15 +234,56 @@ impl Datahost {
         mask: RelationFlags,
         relation_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
     ) -> Result<(), failure::Error> {
+        // This implementation is probably horribly wrong for if/when there are Relation cycles.
+
         if relation_m.contains_key(plum_head_seal) {
             // Already traversed; nothing to do.
             return Ok(())
         }
 
-        let inner_relation_m: mut HashMap<PlumHeadSeal, RelationFlags> = HashMap::new();
-        // TODO: Need to be able to deserialize a Plum into std::any::Any (maybe as `Box<dyn Any>`?)
-        // then check if that type implements Relational, and if so, call Relational::accumulate_relations
-        // on the deserialized thing.
+        let mut inner_relation_m: HashMap<PlumHeadSeal, RelationFlags> = HashMap::new();
+        // TEMP HACK: For now just use some hardcoded values of body_content_type to determine if
+        // a Relation query can be done on the PlumBody.
+        let plum_head_row = self.select_plum_head_row(plum_head_seal)?;
+        match std::str::from_utf8(plum_head_row.body_content_type.as_ref()) {
+            Ok("idp::BranchNode") => {
+                log::debug!("accumulate_relations_recursive_impl; deserializing idp::BranchNode");
+                let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
+                // If body_content_o is not None, then deserialize and accumulate relations.
+                if let Some(body_content) = plum_body_row.body_content_o {
+                    let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
+                    branch_node.accumulate_relations_nonrecursive(&mut inner_relation_m, mask.clone())?;
+                }
+            }
+            _ => {
+                // This data type is considered Relation-opaque, so don't traverse.  But later,
+                // some data types might implement Relational.  Or, more likely, Plums will have
+                // a relations attribute which allows them to define their own relations metadata,
+                // so this Datahost doesn't have to parse the body (because sometimes it won't
+                // be able to).
+            }
+        }
+
+        // Now go through the accumulated inner_relation_m and recurse.
+        for (inner_plum_head_seal, inner_relation_flags) in inner_relation_m.iter() {
+            // Just make sure that inner_relation_flags obeys the mask constraint.
+            assert_eq!(*inner_relation_flags & !mask, RelationFlags::NONE);
+
+            // NOTE that we're passing mask here, instead of inner_relation_flags, meaning that the
+            // full mask will "bypass" any RelationFlag "bottleneck" imposed by a particular data type.
+            // For example, only CONTENT_DEPENDENCY is used by DirNode, but if mask includes
+            // METADATA_DEPENDENCY, then on querying a child of the DirNode for its relations,
+            // METADATA_DEPENDENCY will be fair game again.  This may or may not be what is actually
+            // desired.  Will determine through testing.
+            log::debug!("accumulate_relations_recursive_impl; recursing on {:?}", inner_plum_head_seal);
+            self.accumulate_relations_recursive_impl(inner_plum_head_seal, mask.clone(), relation_m)?;
+
+            // Add inner_plum_head_seal with its computed inner_relation_flags to mark as traversed.
+            log::debug!("accumulate_relations_recursive_impl; adding to relation_m: {:?} -> {:?}", inner_plum_head_seal, inner_relation_flags);
+            relation_m.insert(inner_plum_head_seal.clone(), *inner_relation_flags);
+        }
+
+        Ok(())
     }
 
     //

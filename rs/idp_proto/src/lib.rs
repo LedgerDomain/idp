@@ -1,7 +1,17 @@
+mod builder;
 // This is private because the generated code is meant to be imported into the public modules listed above.
 mod generated;
 
-pub use crate::generated::idp::*;
+pub use crate::{
+    builder::{PlumBodyBuilder, PlumBuilder, PlumHeadBuilder},
+    generated::idp::*,
+};
+
+impl AsRef<[u8]> for Sha256Sum {
+    fn as_ref(&self) -> &[u8] {
+        self.value.as_ref()
+    }
+}
 
 impl From<&[u8]> for Sha256Sum {
     fn from(bytes: &[u8]) -> Self {
@@ -22,6 +32,12 @@ impl From<Sha256Sum> for Seal {
     }
 }
 
+impl AsRef<[u8]> for Nonce {
+    fn as_ref(&self) -> &[u8] {
+        self.value.as_ref()
+    }
+}
+
 impl From<&[u8]> for Nonce {
     fn from(bytes: &[u8]) -> Self {
         Nonce { value: bytes.to_vec() }
@@ -37,6 +53,12 @@ impl From<&str> for Nonce {
 impl From<Vec<u8>> for Nonce {
     fn from(value: Vec<u8>) -> Self {
         Nonce { value }
+    }
+}
+
+impl AsRef<[u8]> for ContentType {
+    fn as_ref(&self) -> &[u8] {
+        self.value.as_ref()
     }
 }
 

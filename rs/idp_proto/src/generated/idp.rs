@@ -38,7 +38,7 @@ pub struct Nonce {
 //     }
 // }
 
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
@@ -48,7 +48,7 @@ pub struct Seal {
     #[prost(message, required, tag = "1")]
     pub sha256sum: Sha256Sum,
 }
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
@@ -70,7 +70,7 @@ pub struct UnixSeconds {
 // Plum-specific types
 //
 
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
@@ -94,8 +94,8 @@ pub struct PlumHead {
     pub body_seal: PlumBodySeal,
     #[prost(message, required, tag = "2")]
     pub body_content_type: ContentType,
-    #[prost(int64, required, tag = "3")]
-    pub body_length: i64,
+    #[prost(uint64, required, tag = "3")]
+    pub body_length: u64,
     #[prost(message, optional, tag = "4")]
     pub head_nonce_o: ::core::option::Option<Nonce>,
     #[prost(message, optional, tag = "5")]

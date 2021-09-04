@@ -3,10 +3,13 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
-// Not public, because we want to hide the DB details from the user of the wallet SDK,
-// and only make pub exports of specific symbols.
-mod data_host;
+// Not public, because we want to only export certain symbols (below).
+mod branch_node;
+mod datahost;
 mod models;
+mod relation;
 mod schema;
 
-pub use data_host::DataHost;
+pub use branch_node::BranchNode;
+pub use datahost::Datahost;
+pub use relation::{Relational, Relation, RelationFlags};

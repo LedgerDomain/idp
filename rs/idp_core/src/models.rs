@@ -33,9 +33,12 @@ pub struct PlumHeadRow {
 
 impl std::convert::Into<PlumHead> for PlumHeadRow {
     fn into(self) -> PlumHead {
+        if self.body_length < 0 {
+            panic!("PlumHeadRow body_length field was negative.");
+        }
         PlumHead {
             body_seal: self.body_seal,
-            body_length: self.body_length,
+            body_length: self.body_length as u64,
             body_content_type: self.body_content_type,
             head_nonce_o: self.head_nonce_o,
             owner_did_o: self.owner_did_o,
@@ -63,10 +66,14 @@ pub struct PlumHeadRowInsertion<'a> {
 
 impl<'a> std::convert::From<&'a PlumHead> for PlumHeadRowInsertion<'a> {
     fn from(plum_head: &'a PlumHead) -> Self {
+        if plum_head.body_length > i64::MAX as u64 {
+            // TODO: Maybe make a u63 type which is defined as the overlap of i64 and u64
+            panic!("plum_head.body_length (which was {}) exceeded maximum acceptable value (which is {})", plum_head.body_length, i64::MAX);
+        }
         PlumHeadRowInsertion {
             head_seal: PlumHeadSeal::from(plum_head),
             body_seal: &plum_head.body_seal,
-            body_length: plum_head.body_length,
+            body_length: plum_head.body_length as i64,
             body_content_type: &plum_head.body_content_type,
             head_nonce_o: plum_head.head_nonce_o.as_ref(),
             owner_did_o: plum_head.owner_did_o.as_ref(),

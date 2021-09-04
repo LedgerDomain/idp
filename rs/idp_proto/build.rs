@@ -30,17 +30,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute("idp.PlumBodySeal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumBodySeal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.PlumHeadSeal", "#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.PlumHeadSeal", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.PlumHeadSeal", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumHeadSeal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumHeadSeal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.Seal", "#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.Seal", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.Seal", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Seal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Seal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.Sha256Sum", "#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.Sha256Sum", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.Sha256Sum", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Sha256Sum", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Sha256Sum", "#[sql_type = \"diesel::sql_types::Binary\"]")
