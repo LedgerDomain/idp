@@ -78,11 +78,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // The PlumHead doesn't yet exist, but was successfully added.
-                log::trace!("    success: pushed {:?}", plum_head_row_insertion.head_seal);
+                log::trace!("    success: created {}", plum_head_row_insertion.head_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumHead already exists, so there's nothing to do.
-                log::trace!("    success: already exists: {:?}", plum_head_row_insertion.head_seal);
+                log::trace!("    success: already exists: {}", plum_head_row_insertion.head_seal);
                 // TODO: Query the DB and verify that the pushed PlumHead is identical to the existing one.
             }
             Err(e) => {
@@ -105,11 +105,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // Success, nothing to do.
-                log::trace!("    success: pushed {:?}", plum_body_row_insertion.body_seal);
+                log::trace!("    success: created {}", plum_body_row_insertion.body_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumBody already exists, so now update it.
-                log::trace!("    PlumBody already exists: {:?}", plum_body_row_insertion.body_seal);
+                log::trace!("    PlumBody already exists: {}", plum_body_row_insertion.body_seal);
                 // TODO: Query the DB and verify that the pushed PlumBody is identical to the existing one.
 
             }
@@ -275,11 +275,11 @@ impl Datahost {
             // METADATA_DEPENDENCY, then on querying a child of the DirNode for its relations,
             // METADATA_DEPENDENCY will be fair game again.  This may or may not be what is actually
             // desired.  Will determine through testing.
-            log::trace!("accumulate_relations_recursive_impl; recursing on {:?}", inner_plum_head_seal);
+            log::trace!("accumulate_relations_recursive_impl; recursing on {}", inner_plum_head_seal);
             self.accumulate_relations_recursive_impl(inner_plum_head_seal, mask.clone(), relation_m)?;
 
             // Add inner_plum_head_seal with its computed inner_relation_flags to mark as traversed.
-            log::trace!("accumulate_relations_recursive_impl; adding to relation_m: {:?} -> {:?}", inner_plum_head_seal, inner_relation_flags);
+            log::trace!("accumulate_relations_recursive_impl; adding to relation_m: {} -> {:?}", inner_plum_head_seal, inner_relation_flags);
             relation_m.insert(inner_plum_head_seal.clone(), *inner_relation_flags);
         }
 
