@@ -185,7 +185,7 @@ impl Datahost {
             .context("Error loading plum_heads")?
             // This should return Some(plum_head_row)
             .pop()
-            .unwrap()
+            .ok_or_else(|| failure::format_err!("PlumHeadSeal {} not found", plum_head_seal))?
         )
     }
 
@@ -199,7 +199,7 @@ impl Datahost {
             .context("Error loading plum_bodies")?
             // This should return Some(plum_body_row)
             .pop()
-            .unwrap()
+            .ok_or_else(|| failure::format_err!("PlumBodySeal {} not found", plum_body_seal))?
         )
     }
 
