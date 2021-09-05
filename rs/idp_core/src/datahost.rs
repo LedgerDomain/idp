@@ -1,5 +1,6 @@
 use crate::{
     BranchNode,
+    DirNode,
     models::{
         PlumBodyRow,
         PlumBodyRowInsertion,
@@ -253,6 +254,15 @@ impl Datahost {
                 if let Some(body_content) = plum_body_row.body_content_o {
                     let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
                     branch_node.accumulate_relations_nonrecursive(&mut inner_relation_m, mask.clone())?;
+                }
+            }
+            Ok("idp::DirNode") => {
+                log::trace!("accumulate_relations_recursive_impl; deserializing idp::DirNode");
+                let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
+                // If body_content_o is not None, then deserialize and accumulate relations.
+                if let Some(body_content) = plum_body_row.body_content_o {
+                    let dir_node: DirNode = rmp_serde::from_read_ref(&body_content)?;
+                    dir_node.accumulate_relations_nonrecursive(&mut inner_relation_m, mask.clone())?;
                 }
             }
             _ => {
