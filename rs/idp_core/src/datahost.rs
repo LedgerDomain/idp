@@ -42,7 +42,7 @@ impl Datahost {
         dotenv::dotenv().ok();
         let database_url = std::env::var("IDP_DATAHOST_DATABASE_URL")
             .context("IDP_DATAHOST_DATABASE_URL env var must be set")?;
-        log::debug!("Datahost database_url is being determined by IDP_DATAHOST_DATABASE_URL env var");
+        log::info!("Datahost database_url is being determined by IDP_DATAHOST_DATABASE_URL env var");
         Self::open_database_url(&database_url)
     }
 
@@ -52,7 +52,7 @@ impl Datahost {
             "Error connecting to SQLite DB with database_url: {:#?}",
             database_url
         ))?;
-        log::debug!("Datahost opened using database_url: {:#?}", database_url);
+        log::info!("Datahost opened using database_url: {:#?}", database_url);
         let datahost = Datahost { conn };
         datahost.run_migrations()?;
         Ok(datahost)
@@ -68,7 +68,7 @@ impl Datahost {
     //
 
     pub fn create_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal, failure::Error> {
-        log::debug!("Datahost::create_plum_head({:?})", plum_head);
+        log::trace!("Datahost::create_plum_head({:?})", plum_head);
         let plum_head_row_insertion = PlumHeadRowInsertion::from(plum_head);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -78,11 +78,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // The PlumHead doesn't yet exist, but was successfully added.
-                log::debug!("    success: pushed {:?}", plum_head_row_insertion.head_seal);
+                log::trace!("    success: pushed {:?}", plum_head_row_insertion.head_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumHead already exists, so there's nothing to do.
-                log::debug!("    success: already exists: {:?}", plum_head_row_insertion.head_seal);
+                log::trace!("    success: already exists: {:?}", plum_head_row_insertion.head_seal);
                 // TODO: Query the DB and verify that the pushed PlumHead is identical to the existing one.
             }
             Err(e) => {
@@ -95,7 +95,7 @@ impl Datahost {
     }
 
     pub fn create_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal, failure::Error> {
-        log::debug!("Datahost::create_plum_body({:?})", plum_body);
+        log::trace!("Datahost::create_plum_body({:?})", plum_body);
         let plum_body_row_insertion = PlumBodyRowInsertion::from(plum_body);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -105,11 +105,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // Success, nothing to do.
-                log::debug!("    success: pushed {:?}", plum_body_row_insertion.body_seal);
+                log::trace!("    success: pushed {:?}", plum_body_row_insertion.body_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumBody already exists, so now update it.
-                log::debug!("    PlumBody already exists: {:?}", plum_body_row_insertion.body_seal);
+                log::trace!("    PlumBody already exists: {:?}", plum_body_row_insertion.body_seal);
                 // TODO: Query the DB and verify that the pushed PlumBody is identical to the existing one.
 
             }
@@ -247,7 +247,7 @@ impl Datahost {
         let plum_head_row = self.select_plum_head_row(plum_head_seal)?;
         match std::str::from_utf8(plum_head_row.body_content_type.as_ref()) {
             Ok("idp::BranchNode") => {
-                log::debug!("accumulate_relations_recursive_impl; deserializing idp::BranchNode");
+                log::trace!("accumulate_relations_recursive_impl; deserializing idp::BranchNode");
                 let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
                 // If body_content_o is not None, then deserialize and accumulate relations.
                 if let Some(body_content) = plum_body_row.body_content_o {
@@ -275,11 +275,11 @@ impl Datahost {
             // METADATA_DEPENDENCY, then on querying a child of the DirNode for its relations,
             // METADATA_DEPENDENCY will be fair game again.  This may or may not be what is actually
             // desired.  Will determine through testing.
-            log::debug!("accumulate_relations_recursive_impl; recursing on {:?}", inner_plum_head_seal);
+            log::trace!("accumulate_relations_recursive_impl; recursing on {:?}", inner_plum_head_seal);
             self.accumulate_relations_recursive_impl(inner_plum_head_seal, mask.clone(), relation_m)?;
 
             // Add inner_plum_head_seal with its computed inner_relation_flags to mark as traversed.
-            log::debug!("accumulate_relations_recursive_impl; adding to relation_m: {:?} -> {:?}", inner_plum_head_seal, inner_relation_flags);
+            log::trace!("accumulate_relations_recursive_impl; adding to relation_m: {:?} -> {:?}", inner_plum_head_seal, inner_relation_flags);
             relation_m.insert(inner_plum_head_seal.clone(), *inner_relation_flags);
         }
 
@@ -299,6 +299,6 @@ impl Datahost {
 
 impl Drop for Datahost {
     fn drop(&mut self) {
-        log::debug!("Datahost closed");
+        log::info!("Datahost closed");
     }
 }
