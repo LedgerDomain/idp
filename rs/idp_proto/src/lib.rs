@@ -7,6 +7,41 @@ pub use crate::{
     generated::idp::*,
 };
 
+//
+// std::fmt::Display implementations
+//
+
+impl std::fmt::Display for Sha256Sum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for byte in &self.value {
+            write!(f, "{:02X}", byte)?
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Seal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.sha256sum)
+    }
+}
+
+impl std::fmt::Display for PlumBodySeal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl std::fmt::Display for PlumHeadSeal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.value)
+    }
+}
+
+//
+// AsRef and From implementations for various types to make them usable.
+//
+
 impl AsRef<[u8]> for Sha256Sum {
     fn as_ref(&self) -> &[u8] {
         self.value.as_ref()
@@ -615,5 +650,28 @@ where
     type Row = <i64 as diesel::Queryable<ST, DB>>::Row;
     fn build(row: Self::Row) -> Self {
         UnixSeconds { value: i64::build(row) }
+    }
+}
+
+//
+// Some really basic tests, nothing fancy.
+//
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn display_sha256sum() -> Result<(), failure::Error> {
+        let _ = env_logger::try_init();
+
+        // Yes, this isn't actually a 256 bit value, but who cares.
+        let sha256sum = Sha256Sum::from(vec![0xAB, 0x91, 0xCE]);
+        log::debug!("sha256sum: {}", sha256sum);
+        let sha256sum_string = sha256sum.to_string();
+        assert_eq!(sha256sum_string.as_str(), "AB91CE");
+
+        Ok(())
     }
 }

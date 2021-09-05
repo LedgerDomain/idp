@@ -18,3 +18,7 @@ tonic = { version = "0.4.3", features = ["tls"] }
 # This is for building protobufs and GRPC service from .proto files
 [build-dependencies]
 tonic-build = { version = "0.4.2", features = ["prost"] }
+
+[dev-dependencies]
+env_logger = "0.8.4"
+log = "0.4.14"
