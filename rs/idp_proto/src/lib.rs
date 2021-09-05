@@ -249,8 +249,14 @@ impl From<DelHeadAndBodyResponse> for DelResponse {
 }
 
 //
-// Deriving Seal values from PlumHead and PlumBody
+// Deriving Seal values from Plum, PlumHead, PlumBody
 //
+
+impl From<&Plum> for PlumHeadSeal {
+    fn from(plum: &Plum) -> PlumHeadSeal {
+        PlumHeadSeal::from(&plum.head)
+    }
+}
 
 impl From<&PlumHead> for PlumHeadSeal {
     fn from(head: &PlumHead) -> PlumHeadSeal {

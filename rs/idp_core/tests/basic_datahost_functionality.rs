@@ -175,10 +175,6 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("HIPPOS are cool".as_bytes().to_vec())
         .build()?;
-    let content_plum_3 = PlumBuilder::new()
-        .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("nothing is cool at all".as_bytes().to_vec())
-        .build()?;
 
     let metadata_plum_0 = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
@@ -191,10 +187,6 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     let metadata_plum_2 = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("Revised statement authored by the HIPPO lobby".as_bytes().to_vec())
-        .build()?;
-    let metadata_plum_3 = PlumBuilder::new()
-        .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("I hate smurfberries".as_bytes().to_vec())
         .build()?;
 
     let branch_node_plum_0 = PlumBuilder::new()
@@ -239,20 +231,6 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
             )?
         )
         .build()?;
-    let branch_node_plum_3 = PlumBuilder::new()
-        .with_body_content_type(ContentType::from("idp::BranchNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &BranchNode {
-                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_plum_2.head)),
-                    metadata: PlumHeadSeal::from(&metadata_plum_3.head),
-                    content_o: Some(PlumHeadSeal::from(&content_plum_3.head)),
-                    posi_diff_o: None,
-                    nega_diff_o: None,
-                }
-            )?
-        )
-        .build()?;
 
     let datahost = Datahost::open_using_env_var()?;
 
@@ -262,21 +240,19 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
 
     datahost.create_plum(&content_plum_1)?;
     datahost.create_plum(&content_plum_2)?;
-    datahost.create_plum(&content_plum_3)?;
 
     datahost.create_plum(&metadata_plum_0)?;
     datahost.create_plum(&metadata_plum_1)?;
     datahost.create_plum(&metadata_plum_2)?;
-    datahost.create_plum(&metadata_plum_3)?;
 
     datahost.create_plum(&branch_node_plum_0)?;
     datahost.create_plum(&branch_node_plum_1)?;
     datahost.create_plum(&branch_node_plum_2)?;
-    datahost.create_plum(&branch_node_plum_3)?;
 
     //
-    // Now accumulate_relations_recursive and check the results.  branch_node_plum_3 is the head
+    // Now accumulate_relations_recursive and check the results.  branch_node_plum_2 is the head
     // of the branch, so it should depend on all other Plums.
+    // TODO: Actually check the RelationFlags values
     //
 
     {
@@ -285,10 +261,6 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     }
     {
         let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_2.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_3.head), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
 
@@ -302,10 +274,6 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     }
     {
         let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_plum_2.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_plum_3.head), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
 
@@ -325,16 +293,36 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
 
     {
         let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_1.head), RelationFlags::ALL)?;
-        log::debug!("branch_node_plum_0 -> {:?}", PlumHeadSeal::from(&branch_node_plum_0.head));
-        log::debug!("metadata_plum_0 -> {:?}", PlumHeadSeal::from(&metadata_plum_0.head));
-        log::debug!("metadata_plum_1 -> {:?}", PlumHeadSeal::from(&metadata_plum_1.head));
 
         log::debug!("relation_m: {:?}", relation_m);
-//         assert_eq!(relation_m.len(), 1);
+        assert_eq!(relation_m.len(), 4);
+        // These are the dependencies of branch_node_plum_0
         assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_0.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_1.head)));
+        // These are the dependencies of branch_node_plum_1
         assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_0.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_1.head)));
         assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1.head)));
+    }
+
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_2.head), RelationFlags::ALL)?;
+
+        log::debug!("relation_m: {:?}", relation_m);
+        assert_eq!(relation_m.len(), 7);
+        // These are the dependencies of branch_node_plum_0
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_0.head)));
+        // These are the dependencies of branch_node_plum_1
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_0.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_1.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1.head)));
+        // These are the dependencies of branch_node_plum_2
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_1.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_2.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_2.head)));
+    }
+
+    Ok(())
+}
     }
 
     Ok(())
