@@ -134,6 +134,17 @@ Rust SDK for Indoor Data Plumbing
             lack the query implementation details.  But they're already limited in significant ways, and
             the point of IDP is to escape the limitations of existing patterns.
 
+    -   DirNode
+        -   Maybe allow symlinks as entries.  This feature could range in complexity:
+            -   Simple, local symlinks only: an entry specifies the name of another entry, and it does the lookup,
+                potentially nesting the lookups.  Cycles would need to be prevented.  E.g.
+            -   Full symlinks: A symlink would effectively be replaced by a query string.  E.g. the symlink
+                `stuff -> pics/ostrich.jpg` would indicate that a fragment query was needed to resolve it into
+                a PlumHeadSeal (or `Box<Any>`, when that's implemented).  A DirNode by itself would not be able
+                to support `../siblingdir`, because a DirNode by itself lacks the context needed to resolve it
+                unambiguously.  And because a DirNode could an entry in potentially many other DirNodes, the
+                resolution would depend on which parent DirNode it came through.  This makes sense within the
+                context of a fragment query, but not otherwise.
     -   Filesystem mapping
         -   Store Plum Head-s and Body-s as files in the filesystem using their seal values as their filenames.
             These should always be read-only, since they're immutable within the data model.
@@ -199,3 +210,5 @@ Rust SDK for Indoor Data Plumbing
             of the data in "regressive" form (e.g. mapped to a file hierarchy, or written to a DB) is good
             for hedging against loss of the ability to use the fancy software, as well as being able to
             back the data up into a form that is more plainly readable to a human.
+    -   There may be challenges in complete fetching of data when permissions come into play.  One way to
+        handle this could be to implement some sort of "request access" feature.
