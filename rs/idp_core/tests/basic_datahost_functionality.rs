@@ -165,16 +165,21 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<(), failure::Err
 
 #[test]
 #[serial]
-fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
+fn test_datahost_branch_node() -> Result<(), failure::Error> {
     let _ = env_logger::try_init();
+
+    let datahost = Datahost::open_using_env_var()?;
+
+    let content_1 = "splunges are cool";
+    let content_2 = "HIPPOS are cool";
 
     let content_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("splunges are cool".as_bytes().to_vec())
+        .with_body_content(content_1.as_bytes().to_vec())
         .build()?;
     let content_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("HIPPOS are cool".as_bytes().to_vec())
+        .with_body_content(content_2.as_bytes().to_vec())
         .build()?;
 
     let metadata_0_plum = PlumBuilder::new()
@@ -190,65 +195,51 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
         .with_body_content("Revised statement authored by the HIPPO lobby".as_bytes().to_vec())
         .build()?;
 
+    let content_1_plum_head_seal = datahost.create_plum(&content_1_plum)?;
+    let content_2_plum_head_seal = datahost.create_plum(&content_2_plum)?;
+
+    let metadata_0_plum_head_seal = datahost.create_plum(&metadata_0_plum)?;
+    let metadata_1_plum_head_seal = datahost.create_plum(&metadata_1_plum)?;
+    let metadata_2_plum_head_seal = datahost.create_plum(&metadata_2_plum)?;
+
+    let branch_node_0 = BranchNode {
+        ancestor_o: None,
+        metadata: metadata_0_plum_head_seal.clone(),
+        content_o: None,
+        posi_diff_o: None,
+        nega_diff_o: None,
+    };
     let branch_node_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &BranchNode {
-                    ancestor_o: None,
-                    metadata: PlumHeadSeal::from(&metadata_0_plum.head),
-                    content_o: None,
-                    posi_diff_o: None,
-                    nega_diff_o: None,
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&branch_node_0)?)
         .build()?;
+    let branch_node_0_plum_head_seal = datahost.create_plum(&branch_node_0_plum)?;
+
+    let branch_node_1 = BranchNode {
+        ancestor_o: Some(branch_node_0_plum_head_seal.clone()),
+        metadata: metadata_1_plum_head_seal.clone(),
+        content_o: Some(content_1_plum_head_seal.clone()),
+        posi_diff_o: None,
+        nega_diff_o: None,
+    };
     let branch_node_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &BranchNode {
-                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_0_plum.head)),
-                    metadata: PlumHeadSeal::from(&metadata_1_plum.head),
-                    content_o: Some(PlumHeadSeal::from(&content_1_plum.head)),
-                    posi_diff_o: None,
-                    nega_diff_o: None,
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&branch_node_1)?)
         .build()?;
+    let branch_node_1_plum_head_seal = datahost.create_plum(&branch_node_1_plum)?;
+
+    let branch_node_2 = BranchNode {
+        ancestor_o: Some(branch_node_1_plum_head_seal.clone()),
+        metadata: metadata_2_plum_head_seal.clone(),
+        content_o: Some(content_2_plum_head_seal.clone()),
+        posi_diff_o: None,
+        nega_diff_o: None,
+    };
     let branch_node_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &BranchNode {
-                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_1_plum.head)),
-                    metadata: PlumHeadSeal::from(&metadata_2_plum.head),
-                    content_o: Some(PlumHeadSeal::from(&content_2_plum.head)),
-                    posi_diff_o: None,
-                    nega_diff_o: None,
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&branch_node_2)?)
         .build()?;
-
-    let datahost = Datahost::open_using_env_var()?;
-
-    //
-    // Now add all the Plum-s to the Datahost.
-    //
-
-    datahost.create_plum(&content_1_plum)?;
-    datahost.create_plum(&content_2_plum)?;
-
-    datahost.create_plum(&metadata_0_plum)?;
-    datahost.create_plum(&metadata_1_plum)?;
-    datahost.create_plum(&metadata_2_plum)?;
-
-    datahost.create_plum(&branch_node_0_plum)?;
-    datahost.create_plum(&branch_node_1_plum)?;
-    datahost.create_plum(&branch_node_2_plum)?;
+    let branch_node_2_plum_head_seal = datahost.create_plum(&branch_node_2_plum)?;
 
     //
     // Now accumulate_relations_recursive and check the results.  branch_node_2_plum is the head
@@ -257,69 +248,146 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     //
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_1_plum.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&content_1_plum_head_seal, RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_2_plum.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_0_plum.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_1_plum.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_2_plum.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&content_2_plum_head_seal, RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_0_plum.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&metadata_0_plum_head_seal, RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&metadata_1_plum_head_seal, RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&metadata_2_plum_head_seal, RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&branch_node_0_plum_head_seal, RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 1);
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
+        assert!(relation_m.contains_key(&metadata_0_plum_head_seal));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_0_plum.head), RelationFlags::CONTENT_DEPENDENCY)?;
+        let relation_m = datahost.accumulated_relations_recursive(&branch_node_0_plum_head_seal, RelationFlags::CONTENT_DEPENDENCY)?;
         log::debug!("relation_m: {:?}", relation_m);
         // Empty because metadata is METADATA_DEPENDENCY.
         assert!(relation_m.is_empty());
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_1_plum.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&branch_node_1_plum_head_seal, RelationFlags::ALL)?;
 
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 4);
         // These are the dependencies of branch_node_0_plum
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
+        assert!(relation_m.contains_key(&metadata_0_plum_head_seal));
         // These are the dependencies of branch_node_1_plum
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_0_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_1_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum.head)));
+        assert!(relation_m.contains_key(&branch_node_0_plum_head_seal));
+        assert!(relation_m.contains_key(&metadata_1_plum_head_seal));
+        assert!(relation_m.contains_key(&content_1_plum_head_seal));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_2_plum.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&branch_node_2_plum_head_seal, RelationFlags::ALL)?;
 
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 7);
         // These are the dependencies of branch_node_0_plum
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
+        assert!(relation_m.contains_key(&metadata_0_plum_head_seal));
         // These are the dependencies of branch_node_1_plum
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_0_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_1_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum.head)));
+        assert!(relation_m.contains_key(&branch_node_0_plum_head_seal));
+        assert!(relation_m.contains_key(&metadata_1_plum_head_seal));
+        assert!(relation_m.contains_key(&content_1_plum_head_seal));
         // These are the dependencies of branch_node_2_plum
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_1_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_2_plum.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_2_plum.head)));
+        assert!(relation_m.contains_key(&branch_node_1_plum_head_seal));
+        assert!(relation_m.contains_key(&metadata_2_plum_head_seal));
+        assert!(relation_m.contains_key(&content_2_plum_head_seal));
+    }
+
+    //
+    // Testing FragmentQueryable
+    //
+
+    {
+        // Self-query
+        assert_eq!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "")?,
+            FragmentQueryResult::Value(branch_node_0_plum_head_seal.clone()),
+        );
+        // No ancestor
+        assert!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "ancestor").is_err()
+        );
+        // No content
+        assert!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "content").is_err()
+        );
+        // Invalid entry
+        assert!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "nonexistent").is_err()
+        );
+        assert_eq!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata")?,
+            FragmentQueryResult::Value(metadata_0_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_0_plum_head_seal.clone(), rest_of_query_str: "" },
+        );
+        assert_eq!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/stuff")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_0_plum_head_seal.clone(), rest_of_query_str: "stuff" },
+        );
+        assert_eq!(
+            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/stuff/and/things")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_0_plum_head_seal.clone(), rest_of_query_str: "stuff/and/things" },
+        );
+    }
+
+    {
+        // Self-query
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "")?,
+            FragmentQueryResult::Value(branch_node_1_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "ancestor")?,
+            FragmentQueryResult::Value(branch_node_0_plum_head_seal.clone()),
+        );
+        // No content
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "content")?,
+            FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
+        );
+        // Invalid entry
+        assert!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "nonexistent").is_err()
+        );
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata")?,
+            FragmentQueryResult::Value(metadata_1_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_1_plum_head_seal.clone(), rest_of_query_str: "" },
+        );
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/stuff")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_1_plum_head_seal.clone(), rest_of_query_str: "stuff" },
+        );
+        assert_eq!(
+            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/stuff/and/things")?,
+            FragmentQueryResult::ForwardQueryTo { target: metadata_1_plum_head_seal.clone(), rest_of_query_str: "stuff/and/things" },
+        );
     }
 
     Ok(())

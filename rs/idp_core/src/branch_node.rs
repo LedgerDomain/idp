@@ -1,4 +1,4 @@
-use crate::{Relational, RelationFlags};
+use crate::{FragmentQueryable, FragmentQueryResult, Relational, RelationFlags};
 use idp_proto::PlumHeadSeal;
 use std::collections::HashMap;
 
@@ -56,5 +56,51 @@ impl Relational for BranchNode {
             }
         }
         Ok(())
+    }
+}
+
+impl<'a> FragmentQueryable<'a> for BranchNode {
+    /// For BranchNode, the query_str should have one of the following forms:
+    ///     0.  <empty-string>
+    ///     1.  <entry-name>
+    ///     2.  <entry-name>/<rest-of-query-str>
+    /// where <entry-name> must be one of:
+    /// -   ancestor
+    /// -   metadata
+    /// -   content
+    /// TODO: Document the fact that ancestor and content can be None; maybe make a way to query that fact.
+    /// TODO: Support posi_diff and nega_diff when they're implemented.
+    /// In case 0, the BranchNode itself will be returned (as its PlumHeadSeal).
+    /// In case 1, the PlumHeadSeal of the entry will be returned.
+    /// In case 2, <rest-of-query-str> will be forwarded to query the Plum referred to by <entry-name>.
+    fn fragment_query_single_segment(
+        &self,
+        self_plum_head_seal: &PlumHeadSeal,
+        query_str: &'a str,
+    ) -> Result<FragmentQueryResult<'a>, failure::Error> {
+        // If query_str is empty, return this BranchNode's PlumHeadSeal.
+        if query_str.is_empty() {
+            return Ok(FragmentQueryResult::Value(self_plum_head_seal.clone()));
+        }
+        let (entry_name, rest_of_query_str_o) = match query_str.split_once('/') {
+            Some((entry_name, rest_of_query_str)) => (entry_name, Some(rest_of_query_str)),
+            None => (query_str, None)
+        };
+        let entry_o = match entry_name {
+            "ancestor" => self.ancestor_o.clone(),
+            "metadata" => Some(self.metadata.clone()),
+            "content" => self.content_o.clone(),
+            _ => {
+                return Err(failure::format_err!("BranchNode does not have entry {:?}", entry_name));
+            }
+        };
+        if entry_o.is_none() {
+            return Err(failure::format_err!("BranchNode entry {} is not set for BranchNode {}", entry_name, self_plum_head_seal));
+        }
+        let entry = entry_o.unwrap();
+        match rest_of_query_str_o {
+            Some(rest_of_query_str) => Ok(FragmentQueryResult::ForwardQueryTo { target: entry.clone(), rest_of_query_str }),
+            None => Ok(FragmentQueryResult::Value(entry.clone()))
+        }
     }
 }
