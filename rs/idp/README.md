@@ -101,6 +101,39 @@ Rust SDK for Indoor Data Plumbing
                 of formally versioned data, e.g. the state of a relational DB.
             -   MergeNode Plums (this would be a list of 0 or more BranchNode Plums (via their PlumHeadSeal values))
                 This feature should be implemented later.
+    -   Querying
+        -   The idea is to be able to query specific data out of the hierarchy of known data types, e.g.
+            -   DirNode: has entries with strings for names, so those strings form its "path" parameters.
+                If there were a hierarchy of DirNodes, then a query could look like
+
+                    dir0/downloads/file1.txt
+
+            -   BranchNode: has ancestor, metadata, content, etc.  A query could look like
+
+                    content/dir0/downloads/file1.txt
+
+                where the branch content is the DirNode in the above example.
+        -   Attempting to map this concept onto URLs (useful mainly for adoption; there is necessarily some
+            loss in the mapping onto URLs), there can be server-side querying (query params) and client-side
+            querying (fragment).  Such a URL could look like any of the following (noting that query params
+            have to use %XX hex encoding for special chars, including `/`, but that fragment does not have to
+            encode `/`):
+            -   Server-side query
+
+                    https://server.com/plum/<plum-head-seal>?q=dir0%2Fdownloads%2Ffile1.txt
+
+            -   Client-side query
+
+                    https://server.com/plum/<plum-head-seal>#dir0/downloads/file1.txt
+
+            -   Half and half
+
+                    https://server.com/plum/<plum-head-seal>?q=dir0%2Fdownloads#file1.txt
+
+        -   I don't think the fragment query stuff would map directly into web browsers because they would
+            lack the query implementation details.  But they're already limited in significant ways, and
+            the point of IDP is to escape the limitations of existing patterns.
+
     -   Filesystem mapping
         -   Store Plum Head-s and Body-s as files in the filesystem using their seal values as their filenames.
             These should always be read-only, since they're immutable within the data model.

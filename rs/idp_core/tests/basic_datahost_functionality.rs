@@ -1,4 +1,4 @@
-use idp_core::{BranchNode, Datahost, DirNode, RelationFlags};
+use idp_core::{BranchNode, Datahost, DirNode, FragmentQueryable, FragmentQueryResult, RelationFlags};
 use idp_proto::{ContentType, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder, PlumHeadBuilder, PlumHeadSeal};
 use serial_test::serial;
 use std::collections::BTreeMap;
@@ -168,35 +168,35 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<(), failure::Err
 fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     let _ = env_logger::try_init();
 
-    let content_plum_1 = PlumBuilder::new()
+    let content_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("splunges are cool".as_bytes().to_vec())
         .build()?;
-    let content_plum_2 = PlumBuilder::new()
+    let content_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("HIPPOS are cool".as_bytes().to_vec())
         .build()?;
 
-    let metadata_plum_0 = PlumBuilder::new()
+    let metadata_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("Branch root".as_bytes().to_vec())
         .build()?;
-    let metadata_plum_1 = PlumBuilder::new()
+    let metadata_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("Initial statement".as_bytes().to_vec())
         .build()?;
-    let metadata_plum_2 = PlumBuilder::new()
+    let metadata_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content("Revised statement authored by the HIPPO lobby".as_bytes().to_vec())
         .build()?;
 
-    let branch_node_plum_0 = PlumBuilder::new()
+    let branch_node_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
         .with_body_content(
             rmp_serde::to_vec(
                 &BranchNode {
                     ancestor_o: None,
-                    metadata: PlumHeadSeal::from(&metadata_plum_0.head),
+                    metadata: PlumHeadSeal::from(&metadata_0_plum.head),
                     content_o: None,
                     posi_diff_o: None,
                     nega_diff_o: None,
@@ -204,28 +204,28 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
             )?
         )
         .build()?;
-    let branch_node_plum_1 = PlumBuilder::new()
+    let branch_node_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
         .with_body_content(
             rmp_serde::to_vec(
                 &BranchNode {
-                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_plum_0.head)),
-                    metadata: PlumHeadSeal::from(&metadata_plum_1.head),
-                    content_o: Some(PlumHeadSeal::from(&content_plum_1.head)),
+                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_0_plum.head)),
+                    metadata: PlumHeadSeal::from(&metadata_1_plum.head),
+                    content_o: Some(PlumHeadSeal::from(&content_1_plum.head)),
                     posi_diff_o: None,
                     nega_diff_o: None,
                 }
             )?
         )
         .build()?;
-    let branch_node_plum_2 = PlumBuilder::new()
+    let branch_node_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::BranchNode"))
         .with_body_content(
             rmp_serde::to_vec(
                 &BranchNode {
-                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_plum_1.head)),
-                    metadata: PlumHeadSeal::from(&metadata_plum_2.head),
-                    content_o: Some(PlumHeadSeal::from(&content_plum_2.head)),
+                    ancestor_o: Some(PlumHeadSeal::from(&branch_node_1_plum.head)),
+                    metadata: PlumHeadSeal::from(&metadata_2_plum.head),
+                    content_o: Some(PlumHeadSeal::from(&content_2_plum.head)),
                     posi_diff_o: None,
                     nega_diff_o: None,
                 }
@@ -239,87 +239,87 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
     // Now add all the Plum-s to the Datahost.
     //
 
-    datahost.create_plum(&content_plum_1)?;
-    datahost.create_plum(&content_plum_2)?;
+    datahost.create_plum(&content_1_plum)?;
+    datahost.create_plum(&content_2_plum)?;
 
-    datahost.create_plum(&metadata_plum_0)?;
-    datahost.create_plum(&metadata_plum_1)?;
-    datahost.create_plum(&metadata_plum_2)?;
+    datahost.create_plum(&metadata_0_plum)?;
+    datahost.create_plum(&metadata_1_plum)?;
+    datahost.create_plum(&metadata_2_plum)?;
 
-    datahost.create_plum(&branch_node_plum_0)?;
-    datahost.create_plum(&branch_node_plum_1)?;
-    datahost.create_plum(&branch_node_plum_2)?;
+    datahost.create_plum(&branch_node_0_plum)?;
+    datahost.create_plum(&branch_node_1_plum)?;
+    datahost.create_plum(&branch_node_2_plum)?;
 
     //
-    // Now accumulate_relations_recursive and check the results.  branch_node_plum_2 is the head
+    // Now accumulate_relations_recursive and check the results.  branch_node_2_plum is the head
     // of the branch, so it should depend on all other Plums.
     // TODO: Actually check the RelationFlags values
     //
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_1.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_1_plum.head), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_2.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_plum_0.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_plum_1.head), RelationFlags::ALL)?;
-        assert!(relation_m.is_empty());
-    }
-    {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_plum_2.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_2_plum.head), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_0.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_0_plum.head), RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_1_plum.head), RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&metadata_2_plum.head), RelationFlags::ALL)?;
+        assert!(relation_m.is_empty());
+    }
+
+    {
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_0_plum.head), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 1);
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_0.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_0.head), RelationFlags::CONTENT_DEPENDENCY)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_0_plum.head), RelationFlags::CONTENT_DEPENDENCY)?;
         log::debug!("relation_m: {:?}", relation_m);
         // Empty because metadata is METADATA_DEPENDENCY.
         assert!(relation_m.is_empty());
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_1.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_1_plum.head), RelationFlags::ALL)?;
 
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 4);
-        // These are the dependencies of branch_node_plum_0
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_0.head)));
-        // These are the dependencies of branch_node_plum_1
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_0.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_1.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1.head)));
+        // These are the dependencies of branch_node_0_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
+        // These are the dependencies of branch_node_1_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_0_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_1_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum.head)));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_plum_2.head), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&branch_node_2_plum.head), RelationFlags::ALL)?;
 
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 7);
-        // These are the dependencies of branch_node_plum_0
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_0.head)));
-        // These are the dependencies of branch_node_plum_1
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_0.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_1.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1.head)));
-        // These are the dependencies of branch_node_plum_2
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_plum_1.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_plum_2.head)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_2.head)));
+        // These are the dependencies of branch_node_0_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_0_plum.head)));
+        // These are the dependencies of branch_node_1_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_0_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_1_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum.head)));
+        // These are the dependencies of branch_node_2_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&branch_node_1_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&metadata_2_plum.head)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_2_plum.head)));
     }
 
     Ok(())
@@ -327,80 +327,72 @@ fn test_datahost_create_branch_nodes() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_create_dir_nodes() -> Result<(), failure::Error> {
+fn test_datahost_dir_node() -> Result<(), failure::Error> {
     let _ = env_logger::try_init();
 
-    let content_plum_0 = PlumBuilder::new()
+    let content_0 = "ostriches are cool";
+    let content_1 = "splunges are cool";
+
+    let content_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("ostriches are cool".as_bytes().to_vec())
+        .with_body_content(content_0.as_bytes().to_vec())
         .build()?;
-    let content_plum_1 = PlumBuilder::new()
+    let content_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content("splunges are cool".as_bytes().to_vec())
+        .with_body_content(content_1.as_bytes().to_vec())
         .build()?;
 
-    let dir_node_plum_0 = PlumBuilder::new()
+    let dir_node_0 = DirNode {
+        // Make this one an empty DirNode.
+        entry_m: BTreeMap::new(),
+    };
+    let dir_node_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &DirNode {
-                    // Make this one an empty DirNode.
-                    entry_m: BTreeMap::new(),
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&dir_node_0)?)
         .build()?;
-    let dir_node_plum_1 = PlumBuilder::new()
+
+    let dir_node_1 = DirNode {
+        entry_m: maplit::btreemap!{
+            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
+        },
+    };
+    let dir_node_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &DirNode {
-                    entry_m: maplit::btreemap!{
-                        "ostriches.txt".to_string() => PlumHeadSeal::from(&content_plum_0),
-                    },
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&dir_node_1)?)
         .build()?;
-    let dir_node_plum_2 = PlumBuilder::new()
+
+    let dir_node_2 = DirNode {
+        entry_m: maplit::btreemap!{
+            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
+            "splunges.txt".to_string() => PlumHeadSeal::from(&content_1_plum),
+        },
+    };
+    let dir_node_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &DirNode {
-                    entry_m: maplit::btreemap!{
-                        "ostriches.txt".to_string() => PlumHeadSeal::from(&content_plum_0),
-                        "splunges.txt".to_string() => PlumHeadSeal::from(&content_plum_1),
-                    },
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&dir_node_2)?)
         .build()?;
-    let dir_node_plum_3 = PlumBuilder::new()
+
+    let dir_node_3 = DirNode {
+        entry_m: maplit::btreemap!{
+            "dir0".to_string() => PlumHeadSeal::from(&dir_node_0_plum),
+            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
+            "splunges.txt".to_string() => PlumHeadSeal::from(&content_1_plum),
+        },
+    };
+    let dir_node_3_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &DirNode {
-                    entry_m: maplit::btreemap!{
-                        "dir0".to_string() => PlumHeadSeal::from(&dir_node_plum_0),
-                        "ostriches.txt".to_string() => PlumHeadSeal::from(&content_plum_0),
-                        "splunges.txt".to_string() => PlumHeadSeal::from(&content_plum_1),
-                    },
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&dir_node_3)?)
         .build()?;
-    let dir_node_plum_4 = PlumBuilder::new()
+
+    let dir_node_4 = DirNode {
+        entry_m: maplit::btreemap!{
+            "dir1".to_string() => PlumHeadSeal::from(&dir_node_1_plum),
+            "dir2".to_string() => PlumHeadSeal::from(&dir_node_2_plum),
+        },
+    };
+    let dir_node_4_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
-        .with_body_content(
-            rmp_serde::to_vec(
-                &DirNode {
-                    entry_m: maplit::btreemap!{
-                        "dir1".to_string() => PlumHeadSeal::from(&dir_node_plum_1),
-                        "dir2".to_string() => PlumHeadSeal::from(&dir_node_plum_2),
-                    },
-                }
-            )?
-        )
+        .with_body_content(rmp_serde::to_vec(&dir_node_4)?)
         .build()?;
 
     let datahost = Datahost::open_using_env_var()?;
@@ -409,14 +401,14 @@ fn test_datahost_create_dir_nodes() -> Result<(), failure::Error> {
     // Now add all the Plum-s to the Datahost.
     //
 
-    datahost.create_plum(&content_plum_0)?;
-    datahost.create_plum(&content_plum_1)?;
+    let content_0_plum_head_seal = datahost.create_plum(&content_0_plum)?;
+    let content_1_plum_head_seal = datahost.create_plum(&content_1_plum)?;
 
-    datahost.create_plum(&dir_node_plum_0)?;
-    datahost.create_plum(&dir_node_plum_1)?;
-    datahost.create_plum(&dir_node_plum_2)?;
-    datahost.create_plum(&dir_node_plum_3)?;
-    datahost.create_plum(&dir_node_plum_4)?;
+    datahost.create_plum(&dir_node_0_plum)?;
+    datahost.create_plum(&dir_node_1_plum)?;
+    datahost.create_plum(&dir_node_2_plum)?;
+    datahost.create_plum(&dir_node_3_plum)?;
+    datahost.create_plum(&dir_node_4_plum)?;
 
     //
     // Now accumulate_relations_recursive and check the results.
@@ -424,54 +416,135 @@ fn test_datahost_create_dir_nodes() -> Result<(), failure::Error> {
     //
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_0), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_0_plum), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_plum_1), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&content_1_plum), RelationFlags::ALL)?;
         assert!(relation_m.is_empty());
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_plum_0), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_0_plum), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
         assert_eq!(relation_m.len(), 0);
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_plum_1), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_1_plum), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
-        // These are the dependencies of dir_node_plum_1
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_0)));
+        // These are the dependencies of dir_node_1_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_plum_2), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_2_plum), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
-        // These are the dependencies of dir_node_plum_2
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_0)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1)));
+        // These are the dependencies of dir_node_2_plum
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum)));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_plum_3), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_3_plum), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
-        // These are the dependencies of dir_node_plum_3.  Note that dir_node_plum_0 contains no entries.
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_plum_0)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_0)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1)));
+        // These are the dependencies of dir_node_3_plum.  Note that dir_node_0_plum contains no entries.
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_0_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum)));
     }
 
     {
-        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_plum_4), RelationFlags::ALL)?;
+        let relation_m = datahost.accumulated_relations_recursive(&PlumHeadSeal::from(&dir_node_4_plum), RelationFlags::ALL)?;
         log::debug!("relation_m: {:?}", relation_m);
-        // These are the dependencies of dir_node_plum_4.  Note that content_plum_0 and content_plum_1 are
-        // both contained in dir_node_plum_2, and content_plum_0 is contained in dir_node_plum_1.
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_plum_1)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_plum_2)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_0)));
-        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_plum_1)));
+        // These are the dependencies of dir_node_4_plum.  Note that content_0_plum and content_1_plum are
+        // both contained in dir_node_2_plum, and content_0_plum is contained in dir_node_1_plum.
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_1_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&dir_node_2_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
+        assert!(relation_m.contains_key(&PlumHeadSeal::from(&content_1_plum)));
+    }
+
+    //
+    // Test FragmentQueryable
+    //
+
+    {
+        let dir_node_0_plum_head_seal = PlumHeadSeal::from(&dir_node_0_plum);
+        let dir_node_1_plum_head_seal = PlumHeadSeal::from(&dir_node_1_plum);
+        let dir_node_2_plum_head_seal = PlumHeadSeal::from(&dir_node_2_plum);
+        let dir_node_3_plum_head_seal = PlumHeadSeal::from(&dir_node_3_plum);
+
+        assert_eq!(
+            dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "")?,
+            FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
+        );
+        assert!(dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "nonexistent").is_err());
+
+        assert_eq!(
+            dir_node_1.fragment_query_single_segment(&dir_node_1_plum_head_seal, "")?,
+            FragmentQueryResult::Value(dir_node_1_plum_head_seal.clone()),
+        );
+        assert!(dir_node_1.fragment_query_single_segment(&dir_node_1_plum_head_seal, "nonexistent").is_err());
+        assert_eq!(
+            dir_node_1.fragment_query_single_segment(&dir_node_1_plum_head_seal, "ostriches.txt")?,
+            FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
+        );
+
+        assert_eq!(
+            dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "")?,
+            FragmentQueryResult::Value(dir_node_2_plum_head_seal.clone()),
+        );
+        assert!(dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "nonexistent").is_err());
+        assert_eq!(
+            dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "ostriches.txt")?,
+            FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "splunges.txt")?,
+            FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
+        );
+
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "")?,
+            FragmentQueryResult::Value(dir_node_3_plum_head_seal.clone()),
+        );
+        assert!(dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "nonexistent").is_err());
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "ostriches.txt")?,
+            FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "splunges.txt")?,
+            FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0")?,
+            FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
+        );
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/stuff")?,
+            FragmentQueryResult::ForwardQueryTo {
+                target: dir_node_0_plum_head_seal.clone(),
+                rest_of_query_str: "stuff",
+            },
+        );
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/")?,
+            FragmentQueryResult::ForwardQueryTo {
+                target: dir_node_0_plum_head_seal.clone(),
+                rest_of_query_str: "",
+            },
+        );
+        assert_eq!(
+            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/stuff/and/things")?,
+            FragmentQueryResult::ForwardQueryTo {
+                target: dir_node_0_plum_head_seal.clone(),
+                rest_of_query_str: "stuff/and/things",
+            },
+        );
     }
 
     Ok(())
 }
+
