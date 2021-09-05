@@ -160,3 +160,9 @@ Rust SDK for Indoor Data Plumbing
             greatly simplified access logistics.  Furthermore, "strong documentation" could use those
             references to refer to "official concept definition" Plums directly, instead of just through
             English text which has to be parsed and looked up by the human user.
+    -   Filesystem / Relational DB use case: Regressive backup
+        -   Having a fancy system is great, but it requires having fancy software that may have a finite
+            lifespan, after which its fancy data is no longer usable.  Thus producing/keeping representations
+            of the data in "regressive" form (e.g. mapped to a file hierarchy, or written to a DB) is good
+            for hedging against loss of the ability to use the fancy software, as well as being able to
+            back the data up into a form that is more plainly readable to a human.
