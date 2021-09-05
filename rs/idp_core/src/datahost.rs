@@ -1,6 +1,8 @@
 use crate::{
     BranchNode,
     DirNode,
+    FragmentQueryable,
+    FragmentQueryResult,
     models::{
         PlumBodyRow,
         PlumBodyRowInsertion,
@@ -294,6 +296,67 @@ impl Datahost {
         }
 
         Ok(())
+    }
+
+    //
+    // Methods for fragment query
+    //
+
+    // TODO: Eventually make this return Box<Any> or something
+    pub fn fragment_query(
+        &self,
+        starting_plum_head_seal: &PlumHeadSeal,
+        query_str: &str,
+    ) -> Result<PlumHeadSeal, failure::Error> {
+        let mut current_plum_head_seal = starting_plum_head_seal.clone();
+        let mut current_query_str = query_str;
+        loop {
+            let plum_head_row = self.select_plum_head_row(&current_plum_head_seal)?;
+            let fragment_query_result = match std::str::from_utf8(plum_head_row.body_content_type.as_ref()) {
+                Ok("idp::BranchNode") => {
+                    log::trace!("fragment_query; deserializing idp::BranchNode");
+                    let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
+                    if plum_body_row.body_content_o.is_none() {
+                        return Err(failure::format_err!("Plum {} had missing body_content", current_plum_head_seal));
+                    }
+                    // Deserialize body_content and call fragment_query_single_segment.
+                    let body_content = plum_body_row.body_content_o.unwrap();
+                    let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
+                    branch_node.fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
+                }
+                Ok("idp::DirNode") => {
+                    log::trace!("fragment_query; deserializing idp::BranchNode");
+                    let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
+                    if plum_body_row.body_content_o.is_none() {
+                        return Err(failure::format_err!("Plum {} had missing body_content", current_plum_head_seal));
+                    }
+                    // Deserialize body_content and call fragment_query_single_segment.
+                    let body_content = plum_body_row.body_content_o.unwrap();
+                    let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
+                    branch_node.fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
+                }
+                _ => {
+                    // This data type is considered FragmentQueryable-opaque, so produce an error.
+                    // Later, this should just return the body_content.  But for now, for simplicity,
+                    // the fragment query returns PlumHeadSeal.
+                    return Err(failure::format_err!("not yet supported; This data type is considered FragmentQueryable-opaque"));
+                }
+            };
+            match fragment_query_result {
+                FragmentQueryResult::Value(plum_head_seal) => {
+                    // We reached the end of the query, so return.
+                    return Ok(plum_head_seal);
+                }
+                FragmentQueryResult::ForwardQueryTo { target, rest_of_query_str } => {
+                    // The query must continue.
+                    // This assert is to ensure the finite-time termination of this loop.
+                    assert!(rest_of_query_str.len() < current_query_str.len());
+                    // Update the "current" vars for the next iteration.
+                    current_plum_head_seal = target;
+                    current_query_str = rest_of_query_str;
+                }
+            }
+        }
     }
 
     //

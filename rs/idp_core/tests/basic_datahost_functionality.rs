@@ -398,6 +398,8 @@ fn test_datahost_branch_node() -> Result<(), failure::Error> {
 fn test_datahost_dir_node() -> Result<(), failure::Error> {
     let _ = env_logger::try_init();
 
+    let datahost = Datahost::open_using_env_var()?;
+
     let content_0 = "ostriches are cool";
     let content_1 = "splunges are cool";
 
@@ -410,6 +412,9 @@ fn test_datahost_dir_node() -> Result<(), failure::Error> {
         .with_body_content(content_1.as_bytes().to_vec())
         .build()?;
 
+    let content_0_plum_head_seal = datahost.create_plum(&content_0_plum)?;
+    let content_1_plum_head_seal = datahost.create_plum(&content_1_plum)?;
+
     let dir_node_0 = DirNode {
         // Make this one an empty DirNode.
         entry_m: BTreeMap::new(),
@@ -418,65 +423,55 @@ fn test_datahost_dir_node() -> Result<(), failure::Error> {
         .with_body_content_type(ContentType::from("idp::DirNode"))
         .with_body_content(rmp_serde::to_vec(&dir_node_0)?)
         .build()?;
+    let dir_node_0_plum_head_seal = datahost.create_plum(&dir_node_0_plum)?;
 
     let dir_node_1 = DirNode {
         entry_m: maplit::btreemap!{
-            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
+            "ostriches.txt".to_string() => content_0_plum_head_seal.clone(),
         },
     };
     let dir_node_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
         .with_body_content(rmp_serde::to_vec(&dir_node_1)?)
         .build()?;
+    let dir_node_1_plum_head_seal = datahost.create_plum(&dir_node_1_plum)?;
 
     let dir_node_2 = DirNode {
         entry_m: maplit::btreemap!{
-            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
-            "splunges.txt".to_string() => PlumHeadSeal::from(&content_1_plum),
+            "ostriches.txt".to_string() => content_0_plum_head_seal.clone(),
+            "splunges.txt".to_string() => content_1_plum_head_seal.clone(),
         },
     };
     let dir_node_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
         .with_body_content(rmp_serde::to_vec(&dir_node_2)?)
         .build()?;
+    let dir_node_2_plum_head_seal = datahost.create_plum(&dir_node_2_plum)?;
 
     let dir_node_3 = DirNode {
         entry_m: maplit::btreemap!{
-            "dir0".to_string() => PlumHeadSeal::from(&dir_node_0_plum),
-            "ostriches.txt".to_string() => PlumHeadSeal::from(&content_0_plum),
-            "splunges.txt".to_string() => PlumHeadSeal::from(&content_1_plum),
+            "dir0".to_string() => dir_node_0_plum_head_seal.clone(),
+            "ostriches.txt".to_string() => content_0_plum_head_seal.clone(),
+            "splunges.txt".to_string() => content_1_plum_head_seal.clone(),
         },
     };
     let dir_node_3_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
         .with_body_content(rmp_serde::to_vec(&dir_node_3)?)
         .build()?;
+    let dir_node_3_plum_head_seal = datahost.create_plum(&dir_node_3_plum)?;
 
     let dir_node_4 = DirNode {
         entry_m: maplit::btreemap!{
-            "dir1".to_string() => PlumHeadSeal::from(&dir_node_1_plum),
-            "dir2".to_string() => PlumHeadSeal::from(&dir_node_2_plum),
+            "dir1".to_string() => dir_node_1_plum_head_seal.clone(),
+            "dir2".to_string() => dir_node_2_plum_head_seal.clone(),
         },
     };
     let dir_node_4_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("idp::DirNode"))
         .with_body_content(rmp_serde::to_vec(&dir_node_4)?)
         .build()?;
-
-    let datahost = Datahost::open_using_env_var()?;
-
-    //
-    // Now add all the Plum-s to the Datahost.
-    //
-
-    let content_0_plum_head_seal = datahost.create_plum(&content_0_plum)?;
-    let content_1_plum_head_seal = datahost.create_plum(&content_1_plum)?;
-
-    datahost.create_plum(&dir_node_0_plum)?;
-    datahost.create_plum(&dir_node_1_plum)?;
-    datahost.create_plum(&dir_node_2_plum)?;
-    datahost.create_plum(&dir_node_3_plum)?;
-    datahost.create_plum(&dir_node_4_plum)?;
+    let dir_node_4_plum_head_seal = datahost.create_plum(&dir_node_4_plum)?;
 
     //
     // Now accumulate_relations_recursive and check the results.
@@ -538,13 +533,13 @@ fn test_datahost_dir_node() -> Result<(), failure::Error> {
     //
 
     {
-        let dir_node_0_plum_head_seal = PlumHeadSeal::from(&dir_node_0_plum);
-        let dir_node_1_plum_head_seal = PlumHeadSeal::from(&dir_node_1_plum);
-        let dir_node_2_plum_head_seal = PlumHeadSeal::from(&dir_node_2_plum);
-        let dir_node_3_plum_head_seal = PlumHeadSeal::from(&dir_node_3_plum);
-
         assert_eq!(
             dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "")?,
+            FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
+        );
+        // This should be the same as querying for ""
+        assert_eq!(
+            dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "/")?,
             FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
         );
         assert!(dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "nonexistent").is_err());
@@ -610,6 +605,65 @@ fn test_datahost_dir_node() -> Result<(), failure::Error> {
                 target: dir_node_0_plum_head_seal.clone(),
                 rest_of_query_str: "stuff/and/things",
             },
+        );
+    }
+
+    //
+    // Datahost fragment_query
+    //
+
+    {
+        assert_eq!(
+            datahost.fragment_query(&dir_node_0_plum_head_seal, "")?,
+            dir_node_0_plum_head_seal,
+        );
+        assert!(
+            datahost.fragment_query(&dir_node_0_plum_head_seal, "nonexistent").is_err()
+        );
+
+        assert_eq!(
+            datahost.fragment_query(&dir_node_1_plum_head_seal, "")?,
+            dir_node_1_plum_head_seal,
+        );
+        assert!(
+            datahost.fragment_query(&dir_node_1_plum_head_seal, "nonexistent").is_err()
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_1_plum_head_seal, "ostriches.txt")?,
+            content_0_plum_head_seal,
+        );
+
+        assert_eq!(
+            datahost.fragment_query(&dir_node_3_plum_head_seal, "dir0")?,
+            dir_node_0_plum_head_seal,
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_3_plum_head_seal, "ostriches.txt")?,
+            content_0_plum_head_seal,
+        );
+
+        assert_eq!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir1")?,
+            dir_node_1_plum_head_seal,
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2")?,
+            dir_node_2_plum_head_seal,
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir1/ostriches.txt")?,
+            content_0_plum_head_seal,
+        );
+        assert!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir1/nonexistent").is_err()
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2/ostriches.txt")?,
+            content_0_plum_head_seal,
+        );
+        assert_eq!(
+            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2/splunges.txt")?,
+            content_1_plum_head_seal,
         );
     }
 
