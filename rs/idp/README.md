@@ -17,22 +17,22 @@ Rust SDK for Indoor Data Plumbing
 -   Using features to enable client and/or server code generation within `idp_proto` and generally in `idp`.
     This way no redundant/unused code is generated.
 -   Each data type has an optional query method which can be used to query data out of that Plum.
--   Each data type has an optional associations method which can be used to determine which Plums
+-   Each data type has an optional relations method which can be used to determine which Plums
     a given Plum is related to.  Because some Plum bodies will be opaque data in certain contexts
-    (e.g. sitting on server that is simply a datastore for clients), the Plum association data could/should
+    (e.g. sitting on server that is simply a datastore for clients), the Plum relation data could/should
     potentially be a separate part of the Plum, so that it can be packaged and sent to authorized
     clients so that they can do the tracking themselves.  For example, an IDP server is running in
-    "lights out" mode, meaning that it's not tracking the associations itself, but will send the
-    association data to the client, which can track the associations and follow dependencies itself.
-    Obviously this is slower than if the server can pre-compute associations on behalf of the client,
+    "lights out" mode, meaning that it's not tracking the relations itself, but will send the
+    relation data to the client, which can track the relations and follow dependencies itself.
+    Obviously this is slower than if the server can pre-compute relations on behalf of the client,
     but there are tradeoffs for "lights out".
     -   The server (when operating in server/client mode) effectively is a superuser, because it's
-        privy to all the data.  It could do traversals of association data for the client subject
+        privy to all the data.  It could do traversals of relation data for the client subject
         to the client's permissions (e.g. determining the full tree of dependencies for a given Plum).
 -   The unit of data is the Plum, but higher order data structures (relational DBs, file hierarchies, etc)
     can be layered on top of the Plum layer.  This will be a conventional affordance to make IDP immediately
     understandable and usable.
--   Attempt to map the Plum Head/Body retrieval, as well as queries, onto URLs with HTTP/REST.  The
+-   Attempt to map the Plum Head/Body/Relations retrieval, as well as queries, onto URLs with HTTP/REST.  The
     fragment would be what provides the query, but the semantics of HTTP are that fragments are processed
     on the client side, which is not what IDP necessarily calls for.  Though the server-oriented
     fragments could be mapped onto the query params in URLs.
@@ -40,15 +40,17 @@ Rust SDK for Indoor Data Plumbing
     the Plum (Head and Body) provides:
     -   Data authentication (via authenticable hashes)
     -   Unique addressing of content
-    Tracking associations between Plums provides:
+    Tracking relations between Plums provides:
     -   Automatic fetching of dependencies, so that content can be automatically and completely replicated
         across peers.
+    -   Construction of relational tables such as hyperlinks, @mentions, and #hashtags.
     Layering on specific data types, such as data types that contain Plum references, provide:
     -   DLT functionality (not just blockchain, but rather Merkle tree)
     -   Formal versioning (similar to git), which can even apply to DB states by tracking deltas to the DB.
 -   How would the tracking of a relational DB work?
     -   State of the DB would be tracked formally via Plums that index:
         -   Previous state
+        -   PosiDiffs (and potentially NegaDiffs) between states
 -   How might this pattern be better than a traditional client/server pattern (even if a server is being used
     as the authoritative data source)?  You should use `git` as a starting point for your mental model of this.
     -   Client development could proceed without server involvement, because it's operating directly on
@@ -74,7 +76,9 @@ Rust SDK for Indoor Data Plumbing
 -   Feature design notes
     -   Recursive fetch of a Plum and all its dependencies
         -   Requires implementation of Relation (one Plum depending on another) and Relation query for
-            certain data types.
+            certain data types.  Or in general, a PlumRelations data structure that comes along with the
+            head and body.  This way the relations don't have to be derived by intermediaries, since they
+            might not be privy to the data from which the relations would be derived.
         -   Start by only supporting Relation query for a limited set of data types (BranchNode, DirNode).
         -   What's the difference between a content dependency and a metadata dependency?  This is meant
             to distinguish dependency trees consisting of only metadata from dependency trees that pass
@@ -173,6 +177,84 @@ Rust SDK for Indoor Data Plumbing
             entries are being modified more than inserted (e.g. in a turn-based game with a finite number
             of players, player location information would be updated more than inserted), and so the
             composed PosiDiff would be small compared to the full list of PosiDiffs.
+        -   The unit of replication should be the DB (take SQLite for now).  All actions done to that DB
+            would be recorded in the PosiDiff of the BranchNode that represents that DB state.  Actions
+            are taken on the DB in the usual CRUD way, and the Plums for BranchNode are created as needed.
+            This would include DB table alterations (though this is somewhat tricky, because usually
+            migrations are done to bring the data schema up to date with the software, and in this case,
+            that's not exactly true, you could potentially fast forward to a DB state that doesn't match
+            your software's expected DB model schema).
+            -   Example MVP app: Messaging with file attachments
+                -   There should be a notion of a user with a UserId
+                -   There should be a notion of publicly visible user profile info, which can mutate.
+                    -   Track user profile data as a Plum
+                -   There should be a notion of a message -- simply a Plum
+                -   There should be a notion of an attachment -- also a Plum
+                -   A message should be able to refer to users, attachments, and other messages via
+                    some sort of @mention or #hashtag concept.  These relations should be tracked
+                    formally and queryable.
+                -   One goal should be that a client should be able to replicate the whole DB trivially
+                    to its local store, and then access that DB as first class data locally, without
+                    needing to talk to the server.
+                -   Ideal goal would be to allow client to execute full SQL queries on its local DB replica,
+                    so there's no need for abstraction inversions.
+                -   DB tables
+                    -   Public user directory, giving user profile info.  The columns would be:
+                        -   User DID (unique, pseudonymous identifier)
+                        -   Human-readable user name
+                        -   PlumHeadSeal of active user profile Plum
+                    -   Per-user message thread list -- these would be message threads that a given user is a
+                        part of.  The columns would be:
+                        -   Message thread ID (DID?)
+                        -   Title
+                        -   PlumHeadSeal of latest message in the thread; this would essentially be a BranchNode
+                            whose metadata contains the Message thread ID and title (among other things)
+                    -
+
+                    -   Per-user attachment list -- these would be attachments that a given user has access to
+                -   TEMP notes
+                    -   Use ingestion of Plums to create relevant DB indexes/tables, e.g.
+                        -   When ingesting a permissions/ACL Plum, update/insert relevant entries in/to an
+                            access_control_lists table.  A "soft" resource identifier (e.g. a DID which is
+                            not e.g. a hash of the PlumHead) would track its current state, which would
+                            consist of the PlumHeadSeal of the resource itself, the PlumHeadSeal of its
+                            ownership, and the PlumHeadSeal of its permissions.
+                        -   When ingesting a Plum having ContentType MsgApp::UserProfile, create an entry in
+                            a user_profiles table.
+                        -   Generally, it should be possible to register a known type for tracking, so that
+                            ingesting Plums of that type will cause relevant DB table entries to be updated/inserted.
+                        -   When any PII is ingested, track it in a PII Plums table, so that an erasure
+                            request can be easily complied with.
+                -   Permissions scheme
+                    -   Each user
+                -   TODO START HERE: Need to define permissions scheme, and the permissions should be respected
+                    in the DB replication.  I.e. a user that doesn't have access to particular elements of
+                    the DB should not receive/replicate any of that data.  Maybe they can instead receive
+                    only the CRUD operations for the entries they have access to, so that their local DB
+                    tracks only the stuff they have permission for.  TODO start here by using a concrete
+                    example and its permissions scheme.
+    -   Permissions scheme
+        -   TEMP notes
+            -   Ownership
+                -   Ownership of a resource should be fungible, but mediated by Plum-based records.
+                    Could use a KERI-like record to log the sequence of ownership changes, which would
+                    essentially be a proof that things have happened fairly.
+            -   Permissions scheme "levels"
+                -   Owner-world -- the owner is defined (who always gets full access) and the permissions for
+                    the world are defined.  This is the "base case" of permissions.  Should this be represented
+                    as a Plum?  Probably, for consistency.
+                -   Could potentially make one that more directly models the POSIX permissions scheme.
+                -   Access Control Lists -- access is mediated through an ACL, which defines who has what access,
+                    and it can grant different levels of access (as well as access-granting) to different users
+                    and groups.  But the owner still has full access.  An ACL is a Plum, and its access should
+                    (at least for now) always use the owner-world scheme.
+            -   By defining the permissions using a Plum, many Plums can "point to" the same permissions Plum,
+                so resources could be grouped with respect to permissions.
+    -   External storage of Plums
+        -   Idea is that the Plum content itself might be private, and so it could be hosted and served
+            from elsewhere, e.g. S3.  Plum uploads and downloads would happen directly to and from that
+            target.
+        -   Allow PlumHeads to be stored externally as well?
     -   Layered filesystem mapping
         -   Similar to docker containers being layers of filesystems where the "upper" layers take precedence,
             a layered filesystem structure could easily be defined.
@@ -212,3 +294,52 @@ Rust SDK for Indoor Data Plumbing
             back the data up into a form that is more plainly readable to a human.
     -   There may be challenges in complete fetching of data when permissions come into play.  One way to
         handle this could be to implement some sort of "request access" feature.
+-   IDP needs a description for what it actually does that's comprehensible to others and avoids the problem
+    of someone immediately assuming it's something that exists already.
+-   A design criteria of IDP would be to show how it reduces to many existing data patterns as particular
+    applications, e.g.
+    -   Permissioned filesystem
+    -   Authenticable document system
+    -   Git-like version control system
+    -   Addressing of data for use across a network
+    -   Data replication and caching system
+-   Because IDP stores static, hash-auditable Plums whose data schemas are also static, yet applications
+    inevitably need to apply migrations to data schemas, there should be a notion of data schema migration
+    that can be (automatically) applied to Plums.
+    -   This would necessarily come with a formal specification and versioning of the data schema (i.e. type)
+        of each Plum, and the registration/retrieval of the canonical migrations (i.e. transformations) between
+        schemas (i.e. types).  This would be analogous to DB migrations, and the design criteria should be that
+        it should be usable transparently, not having to manually apply the migrations.  For example:
+        -   A program might ask for a particular Plum (which is generally "User Profile" schema) and ask that
+            it conform to "User Profile v1.2", but the stored Plum is "User Profile v1.0".  The Datahost would
+            transparently apply the canonical migration that transforms a "User Profile v1.0" datum into
+            "User Profile v1.2".
+    -   The migrated Plum would have its own PlumHeadSeal, which should be authenticable, because the migration
+        is supposed to be canonical (i.e. there is only one possible/definitive migration).  One might also
+        just regenerate the Plum itself using the new data schema, if one wanted the Plum bodies in a uniform
+        schema.
+    -   This whole data schema migration would naturally be part of a lower-level system (in particular, sept),
+        which manages a type runtime, and in particular, manages the various canonical type identifications/
+        projects/embeddings, so that type conversions can be done automatically and/or transparently.
+        These transformations could theoretically be provided universally as wasm modules using a wasm runtime.
+-   Notes on some concepts
+    -   What is the authority on a particular piece of data?
+        -   Central authority (which could be a server or a user)
+        -   Decentralized authority (having one of many different rule sets for how that's updated, ranging
+            from modifications from whitelisted entities all the way to full consensus algorithms with
+            anonymous entities)
+    -   These notes are in service of a data model that is meant to be more peer-to-peer, and not client-server.
+        Peers could work on their own local copies of data, and if they're the authority on that data, they
+        can operate totally autonomously and definitively.  If they're not the authority on that data, they
+        can work locally on a "proposal" for how the data is to be changed and submit that to the authority,
+        be it on a server or on another peer.  A server could act as an cache/relay/intermediary for these
+        interactions.
+    -   The idea here is that application logic could be implemented in one place (the "peer") instead of
+        across a client/server boundary, and instead let IDP handle the data propagation.  This would be
+        closer to a git data model.  A server would be a peer that functions in the following ways:
+        -   Operate as a proxy/relay for other peers
+        -   Operate as a cache/origin for data, including maintaining caches for indexes/views into relational data.
+        -   Operate as a data store for peers/clients that don't have long-term persistent storage (i.e. web browers)
+        -   Could operate as the authority for certain data (or on behalf of some other authority), which is
+            just the special case where it's acting as a traditional server.
+    -   The challenge to this approach is that it's harder to push code updates to an IOS app than to a server.
