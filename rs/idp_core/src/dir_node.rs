@@ -51,6 +51,10 @@ impl<'a> FragmentQueryable<'a> for DirNode {
             Some((entry_name, rest_of_query_str)) => (entry_name, Some(rest_of_query_str)),
             None => (query_str, None)
         };
+        // Have to handle empty again, since a query_str of "/" will cause entry_name to be empty.
+        if entry_name.is_empty() {
+            return Ok(FragmentQueryResult::Value(self_plum_head_seal.clone()));
+        }
         let entry = match self.entry_m.get(entry_name) {
             Some(entry) => entry,
             None => {
