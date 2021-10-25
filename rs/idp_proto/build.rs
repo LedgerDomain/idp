@@ -30,17 +30,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute("idp.PlumBodySeal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumBodySeal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.PlumHeadSeal", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.PlumHeadSeal", "#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.PlumHeadSeal", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumHeadSeal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.PlumHeadSeal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.Seal", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.PlumRelationsSeal", "#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.PlumRelationsSeal", "#[diesel(deserialize_as = \"Vec<u8>\")]")
+        .type_attribute("idp.PlumRelationsSeal", "#[diesel(serialize_as = \"Vec<u8>\")]")
+        .type_attribute("idp.PlumRelationsSeal", "#[sql_type = \"diesel::sql_types::Binary\"]")
+
+        .type_attribute("idp.Relation", "#[derive(diesel::AsExpression, num_derive::FromPrimitive, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.Relation", "#[diesel(deserialize_as = \"i32\")]")
+        .type_attribute("idp.Relation", "#[diesel(serialize_as = \"i32\")]")
+        .type_attribute("idp.Relation", "#[sql_type = \"diesel::sql_types::Integer\"]")
+
+        .type_attribute("idp.RelationFlagsRaw", "#[derive(diesel::AsExpression, Copy, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.RelationFlagsRaw", "#[diesel(deserialize_as = \"i32\")]")
+        .type_attribute("idp.RelationFlagsRaw", "#[diesel(serialize_as = \"i32\")]")
+        .type_attribute("idp.RelationFlagsRaw", "#[sql_type = \"diesel::sql_types::Integer\"]")
+
+        .type_attribute("idp.Seal", "#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.Seal", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Seal", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Seal", "#[sql_type = \"diesel::sql_types::Binary\"]")
 
-        .type_attribute("idp.Sha256Sum", "#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]")
+        .type_attribute("idp.Sha256Sum", "#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]")
         .type_attribute("idp.Sha256Sum", "#[diesel(deserialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Sha256Sum", "#[diesel(serialize_as = \"Vec<u8>\")]")
         .type_attribute("idp.Sha256Sum", "#[sql_type = \"diesel::sql_types::Binary\"]")

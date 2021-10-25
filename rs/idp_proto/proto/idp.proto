@@ -48,30 +48,72 @@ message PlumHeadSeal {
     required Seal value = 1;
 }
 
+message PlumRelationsSeal {
+    required Seal value = 1;
+}
+
 message PlumBodySeal {
     required Seal value = 1;
 }
 
 message PlumHead {
+    // PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
     required PlumBodySeal body_seal = 1;
+    // Content type for the Plum body.
     required ContentType body_content_type = 2;
+    // Number of bytes in the Plum body itself.
     required uint64 body_length = 3;
+    // Optional nonce for preventing dictionary attacks.
     optional Nonce head_nonce_o = 4;
+    // Optional owner DID.
     optional Did owner_did_o = 5;
+    // Optional Plum creation timestamp.
     optional UnixSeconds created_at_o = 6;
+    // Optional, unstructured metadata.
     optional bytes metadata_o = 7;
+    // Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es)
+    optional PlumRelationsSeal relations_seal_o = 8;
+}
+
+// This defines what relations are possible from one Plum to another.
+enum Relation {
+    CONTENT_DEPENDENCY = 0;
+    METADATA_DEPENDENCY = 1;
+}
+
+// A set of Relations, encoded as bitflags.
+message RelationFlagsRaw {
+    required uint32 value = 1;
+}
+
+message PlumRelationFlagsMapping {
+    required PlumHeadSeal target_head_seal = 1;
+    required RelationFlagsRaw relation_flags_raw = 2;
+}
+
+// This encapsulates the Relations from a given Plum to all others, and is derived from its PlumBody.
+// The reason this is separate is because there are situations where the PlumBody won't be present
+// but that Plum's Relations are needed.
+message PlumRelations {
+    // Optional nonce can be used to prevent dictionary attacks.
+    optional Nonce relations_nonce_o = 1;
+    // Content of the relations itself.  This consists of entries to add to the relations DB table.
+    repeated PlumRelationFlagsMapping relation_flags_mappings = 2;
 }
 
 message PlumBody {
+    // Optional nonce can be used to prevent dictionary attacks.
     optional Nonce body_nonce_o = 1;
+    // Content of the plum itself.  The content type of the bytes is given in the PlumHead.
     required bytes body_content = 2;
 }
 
-// This represents a single data entry; it's a head (metadata) and a body (file content).  Yes, a stupid name,
-// and I hate cute names in software, but it is distinct, and it's a noun.
+// This represents a single data entry; it's a head (metadata), relations, and a body (file content).
+// Yes, a stupid name, and I hate cute names in software, but it is distinct, and it's a noun.
 message Plum {
     required PlumHead head = 1;
-    required PlumBody body = 2;
+    optional PlumRelations relations_o = 2;
+    required PlumBody body = 3;
 }
 
 //

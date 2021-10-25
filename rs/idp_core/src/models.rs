@@ -1,7 +1,10 @@
 use crate::{
-    schema::{plum_bodies, plum_heads},
+    schema::{plum_bodies, plum_heads, plum_relations},
 };
-use idp_proto::{ContentType, Did, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, UnixSeconds};
+use idp_proto::{
+    ContentType, Did, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationsSeal,
+    RelationFlags, UnixSeconds,
+};
 
 //
 // plum_heads table
@@ -29,6 +32,10 @@ pub struct PlumHeadRow {
     pub created_at_o: Option<UnixSeconds>,
     /// This is the optional, unstructured metadata for this Plum.
     pub metadata_o: Option<Vec<u8>>,
+    /// This is the optional seal for the PlumRelations for this Plum.  If this is None, then
+    /// this Plum is considered to be opaque with respect to relations, and they'll have to
+    /// be derived separately.
+    pub relations_seal_o: Option<PlumRelationsSeal>,
 }
 
 impl std::convert::Into<PlumHead> for PlumHeadRow {
@@ -44,6 +51,7 @@ impl std::convert::Into<PlumHead> for PlumHeadRow {
             owner_did_o: self.owner_did_o,
             created_at_o: self.created_at_o,
             metadata_o: self.metadata_o,
+            relations_seal_o: self.relations_seal_o,
         }
     }
 }
@@ -62,6 +70,7 @@ pub struct PlumHeadRowInsertion<'a> {
     // NOTE: This should be Option<&'a [u8]>, but I was having trouble getting that to work in
     // the implementation of std::convert::From<&'a PlumHead> for PlumHeadRowInsertion<'a>
     pub metadata_o: Option<&'a Vec<u8>>,
+    pub relations_seal_o: Option<&'a PlumRelationsSeal>,
 }
 
 impl<'a> std::convert::From<&'a PlumHead> for PlumHeadRowInsertion<'a> {
@@ -80,8 +89,45 @@ impl<'a> std::convert::From<&'a PlumHead> for PlumHeadRowInsertion<'a> {
             created_at_o: plum_head.created_at_o.as_ref(),
             // metadata_o: if let Some(metadata) = plum_head.metadata_o { Some(metadata.as_slice()) } else { None },
             metadata_o: plum_head.metadata_o.as_ref(),
+            relations_seal_o: plum_head.relations_seal_o.as_ref(),
         }
     }
+}
+
+//
+// plum_relations table
+//
+
+/// Note that this row doesn't correspond to a single PlumRelations.  A PlumRelations instance
+/// is unpacked by Datahost and creates one PlumRelationRow per (source, target) pair, where
+/// there can be potentially many distinct relations between that source and target.  The subset
+/// of relations is representing using a bitflag field.  A single relation has the form
+/// `source --relation--> target` (analogous to SVO).  In this case, a whole subset of relation
+/// values is stored in the row, meaning that multiple `source --relation--> target` relations
+/// are represented by a single row.
+#[derive(Clone, Debug, PartialEq, diesel::Queryable)]
+pub struct PlumRelationsRow {
+    /// This is the timestamp at which this row was inserted.  It is not the owner-made timestamp.
+    pub row_inserted_at: UnixSeconds,
+
+    /// This is the PlumHeadSeal of the "source" Plum.  This is the subject of the relation, i.e.
+    /// in `source --relation--> target`, it's `source`.
+    pub source_head_seal: PlumHeadSeal,
+    /// This is the PlumHeadSeal of the "target" Plum.  This is the object of the relation, i.e.
+    /// in `source --relation--> target`, it's `target`.
+    pub target_head_seal: PlumHeadSeal,
+    /// This is the subset of relations itself, i.e. for each bit set in relation_flags, a single
+    /// relation is denoted, which corresponds to `relation` in `source --relation--> target`.
+    pub relation_flags: RelationFlags,
+}
+
+/// Note that row_inserted_at will take DEFAULT CURRENT_TIMESTAMP.
+#[derive(Debug, diesel::Insertable)]
+#[table_name = "plum_relations"]
+pub struct PlumRelationsRowInsertion {
+    pub source_head_seal: PlumHeadSeal,
+    pub target_head_seal: PlumHeadSeal,
+    pub relation_flags: RelationFlags,
 }
 
 //

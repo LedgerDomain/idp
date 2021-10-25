@@ -12,11 +12,22 @@ CREATE TABLE plum_heads (
     head_nonce_o BLOB,
     owner_did_o TEXT,
     created_at_o BIGINT,
-    metadata_o BLOB
+    metadata_o BLOB,
+    relations_seal_o BLOB
 );
 
 -- This index is used so that plum_head -> plum_body reference counting is efficient.
 CREATE INDEX plum_head_body_references ON plum_heads(body_seal);
+
+CREATE TABLE plum_relations (
+    -- DB-only values
+    row_inserted_at BIGINT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- PlumRelation attributes
+    source_head_seal BLOB NOT NULL,
+    target_head_seal BLOB NOT NULL,
+    relation_flags INTEGER NOT NULL,
+    PRIMARY KEY(source_head_seal, target_head_seal)
+);
 
 CREATE TABLE plum_bodies (
     -- Primary key

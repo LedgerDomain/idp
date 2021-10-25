@@ -1,10 +1,20 @@
-mod builder;
+mod content_typeable;
 // This is private because the generated code is meant to be imported into the public modules listed above.
 mod generated;
+mod plum_body_builder;
+mod plum_builder;
+mod plum_head_builder;
+mod plum_relations_builder;
+mod relation;
 
 pub use crate::{
-    builder::{PlumBodyBuilder, PlumBuilder, PlumHeadBuilder},
+    content_typeable::ContentTypeable,
     generated::idp::*,
+    plum_body_builder::PlumBodyBuilder,
+    plum_builder::PlumBuilder,
+    plum_head_builder::PlumHeadBuilder,
+    plum_relations_builder::PlumRelationsBuilder,
+    relation::{RelationFlags, Relational},
 };
 
 //
@@ -142,6 +152,12 @@ impl From<chrono::DateTime<chrono::Utc>> for UnixSeconds {
 impl From<Seal> for PlumHeadSeal {
     fn from(value: Seal) -> Self {
         PlumHeadSeal { value }
+    }
+}
+
+impl From<Seal> for PlumRelationsSeal {
+    fn from(value: Seal) -> Self {
+        PlumRelationsSeal { value }
     }
 }
 
@@ -302,7 +318,8 @@ impl From<&PlumHead> for PlumHeadSeal {
 
         hasher.update(&head.body_seal.value.sha256sum.value);
 
-        hasher.update(head.body_length.to_le_bytes()); // Little-endian byte representation
+        // to_le_bytes gives little-endian representation.
+        hasher.update(head.body_length.to_le_bytes());
 
         hasher.update(&head.body_content_type.value);
 
@@ -322,7 +339,8 @@ impl From<&PlumHead> for PlumHeadSeal {
 
         if let Some(created_at) = &head.created_at_o {
             hasher.update(b"\x01");
-            hasher.update(created_at.value.to_le_bytes()); // Little-endian byte representation
+            // to_le_bytes gives little-endian representation.
+            hasher.update(created_at.value.to_le_bytes());
         } else {
             hasher.update(b"\x00");
         }
@@ -334,7 +352,40 @@ impl From<&PlumHead> for PlumHeadSeal {
             hasher.update(b"\x00");
         }
 
+        if let Some(relations_seal) = &head.relations_seal_o {
+            hasher.update(b"\x01");
+            hasher.update(&relations_seal.value.sha256sum.value);
+        } else {
+            hasher.update(b"\x00");
+        }
+
         PlumHeadSeal::from(Seal::from(Sha256Sum::from(hasher.finalize().as_slice())))
+    }
+}
+
+impl From<&PlumRelations> for PlumRelationsSeal {
+    fn from(relations: &PlumRelations) -> PlumRelationsSeal {
+        use sha2::Digest;
+
+        // For now, a seal is only the Sha256Sum, but it could be other stuff later.
+        let mut hasher = sha2::Sha256::new();
+
+        if let Some(relations_nonce) = &relations.relations_nonce_o {
+            hasher.update(b"\x01");
+            hasher.update(&relations_nonce.value);
+        } else {
+            hasher.update(b"\x00");
+        }
+
+        // to_le_bytes gives little-endian representation.
+        hasher.update((relations.relation_flags_mappings.len() as u64).to_le_bytes());
+        for PlumRelationFlagsMapping { target_head_seal, relation_flags_raw } in &relations.relation_flags_mappings {
+            hasher.update(&target_head_seal.value.sha256sum.value);
+            // Note that relation_flags_raw.value is u32.
+            hasher.update(relation_flags_raw.value.to_le_bytes());
+        }
+
+        PlumRelationsSeal::from(Seal::from(Sha256Sum::from(hasher.finalize().as_slice())))
     }
 }
 
@@ -442,6 +493,26 @@ where
 }
 
 //
+// Relation
+//
+
+impl std::convert::TryFrom<i32> for Relation {
+    type Error = failure::Error;
+    fn try_from(relation_raw: i32) -> Result<Self, Self::Error> {
+        let relation = match <Relation as num_traits::FromPrimitive>::from_i32(relation_raw) {
+            Some(relation) => relation,
+            None => {
+                let lowest_raw = Relation::ContentDependency as i32;
+                // NOTE: This must be updated if/when enum variants are added to Relation in idp.proto
+                let highest_raw = Relation::MetadataDependency as i32;
+                return Err(failure::format_err!("invalid Relation value {}; expected a value in the range [{}, {}]", relation_raw, lowest_raw, highest_raw));
+            },
+        };
+        Ok(relation)
+    }
+}
+
+//
 // PlumBodySeal
 //
 
@@ -472,6 +543,40 @@ where
     type Row = <Vec<u8> as diesel::Queryable<ST, DB>>::Row;
     fn build(row: Self::Row) -> Self {
         PlumBodySeal::from(Seal::from(Sha256Sum::from(Vec::build(row))))
+    }
+}
+
+//
+// PlumRelationsSeal
+//
+
+impl diesel::serialize::ToSql<diesel::sql_types::Binary, diesel::sqlite::Sqlite> for PlumRelationsSeal {
+    fn to_sql<W: std::io::Write>(
+        &self,
+        out: &mut diesel::serialize::Output<W, diesel::sqlite::Sqlite>,
+    ) -> diesel::serialize::Result {
+        <Vec<u8> as diesel::serialize::ToSql<diesel::sql_types::Binary, diesel::sqlite::Sqlite>>::to_sql(&self.value.sha256sum.value, out)
+    }
+}
+
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Binary, DB> for PlumRelationsSeal
+where
+    DB: diesel::backend::Backend,
+    Vec<u8>: diesel::deserialize::FromSql<diesel::sql_types::Binary, DB>,
+{
+    fn from_sql(bytes: Option<&DB::RawValue>) -> diesel::deserialize::Result<Self> {
+        Ok(PlumRelationsSeal::from(Seal::from(Sha256Sum::from_sql(bytes)?)))
+    }
+}
+
+impl<DB, ST> diesel::Queryable<ST, DB> for PlumRelationsSeal
+where
+    DB: diesel::backend::Backend,
+    Vec<u8>: diesel::Queryable<ST, DB>,
+{
+    type Row = <Vec<u8> as diesel::Queryable<ST, DB>>::Row;
+    fn build(row: Self::Row) -> Self {
+        PlumRelationsSeal::from(Seal::from(Sha256Sum::from(Vec::build(row))))
     }
 }
 

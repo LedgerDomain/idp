@@ -9,11 +9,9 @@ mod datahost;
 mod dir_node;
 mod fragment;
 mod models;
-mod relation;
 mod schema;
 
 pub use branch_node::BranchNode;
 pub use datahost::Datahost;
 pub use dir_node::DirNode;
 pub use fragment::{FragmentQueryable, FragmentQueryResult};
-pub use relation::{Relational, Relation, RelationFlags};

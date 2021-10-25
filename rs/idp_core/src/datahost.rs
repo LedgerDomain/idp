@@ -8,9 +8,9 @@ use crate::{
         PlumBodyRowInsertion,
         PlumHeadRow,
         PlumHeadRowInsertion,
+        PlumRelationsRow,
+        PlumRelationsRowInsertion,
     },
-    Relational,
-    RelationFlags,
 };
 use diesel::{
     Connection,
@@ -21,8 +21,8 @@ use diesel::{
     // TextExpressionMethods,
 };
 use failure::ResultExt; // Needed for .context("...") on errors.
-use idp_proto::{Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal};
-use std::collections::HashMap;
+use idp_proto::{Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelations, RelationFlags};
+use std::{collections::HashMap, convert::TryFrom};
 // use uuid::Uuid;
 
 // This makes it possible to run embedded_migrations::run(&conn) to apply migrations at runtime.
@@ -70,8 +70,8 @@ impl Datahost {
     // Data methods
     //
 
-    pub fn create_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal, failure::Error> {
-        log::trace!("Datahost::create_plum_head({:?})", plum_head);
+    pub fn store_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal, failure::Error> {
+        log::trace!("Datahost::store_plum_head({:?})", plum_head);
         let plum_head_row_insertion = PlumHeadRowInsertion::from(plum_head);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -81,7 +81,7 @@ impl Datahost {
         {
             Ok(_) => {
                 // The PlumHead doesn't yet exist, but was successfully added.
-                log::trace!("    success: created {}", plum_head_row_insertion.head_seal);
+                log::trace!("    success: stored {}", plum_head_row_insertion.head_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumHead already exists, so there's nothing to do.
@@ -97,8 +97,29 @@ impl Datahost {
         Ok(plum_head_row_insertion.head_seal)
     }
 
-    pub fn create_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal, failure::Error> {
-        log::trace!("Datahost::create_plum_body({:?})", plum_body);
+    pub fn store_plum_relations(
+        &self,
+        source_head_seal: &PlumHeadSeal,
+        plum_relations: &PlumRelations,
+    ) -> Result<(), failure::Error> {
+        log::trace!("Datahost::store_plum_relations({:?})", plum_relations);
+
+        for relation_flags_mapping in &plum_relations.relation_flags_mappings {
+            let plum_relations_row_insertion = PlumRelationsRowInsertion {
+                source_head_seal: source_head_seal.clone(),
+                target_head_seal: relation_flags_mapping.target_head_seal.clone(),
+                relation_flags: RelationFlags::try_from(relation_flags_mapping.relation_flags_raw).expect("invalid RelationFlags value; if this panicking is a problem, then some 'invalid' or 'unknown' enum variant should be added to RelationFlags"),
+            };
+            log::debug!("inserting {:#?}", plum_relations_row_insertion);
+            diesel::insert_into(crate::schema::plum_relations::table)
+                .values(&plum_relations_row_insertion)
+                .execute(&self.conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn store_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal, failure::Error> {
+        log::trace!("Datahost::store_plum_body({:?})", plum_body);
         let plum_body_row_insertion = PlumBodyRowInsertion::from(plum_body);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -108,7 +129,7 @@ impl Datahost {
         {
             Ok(_) => {
                 // Success, nothing to do.
-                log::trace!("    success: created {}", plum_body_row_insertion.body_seal);
+                log::trace!("    success: stored {}", plum_body_row_insertion.body_seal);
             }
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
                 // The PlumBody already exists, so now update it.
@@ -124,24 +145,37 @@ impl Datahost {
         Ok(plum_body_row_insertion.body_seal)
     }
 
-    pub fn create_plum(&self, plum: &Plum) -> Result<PlumHeadSeal, failure::Error> {
-        self.create_plum_body(&plum.body)?;
-        self.create_plum_head(&plum.head)
+    pub fn store_plum(&self, plum: &Plum) -> Result<PlumHeadSeal, failure::Error> {
+        self.store_plum_body(&plum.body)?;
+        let plum_head_seal = self.store_plum_head(&plum.head)?;
+        if let Some(relations) = &plum.relations_o {
+            self.store_plum_relations(&plum_head_seal, relations)?;
+        }
+        Ok(plum_head_seal)
     }
 
-    pub fn read_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHead, failure::Error> {
+    pub fn load_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHead, failure::Error> {
         Ok(self.select_plum_head_row(plum_head_seal)?.into())
     }
 
-    pub fn read_plum_body(&self, plum_body_seal: &PlumBodySeal) -> Result<PlumBody, failure::Error> {
+//     pub fn load_plum_relations(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumRelations, failure::Error> {
+//         TODO -- implement
+//     }
+
+    pub fn load_plum_body(&self, plum_body_seal: &PlumBodySeal) -> Result<PlumBody, failure::Error> {
         use std::convert::TryInto;
         Ok(self.select_plum_body_row(plum_body_seal)?.try_into()?)
     }
 
-    pub fn read_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Plum, failure::Error> {
-        let head = self.read_plum_head(plum_head_seal)?;
-        let body = self.read_plum_body(&head.body_seal)?;
-        Ok(Plum { head, body })
+    pub fn load_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Plum, failure::Error> {
+        let head = self.load_plum_head(plum_head_seal)?;
+        let relations_o = match &head.relations_seal_o {
+//             Some(relations_seal) => self.load_plum_relations(relations_seal),
+//             None => None,
+            _ => None, // TEMP HACK
+        };
+        let body = self.load_plum_body(&head.body_seal)?;
+        Ok(Plum { head, relations_o, body })
     }
 
 //     pub fn delete_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<(), failure::Error> {
@@ -187,6 +221,7 @@ impl Datahost {
             .load::<PlumHeadRow>(&self.conn)
             .context("Error loading plum_heads")?
             // This should return Some(plum_head_row)
+            // TODO: Use first here instead?
             .pop()
             .ok_or_else(|| failure::format_err!("PlumHeadSeal {} not found", plum_head_seal))?
         )
@@ -201,6 +236,7 @@ impl Datahost {
             .load::<PlumBodyRow>(&self.conn)
             .context("Error loading plum_bodies")?
             // This should return Some(plum_body_row)
+            // TODO: Use first here instead?
             .pop()
             .ok_or_else(|| failure::format_err!("PlumBodySeal {} not found", plum_body_seal))?
         )
@@ -226,58 +262,55 @@ impl Datahost {
         plum_head_seal: &PlumHeadSeal,
         mask: RelationFlags,
     ) -> Result<HashMap<PlumHeadSeal, RelationFlags>, failure::Error> {
-        let mut relation_m = HashMap::new();
-        self.accumulate_relations_recursive_impl(plum_head_seal, mask, &mut relation_m)?;
-        Ok(relation_m)
+        let mut relation_flags_m = HashMap::new();
+        self.accumulate_relations_recursive_impl(plum_head_seal, mask, &mut relation_flags_m)?;
+        Ok(relation_flags_m)
     }
 
     fn accumulate_relations_recursive_impl(
         &self,
         plum_head_seal: &PlumHeadSeal,
         mask: RelationFlags,
-        relation_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
+        relation_flags_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
+        // TODO: Need some way of indicating which Plums didn't have relations present in the Datahost,
+        // so that the client can act appropriately.
     ) -> Result<(), failure::Error> {
         // This implementation is probably horribly wrong for if/when there are Relation cycles.
 
-        if relation_m.contains_key(plum_head_seal) {
+        if relation_flags_m.contains_key(plum_head_seal) {
             // Already traversed; nothing to do.
             return Ok(())
         }
 
-        let mut inner_relation_m: HashMap<PlumHeadSeal, RelationFlags> = HashMap::new();
-        // TEMP HACK: For now just use some hardcoded values of body_content_type to determine if
-        // a Relation query can be done on the PlumBody.
-        let plum_head_row = self.select_plum_head_row(plum_head_seal)?;
-        match std::str::from_utf8(plum_head_row.body_content_type.as_ref()) {
-            Ok("idp::BranchNode") => {
-                log::trace!("accumulate_relations_recursive_impl; deserializing idp::BranchNode");
-                let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
-                // If body_content_o is not None, then deserialize and accumulate relations.
-                if let Some(body_content) = plum_body_row.body_content_o {
-                    let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
-                    branch_node.accumulate_relations_nonrecursive(&mut inner_relation_m, mask.clone())?;
+        // Recurse on the relations for this plum_head_seal.
+        let inner_relation_flags_m = {
+            let mut inner_relation_flags_m: HashMap<PlumHeadSeal, RelationFlags> = HashMap::new();
+            use crate::schema::plum_relations::dsl;
+            let plum_relations_row_v = dsl::plum_relations
+                .filter(dsl::source_head_seal.eq(plum_head_seal))
+                // This should return a Vec<PlumRelationsRow>
+                .load::<PlumRelationsRow>(&self.conn)
+                .context("Error loading plum_heads")?;
+            for plum_relations_row in plum_relations_row_v {
+                log::trace!("accumulate_relations_recursive_impl; {} -> {}", plum_relations_row.source_head_seal, plum_relations_row.target_head_seal);
+                let masked_relation_flags = mask & plum_relations_row.relation_flags;
+                // Only do anything if the masked flags are nonzero.
+                if masked_relation_flags != RelationFlags::NONE {
+                    match inner_relation_flags_m.get_mut(&plum_relations_row.target_head_seal) {
+                        Some(inner_relation_flags) => {
+                            *inner_relation_flags |= masked_relation_flags;
+                        },
+                        None => {
+                            inner_relation_flags_m.insert(plum_relations_row.target_head_seal.clone(), masked_relation_flags);
+                        }
+                    }
                 }
             }
-            Ok("idp::DirNode") => {
-                log::trace!("accumulate_relations_recursive_impl; deserializing idp::DirNode");
-                let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
-                // If body_content_o is not None, then deserialize and accumulate relations.
-                if let Some(body_content) = plum_body_row.body_content_o {
-                    let dir_node: DirNode = rmp_serde::from_read_ref(&body_content)?;
-                    dir_node.accumulate_relations_nonrecursive(&mut inner_relation_m, mask.clone())?;
-                }
-            }
-            _ => {
-                // This data type is considered Relation-opaque, so don't traverse.  But later,
-                // some data types might implement Relational.  Or, more likely, Plums will have
-                // a relations attribute which allows them to define their own relations metadata,
-                // so this Datahost doesn't have to parse the body (because sometimes it won't
-                // be able to).
-            }
-        }
+            inner_relation_flags_m
+        };
 
-        // Now go through the accumulated inner_relation_m and recurse.
-        for (inner_plum_head_seal, inner_relation_flags) in inner_relation_m.iter() {
+        // Now go through the accumulated inner_relation_flags_m and recurse.
+        for (inner_plum_head_seal, inner_relation_flags) in inner_relation_flags_m.iter() {
             // Just make sure that inner_relation_flags obeys the mask constraint.
             assert_eq!(*inner_relation_flags & !mask, RelationFlags::NONE);
 
@@ -288,11 +321,11 @@ impl Datahost {
             // METADATA_DEPENDENCY will be fair game again.  This may or may not be what is actually
             // desired.  Will determine through testing.
             log::trace!("accumulate_relations_recursive_impl; recursing on {}", inner_plum_head_seal);
-            self.accumulate_relations_recursive_impl(inner_plum_head_seal, mask.clone(), relation_m)?;
+            self.accumulate_relations_recursive_impl(inner_plum_head_seal, mask.clone(), relation_flags_m)?;
 
             // Add inner_plum_head_seal with its computed inner_relation_flags to mark as traversed.
-            log::trace!("accumulate_relations_recursive_impl; adding to relation_m: {} -> {:?}", inner_plum_head_seal, inner_relation_flags);
-            relation_m.insert(inner_plum_head_seal.clone(), *inner_relation_flags);
+            log::trace!("accumulate_relations_recursive_impl; adding to relation_flags_m: {} -> {:?}", inner_plum_head_seal, inner_relation_flags);
+            relation_flags_m.insert(inner_plum_head_seal.clone(), *inner_relation_flags);
         }
 
         Ok(())
@@ -313,6 +346,7 @@ impl Datahost {
         loop {
             let plum_head_row = self.select_plum_head_row(&current_plum_head_seal)?;
             let fragment_query_result = match std::str::from_utf8(plum_head_row.body_content_type.as_ref()) {
+                // TODO: Replace this with a callback registry pattern
                 Ok("idp::BranchNode") => {
                     log::trace!("fragment_query; deserializing idp::BranchNode");
                     let plum_body_row = self.select_plum_body_row(&plum_head_row.body_seal)?;
@@ -332,8 +366,8 @@ impl Datahost {
                     }
                     // Deserialize body_content and call fragment_query_single_segment.
                     let body_content = plum_body_row.body_content_o.unwrap();
-                    let branch_node: BranchNode = rmp_serde::from_read_ref(&body_content)?;
-                    branch_node.fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
+                    let dir_node: DirNode = rmp_serde::from_read_ref(&body_content)?;
+                    dir_node.fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
                 }
                 _ => {
                     // This data type is considered FragmentQueryable-opaque, so produce an error.

@@ -38,7 +38,7 @@ pub struct Nonce {
 //     }
 // }
 
-#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
@@ -48,7 +48,7 @@ pub struct Seal {
     #[prost(message, required, tag = "1")]
     pub sha256sum: Sha256Sum,
 }
-#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
@@ -70,12 +70,21 @@ pub struct UnixSeconds {
 // Plum-specific types
 //
 
-#[derive(diesel::AsExpression, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHeadSeal {
+    #[prost(message, required, tag = "1")]
+    pub value: Seal,
+}
+#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[diesel(deserialize_as = "Vec<u8>")]
+#[diesel(serialize_as = "Vec<u8>")]
+#[sql_type = "diesel::sql_types::Binary"]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumRelationsSeal {
     #[prost(message, required, tag = "1")]
     pub value: Seal,
 }
@@ -90,35 +99,78 @@ pub struct PlumBodySeal {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHead {
+    /// PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
     #[prost(message, required, tag = "1")]
     pub body_seal: PlumBodySeal,
+    /// Content type for the Plum body.
     #[prost(message, required, tag = "2")]
     pub body_content_type: ContentType,
+    /// Number of bytes in the Plum body itself.
     #[prost(uint64, required, tag = "3")]
     pub body_length: u64,
+    /// Optional nonce for preventing dictionary attacks.
     #[prost(message, optional, tag = "4")]
     pub head_nonce_o: ::core::option::Option<Nonce>,
+    /// Optional owner DID.
     #[prost(message, optional, tag = "5")]
     pub owner_did_o: ::core::option::Option<Did>,
+    /// Optional Plum creation timestamp.
     #[prost(message, optional, tag = "6")]
     pub created_at_o: ::core::option::Option<UnixSeconds>,
+    /// Optional, unstructured metadata.
     #[prost(bytes = "vec", optional, tag = "7")]
     pub metadata_o: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+    /// Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es)
+    #[prost(message, optional, tag = "8")]
+    pub relations_seal_o: ::core::option::Option<PlumRelationsSeal>,
+}
+/// A set of Relations, encoded as bitflags.
+#[derive(diesel::AsExpression, Copy, serde::Deserialize, serde::Serialize)]
+#[diesel(deserialize_as = "i32")]
+#[diesel(serialize_as = "i32")]
+#[sql_type = "diesel::sql_types::Integer"]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RelationFlagsRaw {
+    #[prost(uint32, required, tag = "1")]
+    pub value: u32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumRelationFlagsMapping {
+    #[prost(message, required, tag = "1")]
+    pub target_head_seal: PlumHeadSeal,
+    #[prost(message, required, tag = "2")]
+    pub relation_flags_raw: RelationFlagsRaw,
+}
+/// This encapsulates the Relations from a given Plum to all others, and is derived from its PlumBody.
+/// The reason this is separate is because there are situations where the PlumBody won't be present
+/// but that Plum's Relations are needed.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumRelations {
+    /// Optional nonce can be used to prevent dictionary attacks.
+    #[prost(message, optional, tag = "1")]
+    pub relations_nonce_o: ::core::option::Option<Nonce>,
+    /// Content of the relations itself.  This consists of entries to add to the relations DB table.
+    #[prost(message, repeated, tag = "2")]
+    pub relation_flags_mappings: ::prost::alloc::vec::Vec<PlumRelationFlagsMapping>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumBody {
+    /// Optional nonce can be used to prevent dictionary attacks.
     #[prost(message, optional, tag = "1")]
     pub body_nonce_o: ::core::option::Option<Nonce>,
+    /// Content of the plum itself.  The content type of the bytes is given in the PlumHead.
     #[prost(bytes = "vec", required, tag = "2")]
     pub body_content: ::prost::alloc::vec::Vec<u8>,
 }
-/// This represents a single data entry; it's a head (metadata) and a body (file content).  Yes, a stupid name,
-/// and I hate cute names in software, but it is distinct, and it's a noun.
+/// This represents a single data entry; it's a head (metadata), relations, and a body (file content).
+/// Yes, a stupid name, and I hate cute names in software, but it is distinct, and it's a noun.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Plum {
     #[prost(message, required, tag = "1")]
     pub head: PlumHead,
-    #[prost(message, required, tag = "2")]
+    #[prost(message, optional, tag = "2")]
+    pub relations_o: ::core::option::Option<PlumRelations>,
+    #[prost(message, required, tag = "3")]
     pub body: PlumBody,
 }
 //
@@ -329,6 +381,17 @@ pub mod del_response {
         #[prost(message, tag = "3")]
         DelHeadAndBodyResponse(super::DelHeadAndBodyResponse),
     }
+}
+/// This defines what relations are possible from one Plum to another.
+#[derive(diesel::AsExpression, num_derive::FromPrimitive, serde::Deserialize, serde::Serialize)]
+#[diesel(deserialize_as = "i32")]
+#[diesel(serialize_as = "i32")]
+#[sql_type = "diesel::sql_types::Integer"]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Relation {
+    ContentDependency = 0,
+    MetadataDependency = 1,
 }
 #[doc = r" Generated client implementations."]
 pub mod indoor_data_plumbing_client {

@@ -18,10 +18,21 @@ table! {
         owner_did_o -> Nullable<Text>,
         created_at_o -> Nullable<BigInt>,
         metadata_o -> Nullable<Binary>,
+        relations_seal_o -> Nullable<Binary>,
+    }
+}
+
+table! {
+    plum_relations (source_head_seal, target_head_seal) {
+        row_inserted_at -> BigInt,
+        source_head_seal -> Binary,
+        target_head_seal -> Binary,
+        relation_flags -> Integer,
     }
 }
 
 allow_tables_to_appear_in_same_query!(
     plum_bodies,
     plum_heads,
+    plum_relations,
 );

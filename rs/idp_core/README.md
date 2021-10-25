@@ -2,6 +2,12 @@
 
 Indoor Data Plumbing core data model and DB frontend.
 
+## Running Tests
+
+The tests run against a local SQLite database named `idp_datahost.rs`.  For full debug spew, run:
+
+    RUST_LOG=trace cargo test -- --nocapture
+
 ## How to Define and Use Migrations
 
 All the usual instructions at [getting started guide](https://diesel.rs/guides/getting-started)

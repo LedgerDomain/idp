@@ -2,3 +2,4 @@
 
 DROP TABLE plum_bodies;
 DROP TABLE plum_heads;
+DROP TABLE plum_relations;
