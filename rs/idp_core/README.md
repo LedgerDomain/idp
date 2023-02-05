@@ -36,36 +36,22 @@ Generally, see `diesel migration --help` (or `./diesel-migration --help`) for mo
 
 ## To-dos
 
--   Use https://github.com/adwhit/diesel-derive-enum for enums in tables.
--   Use separate DB backends, using the following structures:
-    -   Use a subdir for each backend, vis a vis migrations and `.env` file
-        -   `mysql`
-            -   `.env` -- defines the IDP_DATABASE_URL env var.
-            -   `diesel.toml` -- configuration for diesel CLI tool (including usage of `diesel-migration`)
-            -   `diesel-migration` -- script that facilitates management of migrations.
-            -   `migrations` -- dir that hosts the migrations SQL.
-        -   `postgres`
-            -   `.env`
-            -   `diesel.toml`
-            -   `diesel-migration`
-            -   `migrations`
-        -   `sqlite`
-            -   `.env`
-            -   `diesel.toml`
-            -   `diesel-migration`
-            -   `migrations`
-    -   Point the `schema.rs` file at subdirs within the `src` dir.
-        -   `src`
-            -   `mysql`
-                -   `schema.rs`
-            -   `postgres`
-                -   `schema.rs`
-            -   `sqlite`
-                -   `schema.rs`
--   Use https://github.com/diesel-rs/diesel/blob/master/diesel/src/sqlite/connection/diesel_manage_updated_at.sql
-    to automatically handle `updated_at`.  Also see https://diesel.rs/guides/all-about-inserts.html
+-   Switch to `sqlx` for DB backends -- this is because it's simpler, cleaner, and supports async.
+    In order to support multiple DB backends, a "DatahostStorage" trait should be defined which
+    defines all the storage operations, and each DB backend has an implementation (which unfortunately
+    has to be in its own crate in order to respect sqlx's compile-time SQL checking).
+-   See about automating setting of "updated_at" timestamps in DB operations.
+-   Consider using the `parking_lot` crate, as it apparently has sync primitives (Mutex, RwLock, etc)
+    that are "smaller, faster, and more flexible than those in the Rust standard library".
+-   Use protobufs only as a serialization format, not as the in-memory/API format.  Create API structs
+    which are independent of any given serialization format.  This way, multiple different formats
+    can be used for serialization.  This is partially motivated by the fact that `prost::Message`
+    implements `Debug`, and one can't override its implementation (e.g. for Sha256Sum, which would
+    ideally be printed as a hex string instead of as a byte array of decimal values).
 
 ## To-don'ts (I.e. Done)
 
 -   Use [`diesel_migrations`](https://crates.io/crates/diesel_migrations) crate to run un-applied
     migrations at runtime, so that migrations don't have to be run as a separate process.
+-   Create `PlumRef<T>` which uses a `PlumHeadSeal` to address a specific value, and which loads,
+    deserializes, and caches the value into memory, making for a very powerful abstraction.
