@@ -1,4 +1,5 @@
 use crate::{Nonce, PlumBody};
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct PlumBodyBuilder {
@@ -11,10 +12,10 @@ impl PlumBodyBuilder {
         Self::default()
     }
     /// Attempts to build a PlumBody, verifying the field values before returning.
-    pub fn build(self) -> Result<PlumBody, failure::Error> {
+    pub fn build(self) -> Result<PlumBody> {
         // Validate attributes
         // TODO: Is there any use case for leaving out the body_content?  Perhaps this could mean "empty"
-        failure::ensure!(self.body_content_o.is_some(), "PlumBodyBuilder::build can't proceed unless with_body_content was used to specify the body content");
+        anyhow::ensure!(self.body_content_o.is_some(), "PlumBodyBuilder::build can't proceed unless with_body_content was used to specify the body content");
 
         Ok(PlumBody {
             body_nonce_o: self.body_nonce_o,
@@ -34,8 +35,10 @@ impl PlumBodyBuilder {
         self
     }
     /// Derives the body_content field from a content by serializing it.
-    pub fn with_body_content_from<B>(mut self, content: &B) -> Result<Self, failure::Error>
-    where B: serde::Serialize {
+    pub fn with_body_content_from<B>(mut self, content: &B) -> Result<Self>
+    where
+        B: serde::Serialize,
+    {
         self.body_content_o = Some(rmp_serde::to_vec(content)?);
         Ok(self)
     }

@@ -1,4 +1,5 @@
 use crate::Datahost;
+use anyhow::Result;
 use idp_proto::PlumHeadSeal;
 use std::{
     any::Any,
@@ -6,10 +7,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+type UntypedValueGuts = dyn Any + Send + Sync;
+
 /// This type simply encapsulates the storage of Arc<T> for arbitrary T within a Box, and the
 /// casting of it to &Arc<T>.
 #[derive(Debug)]
-struct UntypedValue(Box<dyn Any>);
+struct UntypedValue(Box<UntypedValueGuts>);
 
 impl UntypedValue {
     fn typed_value<T: Any>(&self) -> &Arc<T> {
@@ -32,6 +35,9 @@ pub struct Datacache {
     cached_value_mla: Arc<RwLock<HashMap<PlumHeadSeal, UntypedValue>>>,
 }
 
+// TEMP HACK
+unsafe impl Sync for Datacache {}
+
 impl Datacache {
     /// Create an empty Datacache, connected to the given Datahost.
     pub fn new(datahost_la: Arc<RwLock<Datahost>>) -> Self {
@@ -46,9 +52,9 @@ impl Datacache {
     /// an Arc<T>, store a copy of that Arc<T> in this Datacache's cached values, and then return
     /// the Arc<T>.  Thus, if this function is called on an already-cached PlumHeadSeal's value,
     /// it will simply return the cached Arc<T>, thereby eliminating duplication.
-    pub fn get_or_load_value<T>(&self, head_seal: &PlumHeadSeal) -> Result<Arc<T>, failure::Error>
+    pub fn get_or_load_value<T>(&self, head_seal: &PlumHeadSeal) -> Result<Arc<T>>
     where
-        T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Sized,
+        T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sized + Sync,
     {
         if let Some(cached_value) = self.cached_value_mla.read().unwrap().get(head_seal) {
             let value_a = cached_value.typed_value::<T>().clone();

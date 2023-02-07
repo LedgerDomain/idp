@@ -26,19 +26,27 @@ bitflags::bitflags! {
 /// possible in general.
 impl std::convert::From<Relation> for RelationFlags {
     fn from(relation: Relation) -> Self {
-        RelationFlags { bits: 1u32 << (relation as u32) }
+        RelationFlags {
+            bits: 1u32 << (relation as u32),
+        }
     }
 }
 
 /// Convert from the lame RelationFlagsRaw type.  If it's possible to use RelationFlags directly
 /// in the generated idp.proto code, then this wouldn't be necessary.
 impl std::convert::TryFrom<RelationFlagsRaw> for RelationFlags {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
     fn try_from(relation_flags_raw: RelationFlagsRaw) -> Result<Self, Self::Error> {
         if relation_flags_raw.value & !(RelationFlags::ALL.bits as u32) != 0 {
-            return Err(failure::format_err!("RelationFlagsRaw value {:x} out of range (full bitmask is {:x})", relation_flags_raw.value, RelationFlags::ALL.bits as u32));
+            return Err(anyhow::format_err!(
+                "RelationFlagsRaw value {:x} out of range (full bitmask is {:x})",
+                relation_flags_raw.value,
+                RelationFlags::ALL.bits as u32
+            ));
         }
-        Ok(RelationFlags { bits: relation_flags_raw.value })
+        Ok(RelationFlags {
+            bits: relation_flags_raw.value,
+        })
     }
 }
 
@@ -63,16 +71,24 @@ pub trait Relational {
 //
 
 impl std::convert::TryFrom<u32> for RelationFlags {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
     fn try_from(relation_flags_raw: u32) -> Result<Self, Self::Error> {
         if relation_flags_raw > RelationFlags::ALL.bits {
-            return Err(failure::format_err!("invalid RelationFlags value {:x}; expected a value in the range [0, {:x}]", relation_flags_raw, RelationFlags::ALL.bits));
+            return Err(anyhow::format_err!(
+                "invalid RelationFlags value {:x}; expected a value in the range [0, {:x}]",
+                relation_flags_raw,
+                RelationFlags::ALL.bits
+            ));
         }
-        Ok(RelationFlags { bits: relation_flags_raw })
+        Ok(RelationFlags {
+            bits: relation_flags_raw,
+        })
     }
 }
 
-impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::sqlite::Sqlite> for RelationFlags {
+impl diesel::serialize::ToSql<diesel::sql_types::Integer, diesel::sqlite::Sqlite>
+    for RelationFlags
+{
     fn to_sql<W: std::io::Write>(
         &self,
         out: &mut diesel::serialize::Output<W, diesel::sqlite::Sqlite>,

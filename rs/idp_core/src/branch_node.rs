@@ -1,5 +1,6 @@
-use crate::{FragmentQueryable, FragmentQueryResult};
-use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, Relational, RelationFlags};
+use crate::{FragmentQueryResult, FragmentQueryable};
+use anyhow::Result;
+use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, RelationFlags, Relational};
 use std::collections::HashMap;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -30,30 +31,50 @@ impl Relational for BranchNode {
     ) {
         if let Some(ancestor) = &self.ancestor_o {
             match relation_flags_m.get_mut(&ancestor) {
-                Some(relation_flags) => { *relation_flags |= RelationFlags::METADATA_DEPENDENCY; }
-                None => { relation_flags_m.insert(ancestor.clone(), RelationFlags::METADATA_DEPENDENCY); }
+                Some(relation_flags) => {
+                    *relation_flags |= RelationFlags::METADATA_DEPENDENCY;
+                }
+                None => {
+                    relation_flags_m.insert(ancestor.clone(), RelationFlags::METADATA_DEPENDENCY);
+                }
             }
         }
         match relation_flags_m.get_mut(&self.metadata) {
-            Some(relation_flags) => { *relation_flags |= RelationFlags::METADATA_DEPENDENCY; }
-            None => { relation_flags_m.insert(self.metadata.clone(), RelationFlags::METADATA_DEPENDENCY); }
+            Some(relation_flags) => {
+                *relation_flags |= RelationFlags::METADATA_DEPENDENCY;
+            }
+            None => {
+                relation_flags_m.insert(self.metadata.clone(), RelationFlags::METADATA_DEPENDENCY);
+            }
         }
         if let Some(content) = &self.content_o {
             match relation_flags_m.get_mut(&content) {
-                Some(relation_flags) => { *relation_flags |= RelationFlags::CONTENT_DEPENDENCY; }
-                None => { relation_flags_m.insert(content.clone(), RelationFlags::CONTENT_DEPENDENCY); }
+                Some(relation_flags) => {
+                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+                }
+                None => {
+                    relation_flags_m.insert(content.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                }
             }
         }
         if let Some(posi_diff) = &self.posi_diff_o {
             match relation_flags_m.get_mut(&posi_diff) {
-                Some(relation_flags) => { *relation_flags |= RelationFlags::CONTENT_DEPENDENCY; }
-                None => { relation_flags_m.insert(posi_diff.clone(), RelationFlags::CONTENT_DEPENDENCY); }
+                Some(relation_flags) => {
+                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+                }
+                None => {
+                    relation_flags_m.insert(posi_diff.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                }
             }
         }
         if let Some(nega_diff) = &self.nega_diff_o {
             match relation_flags_m.get_mut(&nega_diff) {
-                Some(relation_flags) => { *relation_flags |= RelationFlags::CONTENT_DEPENDENCY; }
-                None => { relation_flags_m.insert(nega_diff.clone(), RelationFlags::CONTENT_DEPENDENCY); }
+                Some(relation_flags) => {
+                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+                }
+                None => {
+                    relation_flags_m.insert(nega_diff.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                }
             }
         }
     }
@@ -77,30 +98,40 @@ impl<'a> FragmentQueryable<'a> for BranchNode {
         &self,
         self_plum_head_seal: &PlumHeadSeal,
         query_str: &'a str,
-    ) -> Result<FragmentQueryResult<'a>, failure::Error> {
+    ) -> Result<FragmentQueryResult<'a>> {
         // If query_str is empty, return this BranchNode's PlumHeadSeal.
         if query_str.is_empty() {
             return Ok(FragmentQueryResult::Value(self_plum_head_seal.clone()));
         }
         let (entry_name, rest_of_query_str_o) = match query_str.split_once('/') {
             Some((entry_name, rest_of_query_str)) => (entry_name, Some(rest_of_query_str)),
-            None => (query_str, None)
+            None => (query_str, None),
         };
         let entry_o = match entry_name {
             "ancestor" => self.ancestor_o.clone(),
             "metadata" => Some(self.metadata.clone()),
             "content" => self.content_o.clone(),
             _ => {
-                return Err(failure::format_err!("BranchNode does not have entry {:?}", entry_name));
+                return Err(anyhow::format_err!(
+                    "BranchNode does not have entry {:?}",
+                    entry_name
+                ));
             }
         };
         if entry_o.is_none() {
-            return Err(failure::format_err!("BranchNode entry {} is not set for BranchNode {}", entry_name, self_plum_head_seal));
+            return Err(anyhow::format_err!(
+                "BranchNode entry {} is not set for BranchNode {}",
+                entry_name,
+                self_plum_head_seal
+            ));
         }
         let entry = entry_o.unwrap();
         match rest_of_query_str_o {
-            Some(rest_of_query_str) => Ok(FragmentQueryResult::ForwardQueryTo { target: entry.clone(), rest_of_query_str }),
-            None => Ok(FragmentQueryResult::Value(entry.clone()))
+            Some(rest_of_query_str) => Ok(FragmentQueryResult::ForwardQueryTo {
+                target: entry.clone(),
+                rest_of_query_str,
+            }),
+            None => Ok(FragmentQueryResult::Value(entry.clone())),
         }
     }
 }

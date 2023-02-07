@@ -1,5 +1,7 @@
+use anyhow::Result;
 use idp_core::{
-    BranchNode, Datacache, Datahost, DirNode, FragmentQueryResult, FragmentQueryable, PlumRef,
+    datacache, initialize_datacache, BranchNode, Datacache, Datahost, DirNode, FragmentQueryResult,
+    FragmentQueryable, PlumRef,
 };
 use idp_proto::{
     ContentType, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder, PlumHeadBuilder,
@@ -14,7 +16,7 @@ use uuid::Uuid;
 
 #[test]
 #[serial]
-fn open_datahost() -> Result<(), failure::Error> {
+fn open_datahost() -> Result<()> {
     let _ = env_logger::try_init();
 
     Datahost::open_using_env_var()?;
@@ -23,7 +25,7 @@ fn open_datahost() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn open_and_close_datahost() -> Result<(), failure::Error> {
+fn open_and_close_datahost() -> Result<()> {
     let _ = env_logger::try_init();
 
     let datahost = Datahost::open_using_env_var()?;
@@ -33,7 +35,7 @@ fn open_and_close_datahost() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_create_plum_head() -> Result<(), failure::Error> {
+fn test_datahost_create_plum_head() -> Result<()> {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
@@ -69,7 +71,7 @@ fn test_datahost_create_plum_head() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_create_plum_body() -> Result<(), failure::Error> {
+fn test_datahost_create_plum_body() -> Result<()> {
     let _ = env_logger::try_init();
 
     let plum_body = PlumBodyBuilder::new()
@@ -100,7 +102,7 @@ fn test_datahost_create_plum_body() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_create_plum() -> Result<(), failure::Error> {
+fn test_datahost_create_plum() -> Result<()> {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
@@ -132,7 +134,7 @@ fn test_datahost_create_plum() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_create_plums_with_identical_bodies() -> Result<(), failure::Error> {
+fn test_datahost_create_plums_with_identical_bodies() -> Result<()> {
     let _ = env_logger::try_init();
 
     let plum_body = PlumBodyBuilder::new()
@@ -190,7 +192,7 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<(), failure::Err
 
 #[test]
 #[serial]
-fn test_datahost_branch_node() -> Result<(), failure::Error> {
+fn test_datahost_branch_node() -> Result<()> {
     let _ = env_logger::try_init();
 
     let datahost = Datahost::open_using_env_var()?;
@@ -475,7 +477,7 @@ fn test_datahost_branch_node() -> Result<(), failure::Error> {
 
 #[test]
 #[serial]
-fn test_datahost_dir_node() -> Result<(), failure::Error> {
+fn test_datahost_dir_node() -> Result<()> {
     let _ = env_logger::try_init();
 
     let datahost = Datahost::open_using_env_var()?;
@@ -786,7 +788,8 @@ fn test_plum_ref() {
     let _ = env_logger::try_init();
 
     let datahost_la = Arc::new(RwLock::new(Datahost::open_using_env_var().expect("pass")));
-    let datacache_la = Arc::new(RwLock::new(Datacache::new(datahost_la.clone())));
+    // let datacache_la = Arc::new(RwLock::new(Datacache::new(datahost_la.clone())));
+    initialize_datacache(Datacache::new(datahost_la.clone()));
 
     let content_0 = format!("ostriches are cool, {}", Uuid::new_v4());
     let content_1 = 12345678u32;
@@ -816,8 +819,8 @@ fn test_plum_ref() {
         .store_plum(&content_1_plum)
         .expect("pass");
 
-    let plum_0_ref = PlumRef::<String>::new(content_0_plum_head_seal, datacache_la.clone());
-    let plum_1_ref = PlumRef::<u32>::new(content_1_plum_head_seal, datacache_la.clone());
+    let plum_0_ref = PlumRef::<String>::new(content_0_plum_head_seal);
+    let plum_1_ref = PlumRef::<u32>::new(content_1_plum_head_seal);
 
     log::debug!("plum_0_ref: {:?}", plum_0_ref);
     log::debug!("plum_1_ref: {:?}", plum_1_ref);
@@ -842,7 +845,7 @@ fn test_plum_ref() {
     assert!(plum_1_ref.value_is_cached());
 
     // Clear the cache and then try to access plum_0_ref's and plum_1_ref's values again
-    datacache_la.read().unwrap().clear_cache();
+    datacache().clear_cache();
 
     assert!(!plum_0_ref.value_is_cached());
     assert!(!plum_1_ref.value_is_cached());

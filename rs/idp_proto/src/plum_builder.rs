@@ -1,7 +1,8 @@
 use crate::{
-    ContentType, ContentTypeable, Did, Nonce, Plum, PlumBodyBuilder,
-    PlumHeadBuilder, PlumRelationsBuilder, PlumRelationsSeal, Relational, UnixSeconds,
+    ContentType, ContentTypeable, Did, Nonce, Plum, PlumBodyBuilder, PlumHeadBuilder,
+    PlumRelationsBuilder, PlumRelationsSeal, Relational, UnixSeconds,
 };
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct PlumBuilder {
@@ -15,23 +16,31 @@ impl PlumBuilder {
         Self::default()
     }
     /// Attempts to build a Plum, verifying the field values before returning.
-    pub fn build(self) -> Result<Plum, failure::Error> {
+    pub fn build(self) -> Result<Plum> {
         let body = self.body_builder.build()?;
         let relations_o = self.relations_builder.build();
         let head_builder = match &relations_o {
-            Some(relations) => self.head_builder.with_relations_seal(PlumRelationsSeal::from(relations)),
+            Some(relations) => self
+                .head_builder
+                .with_relations_seal(PlumRelationsSeal::from(relations)),
             None => self.head_builder,
         };
         let head = head_builder.with_body(&body).build()?;
-        Ok(Plum { head, relations_o, body })
+        Ok(Plum {
+            head,
+            relations_o,
+            body,
+        })
     }
 
     /// Convenience method which derives the head.body_content_type, relations_o, and body.body_content
     /// fields from content whose type implements the Relational, ContentTypeable, and serde::Serialize traits.
     /// See PlumHeadBuilder::with_body_content_type_from, PlumRelationsBuilder::with_relations_from,
     /// and PlumBodyBuilder::with_body_content_from.
-    pub fn with_relational_typed_content_from<B>(mut self, content: &B) -> Result<Self, failure::Error>
-    where B: ContentTypeable + Relational + serde::Serialize {
+    pub fn with_relational_typed_content_from<B>(mut self, content: &B) -> Result<Self>
+    where
+        B: ContentTypeable + Relational + serde::Serialize,
+    {
         self.head_builder = self.head_builder.with_body_content_type_from(content);
         self.relations_builder = self.relations_builder.with_relations_from(content);
         self.body_builder = self.body_builder.with_body_content_from(content)?;
@@ -41,8 +50,10 @@ impl PlumBuilder {
     /// content whose type implements the ContentTypeable and serde::Serialize traits, but not necessarily
     /// the Relational trait.  Note that you only want this if this Plum is meant to have no relations.
     /// See PlumHeadBuilder::with_body_content_type_from and PlumBodyBuilder::with_body_content_from.
-    pub fn with_nonrelational_typed_content_from<B>(mut self, content: &B) -> Result<Self, failure::Error>
-    where B: ContentTypeable + serde::Serialize {
+    pub fn with_nonrelational_typed_content_from<B>(mut self, content: &B) -> Result<Self>
+    where
+        B: ContentTypeable + serde::Serialize,
+    {
         self.head_builder = self.head_builder.with_body_content_type_from(content);
         self.body_builder = self.body_builder.with_body_content_from(content)?;
         Ok(self)
@@ -52,8 +63,10 @@ impl PlumBuilder {
     /// ContentTypeable trait.  Note that you only want this if this Plum is meant to have no
     /// body_content_type (default body_content_type is "application/octet-stream").
     /// See PlumRelationsBuilder::with_relations_from and PlumBodyBuilder::with_body_content_from.
-    pub fn with_relational_untyped_content_from<B>(mut self, content: &B) -> Result<Self, failure::Error>
-    where B: Relational + serde::Serialize {
+    pub fn with_relational_untyped_content_from<B>(mut self, content: &B) -> Result<Self>
+    where
+        B: Relational + serde::Serialize,
+    {
         self.relations_builder = self.relations_builder.with_relations_from(content);
         self.body_builder = self.body_builder.with_body_content_from(content)?;
         Ok(self)
@@ -63,8 +76,10 @@ impl PlumBuilder {
     /// that you only want this if this Plum is meant to have no relations and no body_content_type
     /// (default body_content_type is "application/octet-stream").
     /// See PlumBodyBuilder::with_body_content_from.
-    pub fn with_nonrelational_untyped_content_from<B>(mut self, content: &B) -> Result<Self, failure::Error>
-    where B: ContentTypeable + serde::Serialize {
+    pub fn with_nonrelational_untyped_content_from<B>(mut self, content: &B) -> Result<Self>
+    where
+        B: ContentTypeable + serde::Serialize,
+    {
         self.body_builder = self.body_builder.with_body_content_from(content)?;
         Ok(self)
     }

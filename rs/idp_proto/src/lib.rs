@@ -60,7 +60,9 @@ impl AsRef<[u8]> for Sha256Sum {
 
 impl From<&[u8]> for Sha256Sum {
     fn from(bytes: &[u8]) -> Self {
-        Sha256Sum { value: bytes.to_vec() }
+        Sha256Sum {
+            value: bytes.to_vec(),
+        }
     }
 }
 
@@ -72,7 +74,7 @@ impl From<Vec<u8>> for Sha256Sum {
 
 impl From<Sha256Sum> for Seal {
     fn from(sha256sum: Sha256Sum) -> Self {
-//         Seal { value: Some(seal::Value::Sha256Sum(sha256sum)) }
+        //         Seal { value: Some(seal::Value::Sha256Sum(sha256sum)) }
         Seal { sha256sum }
     }
 }
@@ -85,13 +87,17 @@ impl AsRef<[u8]> for Nonce {
 
 impl From<&[u8]> for Nonce {
     fn from(bytes: &[u8]) -> Self {
-        Nonce { value: bytes.to_vec() }
+        Nonce {
+            value: bytes.to_vec(),
+        }
     }
 }
 
 impl From<&str> for Nonce {
     fn from(s: &str) -> Self {
-        Nonce { value: s.as_bytes().to_vec() }
+        Nonce {
+            value: s.as_bytes().to_vec(),
+        }
     }
 }
 
@@ -109,7 +115,9 @@ impl AsRef<[u8]> for ContentType {
 
 impl From<&[u8]> for ContentType {
     fn from(bytes: &[u8]) -> Self {
-        ContentType { value: bytes.to_vec() }
+        ContentType {
+            value: bytes.to_vec(),
+        }
     }
 }
 
@@ -121,13 +129,17 @@ impl From<Vec<u8>> for ContentType {
 
 impl From<&str> for ContentType {
     fn from(s: &str) -> Self {
-        ContentType { value: s.as_bytes().to_vec() }
+        ContentType {
+            value: s.as_bytes().to_vec(),
+        }
     }
 }
 
 impl From<&str> for Did {
     fn from(s: &str) -> Self {
-        Did { value: s.to_string() }
+        Did {
+            value: s.to_string(),
+        }
     }
 }
 
@@ -145,7 +157,9 @@ impl UnixSeconds {
 
 impl From<chrono::DateTime<chrono::Utc>> for UnixSeconds {
     fn from(dt: chrono::DateTime<chrono::Utc>) -> Self {
-        UnixSeconds { value: dt.timestamp() }
+        UnixSeconds {
+            value: dt.timestamp(),
+        }
     }
 }
 
@@ -173,19 +187,25 @@ impl From<Seal> for PlumBodySeal {
 
 impl From<PushHeadRequest> for PushRequest {
     fn from(value: PushHeadRequest) -> Self {
-        PushRequest { value: Some(push_request::Value::PushHeadRequest(value)) }
+        PushRequest {
+            value: Some(push_request::Value::PushHeadRequest(value)),
+        }
     }
 }
 
 impl From<PushBodyRequest> for PushRequest {
     fn from(value: PushBodyRequest) -> Self {
-        PushRequest { value: Some(push_request::Value::PushBodyRequest(value)) }
+        PushRequest {
+            value: Some(push_request::Value::PushBodyRequest(value)),
+        }
     }
 }
 
 impl From<PushHeadAndBodyRequest> for PushRequest {
     fn from(value: PushHeadAndBodyRequest) -> Self {
-        PushRequest { value: Some(push_request::Value::PushHeadAndBodyRequest(value)) }
+        PushRequest {
+            value: Some(push_request::Value::PushHeadAndBodyRequest(value)),
+        }
     }
 }
 
@@ -195,19 +215,25 @@ impl From<PushHeadAndBodyRequest> for PushRequest {
 
 impl From<PushHeadResponse> for PushResponse {
     fn from(value: PushHeadResponse) -> Self {
-        PushResponse { value: Some(push_response::Value::PushHeadResponse(value)) }
+        PushResponse {
+            value: Some(push_response::Value::PushHeadResponse(value)),
+        }
     }
 }
 
 impl From<PushBodyResponse> for PushResponse {
     fn from(value: PushBodyResponse) -> Self {
-        PushResponse { value: Some(push_response::Value::PushBodyResponse(value)) }
+        PushResponse {
+            value: Some(push_response::Value::PushBodyResponse(value)),
+        }
     }
 }
 
 impl From<PushHeadAndBodyResponse> for PushResponse {
     fn from(value: PushHeadAndBodyResponse) -> Self {
-        PushResponse { value: Some(push_response::Value::PushHeadAndBodyResponse(value)) }
+        PushResponse {
+            value: Some(push_response::Value::PushHeadAndBodyResponse(value)),
+        }
     }
 }
 
@@ -217,19 +243,25 @@ impl From<PushHeadAndBodyResponse> for PushResponse {
 
 impl From<PullHeadRequest> for PullRequest {
     fn from(value: PullHeadRequest) -> Self {
-        PullRequest { value: Some(pull_request::Value::PullHeadRequest(value)) }
+        PullRequest {
+            value: Some(pull_request::Value::PullHeadRequest(value)),
+        }
     }
 }
 
 impl From<PullBodyRequest> for PullRequest {
     fn from(value: PullBodyRequest) -> Self {
-        PullRequest { value: Some(pull_request::Value::PullBodyRequest(value)) }
+        PullRequest {
+            value: Some(pull_request::Value::PullBodyRequest(value)),
+        }
     }
 }
 
 impl From<PullHeadAndBodyRequest> for PullRequest {
     fn from(value: PullHeadAndBodyRequest) -> Self {
-        PullRequest { value: Some(pull_request::Value::PullHeadAndBodyRequest(value)) }
+        PullRequest {
+            value: Some(pull_request::Value::PullHeadAndBodyRequest(value)),
+        }
     }
 }
 
@@ -239,19 +271,25 @@ impl From<PullHeadAndBodyRequest> for PullRequest {
 
 impl From<PullHeadResponse> for PullResponse {
     fn from(value: PullHeadResponse) -> Self {
-        PullResponse { value: Some(pull_response::Value::PullHeadResponse(value)) }
+        PullResponse {
+            value: Some(pull_response::Value::PullHeadResponse(value)),
+        }
     }
 }
 
 impl From<PullBodyResponse> for PullResponse {
     fn from(value: PullBodyResponse) -> Self {
-        PullResponse { value: Some(pull_response::Value::PullBodyResponse(value)) }
+        PullResponse {
+            value: Some(pull_response::Value::PullBodyResponse(value)),
+        }
     }
 }
 
 impl From<PullHeadAndBodyResponse> for PullResponse {
     fn from(value: PullHeadAndBodyResponse) -> Self {
-        PullResponse { value: Some(pull_response::Value::PullHeadAndBodyResponse(value)) }
+        PullResponse {
+            value: Some(pull_response::Value::PullHeadAndBodyResponse(value)),
+        }
     }
 }
 
@@ -261,19 +299,25 @@ impl From<PullHeadAndBodyResponse> for PullResponse {
 
 impl From<DelHeadRequest> for DelRequest {
     fn from(value: DelHeadRequest) -> Self {
-        DelRequest { value: Some(del_request::Value::DelHeadRequest(value)) }
+        DelRequest {
+            value: Some(del_request::Value::DelHeadRequest(value)),
+        }
     }
 }
 
 impl From<DelBodyRequest> for DelRequest {
     fn from(value: DelBodyRequest) -> Self {
-        DelRequest { value: Some(del_request::Value::DelBodyRequest(value)) }
+        DelRequest {
+            value: Some(del_request::Value::DelBodyRequest(value)),
+        }
     }
 }
 
 impl From<DelHeadAndBodyRequest> for DelRequest {
     fn from(value: DelHeadAndBodyRequest) -> Self {
-        DelRequest { value: Some(del_request::Value::DelHeadAndBodyRequest(value)) }
+        DelRequest {
+            value: Some(del_request::Value::DelHeadAndBodyRequest(value)),
+        }
     }
 }
 
@@ -283,19 +327,25 @@ impl From<DelHeadAndBodyRequest> for DelRequest {
 
 impl From<DelHeadResponse> for DelResponse {
     fn from(value: DelHeadResponse) -> Self {
-        DelResponse { value: Some(del_response::Value::DelHeadResponse(value)) }
+        DelResponse {
+            value: Some(del_response::Value::DelHeadResponse(value)),
+        }
     }
 }
 
 impl From<DelBodyResponse> for DelResponse {
     fn from(value: DelBodyResponse) -> Self {
-        DelResponse { value: Some(del_response::Value::DelBodyResponse(value)) }
+        DelResponse {
+            value: Some(del_response::Value::DelBodyResponse(value)),
+        }
     }
 }
 
 impl From<DelHeadAndBodyResponse> for DelResponse {
     fn from(value: DelHeadAndBodyResponse) -> Self {
-        DelResponse { value: Some(del_response::Value::DelHeadAndBodyResponse(value)) }
+        DelResponse {
+            value: Some(del_response::Value::DelHeadAndBodyResponse(value)),
+        }
     }
 }
 
@@ -379,7 +429,11 @@ impl From<&PlumRelations> for PlumRelationsSeal {
 
         // to_le_bytes gives little-endian representation.
         hasher.update((relations.relation_flags_mappings.len() as u64).to_le_bytes());
-        for PlumRelationFlagsMapping { target_head_seal, relation_flags_raw } in &relations.relation_flags_mappings {
+        for PlumRelationFlagsMapping {
+            target_head_seal,
+            relation_flags_raw,
+        } in &relations.relation_flags_mappings
+        {
             hasher.update(&target_head_seal.value.sha256sum.value);
             // Note that relation_flags_raw.value is u32.
             hasher.update(relation_flags_raw.value.to_le_bytes());
@@ -497,7 +551,7 @@ where
 //
 
 impl std::convert::TryFrom<i32> for Relation {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
     fn try_from(relation_raw: i32) -> Result<Self, Self::Error> {
         let relation = match <Relation as num_traits::FromPrimitive>::from_i32(relation_raw) {
             Some(relation) => relation,
@@ -505,8 +559,13 @@ impl std::convert::TryFrom<i32> for Relation {
                 let lowest_raw = Relation::ContentDependency as i32;
                 // NOTE: This must be updated if/when enum variants are added to Relation in idp.proto
                 let highest_raw = Relation::MetadataDependency as i32;
-                return Err(failure::format_err!("invalid Relation value {}; expected a value in the range [{}, {}]", relation_raw, lowest_raw, highest_raw));
-            },
+                return Err(anyhow::format_err!(
+                    "invalid Relation value {}; expected a value in the range [{}, {}]",
+                    relation_raw,
+                    lowest_raw,
+                    highest_raw
+                ));
+            }
         };
         Ok(relation)
     }
@@ -550,7 +609,9 @@ where
 // PlumRelationsSeal
 //
 
-impl diesel::serialize::ToSql<diesel::sql_types::Binary, diesel::sqlite::Sqlite> for PlumRelationsSeal {
+impl diesel::serialize::ToSql<diesel::sql_types::Binary, diesel::sqlite::Sqlite>
+    for PlumRelationsSeal
+{
     fn to_sql<W: std::io::Write>(
         &self,
         out: &mut diesel::serialize::Output<W, diesel::sqlite::Sqlite>,
@@ -565,7 +626,9 @@ where
     Vec<u8>: diesel::deserialize::FromSql<diesel::sql_types::Binary, DB>,
 {
     fn from_sql(bytes: Option<&DB::RawValue>) -> diesel::deserialize::Result<Self> {
-        Ok(PlumRelationsSeal::from(Seal::from(Sha256Sum::from_sql(bytes)?)))
+        Ok(PlumRelationsSeal::from(Seal::from(Sha256Sum::from_sql(
+            bytes,
+        )?)))
     }
 }
 
@@ -657,7 +720,7 @@ where
 //             match &self.value {
 //                 Some(seal::Value::Sha256Sum(sha256sum)) => &sha256sum.value,
 //                 None => {
-//                     // return Err(Box::new(failure::format_err!("invalid Seal -- it was set to None")));
+//                     // return Err(Box::new(anyhow::format_err!("invalid Seal -- it was set to None")));
 //                     panic!("invalid Seal -- it was set to None -- TODO: handle this error condition");
 //                 }
 //             },
@@ -743,7 +806,9 @@ where
     i64: diesel::deserialize::FromSql<diesel::sql_types::BigInt, DB>,
 {
     fn from_sql(bytes: Option<&DB::RawValue>) -> diesel::deserialize::Result<Self> {
-        Ok(UnixSeconds { value: i64::from_sql(bytes)? })
+        Ok(UnixSeconds {
+            value: i64::from_sql(bytes)?,
+        })
     }
 }
 
@@ -754,7 +819,9 @@ where
 {
     type Row = <i64 as diesel::Queryable<ST, DB>>::Row;
     fn build(row: Self::Row) -> Self {
-        UnixSeconds { value: i64::build(row) }
+        UnixSeconds {
+            value: i64::build(row),
+        }
     }
 }
 
@@ -768,7 +835,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn display_sha256sum() -> Result<(), failure::Error> {
+    fn display_sha256sum() -> anyhow::Result<()> {
         let _ = env_logger::try_init();
 
         // Yes, this isn't actually a 256 bit value, but who cares.

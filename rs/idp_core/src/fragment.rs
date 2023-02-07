@@ -1,3 +1,4 @@
+use anyhow::Result;
 use idp_proto::PlumHeadSeal;
 
 #[derive(Debug, PartialEq)]
@@ -23,5 +24,5 @@ pub trait FragmentQueryable<'a> {
         &self,
         self_plum_head_seal: &PlumHeadSeal,
         query_str: &'a str,
-    ) -> Result<FragmentQueryResult<'a>, failure::Error>;
+    ) -> Result<FragmentQueryResult<'a>>;
 }

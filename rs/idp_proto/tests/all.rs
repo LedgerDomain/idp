@@ -1,8 +1,9 @@
 #![allow(unused_imports)] // TEMP HACK
 
+use anyhow::Result;
 use idp_proto::{
     ContentType, ContentTypeable, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder,
-    PlumHeadBuilder, PlumHeadSeal, Relational, RelationFlags,
+    PlumHeadBuilder, PlumHeadSeal, RelationFlags, Relational,
 };
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -30,12 +31,16 @@ impl Relational for DummyTypedBody {
 }
 
 #[test]
-fn test_plum_builder() -> Result<(), failure::Error> {
+fn test_plum_builder() -> Result<()> {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content(format!("test_plum_builder, {}.", Uuid::new_v4()).as_bytes().to_vec())
+        .with_body_content(
+            format!("test_plum_builder, {}.", Uuid::new_v4())
+                .as_bytes()
+                .to_vec(),
+        )
         .build()?;
     let plum_head_seal = PlumHeadSeal::from(&plum);
 

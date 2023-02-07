@@ -1,7 +1,8 @@
 use crate::{
-    ContentType, ContentTypeable, Did, Nonce, PlumBody, PlumBodySeal, PlumHead,
-    PlumRelations, PlumRelationsSeal, UnixSeconds,
+    ContentType, ContentTypeable, Did, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumRelations,
+    PlumRelationsSeal, UnixSeconds,
 };
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct PlumHeadBuilder {
@@ -20,15 +21,17 @@ impl PlumHeadBuilder {
         Self::default()
     }
     /// Attempts to build a PlumHead, verifying the field values before returning.
-    pub fn build(self) -> Result<PlumHead, failure::Error> {
+    pub fn build(self) -> Result<PlumHead> {
         // Validate attributes
-        failure::ensure!(self.body_seal_o.is_some(), "PlumHeadBuilder::build can't proceed unless with_body_seal was used to specify the PlumBodySeal");
-        failure::ensure!(self.body_length_o.is_some(), "PlumHeadBuilder::build can't proceed unless with_body_length was used to specify the body length");
+        anyhow::ensure!(self.body_seal_o.is_some(), "PlumHeadBuilder::build can't proceed unless with_body_seal was used to specify the PlumBodySeal");
+        anyhow::ensure!(self.body_length_o.is_some(), "PlumHeadBuilder::build can't proceed unless with_body_length was used to specify the body length");
 
         Ok(PlumHead {
             body_seal: self.body_seal_o.unwrap(),
             // Default is byte stream, which is as unstructured as it gets.
-            body_content_type: self.body_content_type_o.unwrap_or(ContentType::from("application/octet-stream")),
+            body_content_type: self
+                .body_content_type_o
+                .unwrap_or(ContentType::from("application/octet-stream")),
             body_length: self.body_length_o.unwrap(),
             head_nonce_o: self.head_nonce_o,
             owner_did_o: self.owner_did_o,
@@ -57,7 +60,9 @@ impl PlumHeadBuilder {
     }
     /// Derives the body_content_type field from a typed body that has the ContentTypeable trait.
     pub fn with_body_content_type_from<B>(self, content: &B) -> Self
-    where B: ContentTypeable {
+    where
+        B: ContentTypeable,
+    {
         self.with_body_content_type(content.derive_content_type())
     }
     /// Specifies the body_length field directly.  The body_length field must be defined in order
@@ -97,4 +102,3 @@ impl PlumHeadBuilder {
         self.with_relations_seal(PlumRelationsSeal::from(relations))
     }
 }
-

@@ -1,6 +1,4 @@
-use crate::{
-    schema::{plum_bodies, plum_heads, plum_relations},
-};
+use crate::schema::{plum_bodies, plum_heads, plum_relations};
 use idp_proto::{
     ContentType, Did, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationsSeal,
     RelationFlags, UnixSeconds,
@@ -150,9 +148,12 @@ pub struct PlumBodyRow {
 }
 
 impl std::convert::TryInto<PlumBody> for PlumBodyRow {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
     fn try_into(self) -> Result<PlumBody, Self::Error> {
-        failure::ensure!(self.body_content_o.is_some(), "Can't turn PlumBodyRow into PlumBody when the body_content_o column value is NULL");
+        anyhow::ensure!(
+            self.body_content_o.is_some(),
+            "Can't turn PlumBodyRow into PlumBody when the body_content_o column value is NULL"
+        );
         Ok(PlumBody {
             body_nonce_o: self.body_nonce_o,
             body_content: self.body_content_o.unwrap(),

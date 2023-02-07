@@ -18,4 +18,4 @@ pub use datacache::Datacache;
 pub use datahost::Datahost;
 pub use dir_node::DirNode;
 pub use fragment::{FragmentQueryResult, FragmentQueryable};
-pub use plum_ref::PlumRef;
+pub use plum_ref::{datacache, initialize_datacache, PlumRef};
