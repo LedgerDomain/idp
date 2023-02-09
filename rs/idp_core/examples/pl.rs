@@ -1,14 +1,8 @@
 #![allow(unused_macros)]
 
 use anyhow::Result;
-// use idp_core::PlumRef;
-use std::{
-    // any::Any,
-    boxed::Box,
-    collections::HashMap,
-    // marker::PhantomData,
-    sync::{Arc, RwLock},
-};
+use parking_lot::RwLock;
+use std::{boxed::Box, collections::HashMap, sync::Arc};
 
 pub struct Runtime {
     /// Stack of symbol tables, corresponding with the call stack.
@@ -54,6 +48,8 @@ impl Runtime {
             self.symbol_mv.len()
         );
     }
+    // TODO: symbol declaration, deletion
+
     pub fn define(&mut self, symbol_id: String, value: ConcreteValue) -> Result<()> {
         let symbol_m = self.symbol_mv.last_mut().unwrap();
         anyhow::ensure!(
@@ -63,15 +59,6 @@ impl Runtime {
         );
         log::trace!("defining {:?} to be {:?}", symbol_id, value);
         symbol_m.insert(symbol_id, Arc::new(RwLock::new(value)));
-        Ok(())
-    }
-    pub fn assign(&mut self, symbol_id: &str, value: ConcreteValue) -> Result<()> {
-        log::trace!("assigning {:?} to be {:?}", symbol_id, value);
-        let symbol_m = self.symbol_mv.last_mut().unwrap();
-        let symbol_la = symbol_m
-            .get_mut(symbol_id)
-            .ok_or_else(|| anyhow::anyhow!("can't assign to undefined symbol {:?}", symbol_id))?;
-        *symbol_la.write().unwrap() = value;
         Ok(())
     }
     pub fn dereference(&self, symbol_id: &str) -> Result<Arc<RwLock<ConcreteValue>>> {
@@ -110,8 +97,12 @@ pub trait Executable {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum Statement {
-    Definition(Definition),
-    Assignment(Assignment),
+    Definition(Box<Definition>),
+    Assignment(Box<Assignment>),
+    AddAssignment(Box<AddAssignment>),
+    SubAssignment(Box<SubAssignment>),
+    MulAssignment(Box<MulAssignment>),
+    DivAssignment(Box<DivAssignment>),
 }
 
 impl Executable for Statement {
@@ -119,6 +110,10 @@ impl Executable for Statement {
         match self {
             Statement::Definition(x) => x.exec(rt),
             Statement::Assignment(x) => x.exec(rt),
+            Statement::AddAssignment(x) => x.exec(rt),
+            Statement::SubAssignment(x) => x.exec(rt),
+            Statement::MulAssignment(x) => x.exec(rt),
+            Statement::DivAssignment(x) => x.exec(rt),
         }
     }
 }
@@ -126,7 +121,7 @@ impl Executable for Statement {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Definition {
     pub symbol_id: String,
-    pub expr: Expr,
+    pub expr: ASTNode,
 }
 
 impl Executable for Definition {
@@ -138,32 +133,130 @@ impl Executable for Definition {
 
 macro_rules! define {
     ($symbol_id: ident, $expr: expr $(,)?) => {
-        Statement::Definition(Definition {
+        Statement::Definition(Box::new(Definition {
             symbol_id: stringify!($symbol_id).to_string(),
             expr: $expr,
-        })
+        }))
     };
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Assignment {
     pub symbol_id: String,
-    pub expr: Expr,
+    pub expr: ASTNode,
 }
 
 impl Executable for Assignment {
     fn exec(&self, rt: &mut Runtime) -> Result<()> {
         let value = self.expr.eval(rt)?;
-        rt.assign(self.symbol_id.as_str(), value)
+        let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
+        *symbol_value_la.write() = value;
+        Ok(())
     }
 }
 
 macro_rules! assign {
     ($symbol_id: ident, $expr: expr $(,)?) => {
-        Statement::Assignment(Assignment {
+        Statement::Assignment(Box::new(Assignment {
             symbol_id: stringify!($symbol_id).to_string(),
             expr: $expr,
-        })
+        }))
+    };
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddAssignment {
+    pub symbol_id: String,
+    pub expr: ASTNode,
+}
+
+impl Executable for AddAssignment {
+    fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt)?;
+        let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
+        *symbol_value_la.write() += value;
+        Ok(())
+    }
+}
+
+macro_rules! add_assign {
+    ($symbol_id: ident, $expr: expr $(,)?) => {
+        Statement::AddAssignment(Box::new(AddAssignment {
+            symbol_id: stringify!($symbol_id).to_string(),
+            expr: $expr,
+        }))
+    };
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SubAssignment {
+    pub symbol_id: String,
+    pub expr: ASTNode,
+}
+
+impl Executable for SubAssignment {
+    fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt)?;
+        let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
+        *symbol_value_la.write() -= value;
+        Ok(())
+    }
+}
+
+macro_rules! sub_assign {
+    ($symbol_id: ident, $expr: expr $(,)?) => {
+        Statement::SubAssignment(Box::new(SubAssignment {
+            symbol_id: stringify!($symbol_id).to_string(),
+            expr: $expr,
+        }))
+    };
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MulAssignment {
+    pub symbol_id: String,
+    pub expr: ASTNode,
+}
+
+impl Executable for MulAssignment {
+    fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt)?;
+        let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
+        *symbol_value_la.write() *= value;
+        Ok(())
+    }
+}
+
+macro_rules! mul_assign {
+    ($symbol_id: ident, $expr: expr $(,)?) => {
+        Statement::MulAssignment(Box::new(MulAssignment {
+            symbol_id: stringify!($symbol_id).to_string(),
+            expr: $expr,
+        }))
+    };
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct DivAssignment {
+    pub symbol_id: String,
+    pub expr: ASTNode,
+}
+
+impl Executable for DivAssignment {
+    fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt)?;
+        let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
+        *symbol_value_la.write() /= value;
+        Ok(())
+    }
+}
+
+macro_rules! div_assign {
+    ($symbol_id: ident, $expr: expr $(,)?) => {
+        Statement::DivAssignment(Box::new(DivAssignment {
+            symbol_id: stringify!($symbol_id).to_string(),
+            expr: $expr,
+        }))
     };
 }
 
@@ -171,7 +264,7 @@ macro_rules! assign {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Block {
     pub statement_v: Vec<Statement>,
-    pub expr: Expr,
+    pub expr: ASTNode,
 }
 
 impl Block {
@@ -197,7 +290,7 @@ impl Block {
     }
 }
 
-impl Value for Block {
+impl Expr for Block {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         self.eval_impl(rt, true)
         // log::trace!("Block::eval");
@@ -217,13 +310,13 @@ impl Value for Block {
 /// is very simple and can't do any backtracking.
 macro_rules! block {
     ($x:expr) => {
-        Expr::Block(Box::new(Block {
+        ASTNode::Block(Box::new(Block {
             statement_v: Vec::new(),
             expr: $x,
         }))
     };
     ($($statement:expr;)+; $x:expr) => {
-        Expr::Block(Box::new(Block {
+        ASTNode::Block(Box::new(Block {
             statement_v: vec![$($statement,)+],
             expr: $x,
         }))
@@ -238,6 +331,14 @@ pub enum ConcreteValue {
 
 impl ConcreteValue {
     pub fn as_float64(&self) -> Result<&Float64> {
+        match self {
+            ConcreteValue::Float64(float64) => Ok(float64),
+            _ => {
+                anyhow::bail!("expected Float64 but got {:?}", self);
+            }
+        }
+    }
+    pub fn as_float64_mut(&mut self) -> Result<&mut Float64> {
         match self {
             ConcreteValue::Float64(float64) => Ok(float64),
             _ => {
@@ -273,23 +374,51 @@ impl From<f64> for ConcreteValue {
 //     }
 // }
 
-// TODO: Rename to Expr after Expr is renamed to ASTNode.
-pub trait Value {
+impl std::ops::AddAssign for ConcreteValue {
+    fn add_assign(&mut self, rhs: Self) {
+        // This will panic if there's a scripting error, which is obviously not great.
+        // the solution would be some sort of TryAddAssign, but that's not actually a
+        // Rust trait.
+        use std::ops::{Deref, DerefMut};
+        *self.as_float64_mut().unwrap().deref_mut() += *rhs.as_float64().unwrap().deref();
+    }
+}
+
+impl std::ops::SubAssign for ConcreteValue {
+    fn sub_assign(&mut self, rhs: Self) {
+        // This will panic if there's a scripting error, which is obviously not great.
+        // the solution would be some sort of TryAddAssign, but that's not actually a
+        // Rust trait.
+        use std::ops::{Deref, DerefMut};
+        *self.as_float64_mut().unwrap().deref_mut() -= *rhs.as_float64().unwrap().deref();
+    }
+}
+
+impl std::ops::MulAssign for ConcreteValue {
+    fn mul_assign(&mut self, rhs: Self) {
+        // This will panic if there's a scripting error, which is obviously not great.
+        // the solution would be some sort of TryAddAssign, but that's not actually a
+        // Rust trait.
+        use std::ops::{Deref, DerefMut};
+        *self.as_float64_mut().unwrap().deref_mut() *= *rhs.as_float64().unwrap().deref();
+    }
+}
+
+impl std::ops::DivAssign for ConcreteValue {
+    fn div_assign(&mut self, rhs: Self) {
+        // This will panic if there's a scripting error, which is obviously not great.
+        // the solution would be some sort of TryAddAssign, but that's not actually a
+        // Rust trait.
+        use std::ops::{Deref, DerefMut};
+        *self.as_float64_mut().unwrap().deref_mut() /= *rhs.as_float64().unwrap().deref();
+    }
+}
+
+pub trait Expr {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue>;
 }
 
-// impl<T: Any + std::fmt::Debug + serde::de::DeserializeOwned> Value for idp_core::PlumRef<T>
-// where
-//     ConcreteValue: TryFrom<T>,
-// {
-//     fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
-//         // The call to value() will handle loading, deserializing, and caching into memory.
-//         let value_a = self.value()?;
-//         Ok(ConcreteValue::try_from(value_a.into())?)
-//     }
-// }
-
-impl Value for idp_core::PlumRef<Expr> {
+impl Expr for idp_core::PlumRef<ASTNode> {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         // The call to value() will handle loading, deserializing, and caching into memory.
         self.value()?.eval(rt)
@@ -298,7 +427,7 @@ impl Value for idp_core::PlumRef<Expr> {
 
 macro_rules! plum_ref {
     ($plum_head_seal:expr) => {
-        Expr::PlumRef(Box::new(idp_core::PlumRef::<Expr>::new($plum_head_seal)))
+        ASTNode::PlumRef(Box::new(idp_core::PlumRef::<ASTNode>::new($plum_head_seal)))
     };
 }
 
@@ -307,10 +436,10 @@ pub struct Function {
     /// All arguments are implicitly typed as f64 for now.
     pub argument_name_v: Vec<String>,
     // TODO: return type (for now, this is implicitly f64)
-    pub body: Expr,
+    pub body: ASTNode,
 }
 
-impl Value for Function {
+impl Expr for Function {
     fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
         // Inefficient, but fine for now.
         Ok(ConcreteValue::Function(self.clone()))
@@ -319,7 +448,7 @@ impl Value for Function {
 
 macro_rules! function {
     (($($argument_name_v:ident),*) -> $body:expr) => {
-        Expr::Function(Box::new(Function {
+        ASTNode::Function(Box::new(Function {
             argument_name_v: vec![$(stringify!($argument_name_v).to_string(),)*],
             body: $body,
         }))
@@ -328,12 +457,12 @@ macro_rules! function {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Call {
-    pub function: Expr,
+    pub function: ASTNode,
     /// All arguments are implicitly typed as f64 for now.
-    pub argument_expr_v: Vec<Expr>,
+    pub argument_expr_v: Vec<ASTNode>,
 }
 
-impl Value for Call {
+impl Expr for Call {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         log::trace!("Call::eval");
         let function_eval = self.function.eval(rt)?;
@@ -355,7 +484,7 @@ impl Value for Call {
 
 macro_rules! call {
     ($function:expr, ($($argument_expr_v:expr),*)) => {
-        Expr::Call(Box::new(Call {
+        ASTNode::Call(Box::new(Call {
             function: $function,
             argument_expr_v: vec![$($argument_expr_v,)*],
         }))
@@ -382,7 +511,7 @@ impl Float64 {
     }
 }
 
-impl Value for Float64 {
+impl Expr for Float64 {
     fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
         Ok(ConcreteValue::Float64(*self))
     }
@@ -390,33 +519,33 @@ impl Value for Float64 {
 
 macro_rules! float64 {
     ($x: expr) => {
-        Expr::Float64(Float64($x))
+        ASTNode::Float64(Float64($x))
     };
 }
 
 #[derive(Clone, Debug, derive_more::Deref, serde::Deserialize, serde::Serialize)]
 pub struct SymbolicRef(String);
 
-impl Value for SymbolicRef {
+impl Expr for SymbolicRef {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         // This is inefficient, but is fine for now.  The solution would be to return
-        // Arc<RwLock<ConcreteValue>> from Value::eval, but that has its own drawbacks.
-        Ok(rt.dereference(self.as_str())?.read().unwrap().clone())
+        // Arc<RwLock<ConcreteValue>> from Expr::eval, but that has its own drawbacks.
+        Ok(rt.dereference(self.as_str())?.read().clone())
     }
 }
 
 macro_rules! symbolic_ref {
     ($symbol_id: ident) => {
-        Expr::SymbolicRef(SymbolicRef(stringify!($symbol_id).to_string()))
+        ASTNode::SymbolicRef(SymbolicRef(stringify!($symbol_id).to_string()))
     };
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Neg {
-    pub operand: Expr,
+    pub operand: ASTNode,
 }
 
-impl Value for Neg {
+impl Expr for Neg {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let x = self.operand.eval(rt)?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(-x)))
@@ -425,17 +554,17 @@ impl Value for Neg {
 
 macro_rules! neg {
     ($x: expr) => {
-        Expr::Neg(Box::new(Neg($x)))
+        ASTNode::Neg(Box::new(Neg($x)))
     };
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Add {
-    pub lhs: Expr,
-    pub rhs: Expr,
+    pub lhs: ASTNode,
+    pub rhs: ASTNode,
 }
 
-impl Value for Add {
+impl Expr for Add {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
@@ -445,7 +574,7 @@ impl Value for Add {
 
 macro_rules! add {
     ($lhs: expr, $rhs: expr $(,)?) => {
-        Expr::Add(Box::new(Add {
+        ASTNode::Add(Box::new(Add {
             lhs: $lhs,
             rhs: $rhs,
         }))
@@ -454,11 +583,11 @@ macro_rules! add {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Sub {
-    pub lhs: Expr,
-    pub rhs: Expr,
+    pub lhs: ASTNode,
+    pub rhs: ASTNode,
 }
 
-impl Value for Sub {
+impl Expr for Sub {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
@@ -468,7 +597,7 @@ impl Value for Sub {
 
 macro_rules! sub {
     ($lhs: expr, $rhs: expr $(,)?) => {
-        Expr::Sub(Box::new(Sub {
+        ASTNode::Sub(Box::new(Sub {
             lhs: $lhs,
             rhs: $rhs,
         }))
@@ -477,11 +606,11 @@ macro_rules! sub {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Mul {
-    pub lhs: Expr,
-    pub rhs: Expr,
+    pub lhs: ASTNode,
+    pub rhs: ASTNode,
 }
 
-impl Value for Mul {
+impl Expr for Mul {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
@@ -491,7 +620,7 @@ impl Value for Mul {
 
 macro_rules! mul {
     ($lhs: expr, $rhs: expr $(,)?) => {
-        Expr::Mul(Box::new(Mul {
+        ASTNode::Mul(Box::new(Mul {
             lhs: $lhs,
             rhs: $rhs,
         }))
@@ -500,11 +629,11 @@ macro_rules! mul {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Div {
-    pub lhs: Expr,
-    pub rhs: Expr,
+    pub lhs: ASTNode,
+    pub rhs: ASTNode,
 }
 
-impl Value for Div {
+impl Expr for Div {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
@@ -514,7 +643,7 @@ impl Value for Div {
 
 macro_rules! div {
     ($lhs: expr, $rhs: expr $(,)?) => {
-        Expr::Div(Box::new(Div {
+        ASTNode::Div(Box::new(Div {
             lhs: $lhs,
             rhs: $rhs,
         }))
@@ -523,11 +652,11 @@ macro_rules! div {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Pow {
-    pub base: Expr,
-    pub exponent: Expr,
+    pub base: ASTNode,
+    pub exponent: ASTNode,
 }
 
-impl Value for Pow {
+impl Expr for Pow {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         let base = self.base.eval(rt)?.as_float64()?.as_f64();
         let exponent = self.exponent.eval(rt)?.as_float64()?.as_f64();
@@ -537,7 +666,7 @@ impl Value for Pow {
 
 macro_rules! pow {
     ($base: expr, $exponent: expr $(,)?) => {
-        Expr::Pow(Box::new(Pow {
+        ASTNode::Pow(Box::new(Pow {
             base: $base,
             exponent: $exponent,
         }))
@@ -546,7 +675,7 @@ macro_rules! pow {
 
 // TODO: This could be called ASTNode
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub enum Expr {
+pub enum ASTNode {
     Float64(Float64),
     SymbolicRef(SymbolicRef),
     Neg(Box<Neg>),
@@ -555,28 +684,28 @@ pub enum Expr {
     Mul(Box<Mul>),
     Div(Box<Div>),
     Pow(Box<Pow>),
+    // ParenExpr(Box<ParenExpr>),
     Block(Box<Block>),
     Function(Box<Function>),
     Call(Box<Call>),
-    PlumRef(Box<idp_core::PlumRef<Expr>>),
-}
-
-// TEMP HACK maybe?  Seems to be needed for some reason.
-impl Default for Expr {
-    fn default() -> Self {
-        // Arbitrary choice
-        Expr::Float64(Float64(0.0))
-    }
+    PlumRef(Box<idp_core::PlumRef<ASTNode>>),
 }
 
 // TEMP HACK
-unsafe impl Send for Expr {}
-unsafe impl Sync for Expr {}
+unsafe impl Send for ASTNode {}
+unsafe impl Sync for ASTNode {}
 
-impl Expr {
+impl Default for ASTNode {
+    fn default() -> Self {
+        // Arbitrary choice
+        ASTNode::Float64(Float64(0.0))
+    }
+}
+
+impl ASTNode {
     pub fn into_block(self) -> Result<Block> {
         match self {
-            Expr::Block(block_b) => Ok(*block_b),
+            ASTNode::Block(block_b) => Ok(*block_b),
             _ => {
                 anyhow::bail!("expected Block");
             }
@@ -584,22 +713,72 @@ impl Expr {
     }
 }
 
-impl Value for Expr {
+impl Expr for ASTNode {
     fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         match self {
-            Expr::Float64(x) => x.eval(rt),
-            Expr::Block(x) => x.eval(rt),
-            Expr::SymbolicRef(x) => x.eval(rt),
-            Expr::Neg(x) => x.eval(rt),
-            Expr::Add(x) => x.eval(rt),
-            Expr::Sub(x) => x.eval(rt),
-            Expr::Mul(x) => x.eval(rt),
-            Expr::Div(x) => x.eval(rt),
-            Expr::Pow(x) => x.eval(rt),
-            Expr::Function(x) => x.eval(rt),
-            Expr::Call(x) => x.eval(rt),
-            Expr::PlumRef(x) => x.eval(rt),
+            ASTNode::Float64(x) => x.eval(rt),
+            ASTNode::Block(x) => x.eval(rt),
+            ASTNode::SymbolicRef(x) => x.eval(rt),
+            ASTNode::Neg(x) => x.eval(rt),
+            ASTNode::Add(x) => x.eval(rt),
+            ASTNode::Sub(x) => x.eval(rt),
+            ASTNode::Mul(x) => x.eval(rt),
+            ASTNode::Div(x) => x.eval(rt),
+            ASTNode::Pow(x) => x.eval(rt),
+            ASTNode::Function(x) => x.eval(rt),
+            ASTNode::Call(x) => x.eval(rt),
+            ASTNode::PlumRef(x) => x.eval(rt),
         }
+    }
+}
+
+impl std::ops::Neg for ASTNode {
+    type Output = ASTNode;
+    fn neg(self) -> Self {
+        ASTNode::Neg(Box::new(Neg { operand: self }))
+    }
+}
+
+impl std::ops::Add for ASTNode {
+    type Output = ASTNode;
+    fn add(self, other: Self) -> Self {
+        ASTNode::Add(Box::new(Add {
+            lhs: self,
+            rhs: other,
+        }))
+    }
+}
+
+impl std::ops::Sub for ASTNode {
+    type Output = ASTNode;
+
+    fn sub(self, other: Self) -> Self {
+        ASTNode::Sub(Box::new(Sub {
+            lhs: self,
+            rhs: other,
+        }))
+    }
+}
+
+impl std::ops::Mul for ASTNode {
+    type Output = ASTNode;
+
+    fn mul(self, other: Self) -> Self {
+        ASTNode::Mul(Box::new(Mul {
+            lhs: self,
+            rhs: other,
+        }))
+    }
+}
+
+impl std::ops::Div for ASTNode {
+    type Output = ASTNode;
+
+    fn div(self, other: Self) -> Self {
+        ASTNode::Div(Box::new(Div {
+            lhs: self,
+            rhs: other,
+        }))
     }
 }
 
@@ -614,6 +793,7 @@ fn main() -> Result<()> {
     }
 
     {
+        log::debug!("-- cos(1) using arithmetic expression macros --------------");
         // cos(1) ~= 1 - 1/2*(1 - 1/(3*4)*(1 - 1/(5*6)*(1 - 1/(7*8)*(1 - 1/(9*10)))))
         //         = 0.54030230379188715
         // is correct to 7 digits; actual value is 0.5403023058681398...
@@ -646,6 +826,22 @@ fn main() -> Result<()> {
     }
 
     {
+        log::debug!("-- cos(1) using std::ops arithmetic traits for better syntax --------------");
+        let one = float64!(1.0);
+        let cos_1 = one.clone()
+            - float64!(1.0 / 2.0)
+                * (one.clone()
+                    - float64!(1.0 / (3.0 * 4.0))
+                        * (one.clone()
+                            - float64!(1.0 / (5.0 * 6.0))
+                                * (one.clone()
+                                    - float64!(1.0 / (7.0 * 8.0))
+                                        * (one.clone() - float64!(1.0 / (9.0 * 10.0))))));
+        log::debug!("cos_1 -> {:.17}", cos_1.eval(&mut rt)?.as_float64()?);
+    }
+
+    {
+        log::debug!("-- block_0 --------------");
         let block_0 = block!(float64!(1.2));
         log::debug!("block_0 -> {:.17}", block_0.eval(&mut rt)?.as_float64()?);
     }
@@ -664,124 +860,179 @@ fn main() -> Result<()> {
         rt.reset();
         let cos_2 = block! {
             define!(x, float64!(2.0));
-            define!(x_squared, mul!(symbolic_ref!(x), symbolic_ref!(x)));
-            define!(z, mul!(float64!(1.0/(1.0*2.0)), symbolic_ref!(x_squared)));
+            define!(x_squared, symbolic_ref!(x) * symbolic_ref!(x));
+            define!(z, float64!(1.0/(1.0*2.0)) * symbolic_ref!(x_squared));
             define!(y, float64!(1.0));
-            assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(3.0*4.0)))));
-            assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(5.0*6.0)))));
-            assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(7.0*8.0)))));
-            assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(9.0*10.0)))));
-            assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(11.0*12.0)))));
-            assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(13.0*14.0)))));
-            assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(15.0*16.0)))));
-            assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-            assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(17.0*18.0)))));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(3.0*4.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(5.0*6.0));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(7.0*8.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(9.0*10.0));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(11.0*12.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(13.0*14.0));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(15.0*16.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(17.0*18.0));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(19.0*20.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(21.0*22.0));
+            sub_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(23.0*24.0));
+            add_assign!(y, symbolic_ref!(z));
+            mul_assign!(z, symbolic_ref!(x_squared) / float64!(25.0*26.0));
             ;
             symbolic_ref!(y)
         };
-        log::debug!("cos_2 -> {:.17}", cos_2.eval(&mut rt)?.as_float64()?);
+        let value = cos_2.eval(&mut rt)?.as_float64()?.as_f64();
+        let error = (value - 2.0f64.cos()).abs();
+        log::debug!(
+            "cos_2 -> {:.17}; 'actual' value is {:.17}; error: {:.17e}",
+            value,
+            2.0f64.cos(),
+            error,
+        );
+        assert!(error < 1.0e-16);
     }
 
     // Define some functions (which will be used in several places)
     let norm_squared_function = function!((x, y) -> block! {
-        define!(z, mul!(symbolic_ref!(x), symbolic_ref!(x)));
-        assign!(z, add!(symbolic_ref!(z), mul!(symbolic_ref!(y), symbolic_ref!(y))));
+        define!(z, symbolic_ref!(x) * symbolic_ref!(x));
+        add_assign!(z, symbolic_ref!(y) * symbolic_ref!(y));
         ;
         symbolic_ref!(z)
     });
     let exp_function = function!((x) -> block! {
         define!(z, symbolic_ref!(x));
         define!(y, float64!(1.0));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/2.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/3.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/4.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/5.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/6.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/7.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/8.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/9.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/10.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/11.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/12.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/13.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/14.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/15.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x), float64!(1.0/16.0))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(2.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(3.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(4.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(5.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(6.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(7.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(8.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(9.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(10.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(11.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(12.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(13.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(14.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(15.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(16.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(17.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(18.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(19.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(20.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(21.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(22.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(23.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(24.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(25.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(26.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x) / float64!(27.0));
+        add_assign!(y, symbolic_ref!(z));
         ;
         symbolic_ref!(y)
     });
     let cos_function = function!((x) -> block! {
-        define!(x_squared, mul!(symbolic_ref!(x), symbolic_ref!(x)));
-        define!(z, mul!(float64!(1.0/(1.0*2.0)), symbolic_ref!(x_squared)));
+        define!(x_squared, symbolic_ref!(x) * symbolic_ref!(x));
+        define!(z, symbolic_ref!(x_squared) / float64!(1.0*2.0));
         define!(y, float64!(1.0));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(3.0*4.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(5.0*6.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(7.0*8.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(9.0*10.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(11.0*12.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(13.0*14.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(15.0*16.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(17.0*18.0)))));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(3.0*4.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(5.0*6.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(7.0*8.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(9.0*10.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(11.0*12.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(13.0*14.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(15.0*16.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(17.0*18.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(19.0*20.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(21.0*22.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(23.0*24.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(25.0*26.0));
         ;
         symbolic_ref!(y)
     });
     let sin_function = function!((x) -> block! {
         define!(x_squared, mul!(symbolic_ref!(x), symbolic_ref!(x)));
-        define!(z, mul!(float64!(1.0/(1.0*2.0*3.0)), mul!(symbolic_ref!(x_squared), symbolic_ref!(x))));
+        define!(z, symbolic_ref!(x));
         define!(y, symbolic_ref!(x));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(4.0*5.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(6.0*7.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(8.0*9.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(10.0*11.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(12.0*13.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(14.0*15.0)))));
-        assign!(y, sub!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(16.0*17.0)))));
-        assign!(y, add!(symbolic_ref!(y), symbolic_ref!(z)));
-        assign!(z, mul!(symbolic_ref!(z), mul!(symbolic_ref!(x_squared), float64!(1.0/(18.0*19.0)))));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(2.0*3.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(4.0*5.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(6.0*7.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(8.0*9.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(10.0*11.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(12.0*13.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(14.0*15.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(16.0*17.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(18.0*19.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(20.0*21.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(22.0*23.0));
+        sub_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(24.0*25.0));
+        add_assign!(y, symbolic_ref!(z));
+        mul_assign!(z, symbolic_ref!(x_squared) / float64!(26.0*27.0));
         ;
         symbolic_ref!(y)
     });
 
     {
-        log::debug!("------------------------------------------------------");
+        log::debug!("-- exp function ----------------------------------------------------");
         rt.reset();
         let program = block! {
             define!(norm_squared, norm_squared_function.clone());
@@ -793,10 +1044,16 @@ fn main() -> Result<()> {
             call!(symbolic_ref!(exp), (float64!(1.0)))
         }
         .into_block()?;
+        let program_value = program.run_as_program(&mut rt)?.as_float64()?.as_f64();
+        let actual_value = 1.0f64.exp();
+        let error = (program_value - actual_value).abs();
         log::debug!(
-            "program -> {:.17}",
-            program.run_as_program(&mut rt)?.as_float64()?
+            "program -> {:.17}; actual value: {:.17}; error: {:.17e}",
+            program_value,
+            actual_value,
+            error,
         );
+        assert!(error < 5.0e-16);
         log::debug!("rt.symbol_mv.len(): {}", rt.symbol_mv.len());
         log::debug!(
             "rt.symbol_mv.last().unwrap().keys():\n{:#?}",
@@ -804,38 +1061,38 @@ fn main() -> Result<()> {
         );
     }
 
-    // Now create a Datahost and Datacache.
+    // Now create a Datahost and initialize the Datacache with it.
     let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory()?));
-    // let datacache_la = Arc::new(RwLock::new(idp_core::Datacache::new(datahost_la.clone())));
-
     idp_core::initialize_datacache(idp_core::Datacache::new(datahost_la.clone()));
 
     // Store the functions in the Datahost
-    let norm_squared_plum_head_seal = datahost_la.write().unwrap().store_plum(
+    let norm_squared_plum_head_seal = datahost_la.write().store_plum(
         &idp_proto::PlumBuilder::new()
             .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
             .with_body_content(rmp_serde::to_vec(&norm_squared_function)?)
             .build()?,
     )?;
-    let exp_plum_head_seal = datahost_la.write().unwrap().store_plum(
+    let exp_plum_head_seal = datahost_la.write().store_plum(
         &idp_proto::PlumBuilder::new()
             .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
             .with_body_content(rmp_serde::to_vec(&exp_function)?)
             .build()?,
     )?;
-    let cos_plum_head_seal = datahost_la.write().unwrap().store_plum(
+    let cos_plum_head_seal = datahost_la.write().store_plum(
         &idp_proto::PlumBuilder::new()
             .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
             .with_body_content(rmp_serde::to_vec(&cos_function)?)
             .build()?,
     )?;
-    let sin_plum_head_seal = datahost_la.write().unwrap().store_plum(
+    let sin_plum_head_seal = datahost_la.write().store_plum(
         &idp_proto::PlumBuilder::new()
             .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
             .with_body_content(rmp_serde::to_vec(&sin_function)?)
             .build()?,
     )?;
 
+    // Here, create a program where the functions are linked in from hash-addressed Plums in the Datahost,
+    // automatically loaded via PlumRef and Datacache.
     {
         log::debug!("------------------------------------------------------");
         rt.reset();
@@ -845,8 +1102,8 @@ fn main() -> Result<()> {
             define!(cos, plum_ref!(cos_plum_head_seal.clone()));
             define!(sin, plum_ref!(sin_plum_head_seal.clone()));
             ;
-            // call!(symbolic_ref!(norm_squared), (call!(symbolic_ref!(cos), (float64!(0.83))), call!(symbolic_ref!(sin), (float64!(0.83)))))
-            call!(symbolic_ref!(exp), (float64!(1.0)))
+            call!(symbolic_ref!(norm_squared), (call!(symbolic_ref!(cos), (float64!(0.83))), call!(symbolic_ref!(sin), (float64!(0.83)))))
+            // call!(symbolic_ref!(exp), (float64!(1.0)))
         }
         .into_block()?;
         log::debug!(
