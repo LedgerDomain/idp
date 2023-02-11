@@ -24,6 +24,10 @@ use std::{collections::HashMap, convert::TryFrom};
 diesel_migrations::embed_migrations!("migrations");
 
 pub struct Datahost {
+    // TEMP HACK -- this is not stored in the DB (which means it's not really a formal and persistent
+    // property of the Datahost), and is really only meant to distinguish Datahost log messages in tests.
+    // TODO: Take this out probably, or formalize it into the DB itself.
+    pub name: String,
     conn: SqliteConnection,
 }
 
@@ -32,12 +36,12 @@ unsafe impl Sync for Datahost {}
 
 impl Datahost {
     /// This opens the datahost using an in-memory database.
-    pub fn open_in_memory() -> Result<Self> {
-        Self::open_database_url(":memory:")
+    pub fn open_in_memory(name: String) -> Result<Self> {
+        Self::open_database_url(":memory:", name)
     }
 
     /// This opens the datahost using the database_url specified by the IDP_DATAHOST_DATABASE_URL env var.
-    pub fn open_using_env_var() -> Result<Self> {
+    pub fn open_using_env_var(name: String) -> Result<Self> {
         // Note that the .ok() call converts from Result<T,E> to Option<T>, producing None upon error.
         // This effectively ignores errors.
         dotenv::dotenv().ok();
@@ -46,17 +50,17 @@ impl Datahost {
         log::info!(
             "Datahost database_url is being determined by IDP_DATAHOST_DATABASE_URL env var"
         );
-        Self::open_database_url(&database_url)
+        Self::open_database_url(&database_url, name)
     }
 
     /// This opens the datahost using the specified database_url.
-    pub fn open_database_url(database_url: &str) -> Result<Self> {
+    pub fn open_database_url(database_url: &str, name: String) -> Result<Self> {
         let conn = SqliteConnection::establish(&database_url).context(format!(
             "Error connecting to SQLite DB with database_url: {:#?}",
             database_url
         ))?;
         log::info!("Datahost opened using database_url: {:#?}", database_url);
-        let datahost = Datahost { conn };
+        let datahost = Datahost { name, conn };
         datahost.run_migrations()?;
         Ok(datahost)
     }
@@ -71,7 +75,11 @@ impl Datahost {
     //
 
     pub fn store_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal> {
-        log::trace!("Datahost::store_plum_head({:?})", plum_head);
+        log::trace!(
+            "Datahost({:?})::store_plum_head({:?})",
+            self.name,
+            plum_head
+        );
         let plum_head_row_insertion = PlumHeadRowInsertion::from(plum_head);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -81,7 +89,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // The PlumHead doesn't yet exist, but was successfully added.
-                log::trace!("    success: stored {}", plum_head_row_insertion.head_seal);
+                log::trace!(
+                    "Datahost({:?})::store_plum_head; success: stored {}",
+                    self.name,
+                    plum_head_row_insertion.head_seal
+                );
             }
             Err(diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -89,7 +101,8 @@ impl Datahost {
             )) => {
                 // The PlumHead already exists, so there's nothing to do.
                 log::trace!(
-                    "    success: already exists: {}",
+                    "Datahost({:?})::store_plum_head; success: already exists: {}",
+                    self.name,
                     plum_head_row_insertion.head_seal
                 );
                 // TODO: Query the DB and verify that the pushed PlumHead is identical to the existing one.
@@ -108,7 +121,11 @@ impl Datahost {
         source_head_seal: &PlumHeadSeal,
         plum_relations: &PlumRelations,
     ) -> Result<()> {
-        log::trace!("Datahost::store_plum_relations({:?})", plum_relations);
+        log::trace!(
+            "Datahost({:?})::store_plum_relations({:?})",
+            self.name,
+            plum_relations
+        );
 
         for relation_flags_mapping in &plum_relations.relation_flags_mappings {
             let plum_relations_row_insertion = PlumRelationsRowInsertion {
@@ -116,7 +133,11 @@ impl Datahost {
                 target_head_seal: relation_flags_mapping.target_head_seal.clone(),
                 relation_flags: RelationFlags::try_from(relation_flags_mapping.relation_flags_raw).expect("invalid RelationFlags value; if this panicking is a problem, then some 'invalid' or 'unknown' enum variant should be added to RelationFlags"),
             };
-            log::debug!("inserting {:#?}", plum_relations_row_insertion);
+            log::trace!(
+                "Datahost({:?})::store_plum_relations; inserting {:?}",
+                self.name,
+                plum_relations_row_insertion
+            );
             diesel::insert_into(crate::schema::plum_relations::table)
                 .values(&plum_relations_row_insertion)
                 .execute(&self.conn)?;
@@ -125,7 +146,11 @@ impl Datahost {
     }
 
     pub fn store_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal> {
-        log::trace!("Datahost::store_plum_body({:?})", plum_body);
+        log::trace!(
+            "Datahost({:?})::store_plum_body({:?})",
+            self.name,
+            plum_body
+        );
         let plum_body_row_insertion = PlumBodyRowInsertion::from(plum_body);
 
         // Ideally we'd just use .on_conflict_do_nothing, but that method seems to be missing for some reason.
@@ -135,7 +160,11 @@ impl Datahost {
         {
             Ok(_) => {
                 // Success, nothing to do.
-                log::trace!("    success: stored {}", plum_body_row_insertion.body_seal);
+                log::trace!(
+                    "Datahost({:?})::store_plum_body; success: stored {}",
+                    self.name,
+                    plum_body_row_insertion.body_seal
+                );
             }
             Err(diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
@@ -143,7 +172,8 @@ impl Datahost {
             )) => {
                 // The PlumBody already exists, so now update it.
                 log::trace!(
-                    "    PlumBody already exists: {}",
+                    "Datahost({:?})::store_plum_body; PlumBody already exists: {}",
+                    self.name,
                     plum_body_row_insertion.body_seal
                 );
                 // TODO: Query the DB and verify that the pushed PlumBody is identical to the existing one.
@@ -227,8 +257,13 @@ impl Datahost {
     //         Ok(Plum { head, body })
     //     }
 
-    fn select_plum_head_row(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHeadRow> {
+    /// If the specified PlumHeadRow is not present, will return None.
+    pub fn select_option_plum_head_row(
+        &self,
+        plum_head_seal: &PlumHeadSeal,
+    ) -> Result<Option<PlumHeadRow>> {
         use crate::schema::plum_heads::dsl;
+        // TODO: There's a better way to do this that doesn't return a Vec but rather a single value.
         Ok(dsl::plum_heads
             .filter(dsl::head_seal.eq(plum_head_seal))
             .limit(1)
@@ -237,11 +272,23 @@ impl Datahost {
             .context("Error loading plum_heads")?
             // This should return Some(plum_head_row)
             // TODO: Use first here instead?
-            .pop()
-            .ok_or_else(|| anyhow::format_err!("PlumHeadSeal {} not found", plum_head_seal))?)
+            .pop())
+    }
+    // If the specified PlumHeadRow is not present, will return error.
+    fn select_plum_head_row(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHeadRow> {
+        self.select_option_plum_head_row(plum_head_seal)?
+            .ok_or_else(|| anyhow::format_err!("PlumHeadSeal {} not found", plum_head_seal))
     }
 
-    fn select_plum_body_row(&self, plum_body_seal: &PlumBodySeal) -> Result<PlumBodyRow> {
+    // TODO: Need a try_select_plum_relations_row, but the Plum relations don't exist in the same
+    // way as heads or bodies, since the plum relations have been broken apart and stuck into the
+    // relational DB.
+
+    /// If the specified PlumBodyRow is not present, will return None.
+    pub fn select_option_plum_body_row(
+        &self,
+        plum_body_seal: &PlumBodySeal,
+    ) -> Result<Option<PlumBodyRow>> {
         use crate::schema::plum_bodies::dsl;
         Ok(dsl::plum_bodies
             .filter(dsl::body_seal.eq(plum_body_seal))
@@ -251,8 +298,12 @@ impl Datahost {
             .context("Error loading plum_bodies")?
             // This should return Some(plum_body_row)
             // TODO: Use first here instead?
-            .pop()
-            .ok_or_else(|| anyhow::format_err!("PlumBodySeal {} not found", plum_body_seal))?)
+            .pop())
+    }
+    // If the specified PlumBodyRow is not present, will return error.
+    fn select_plum_body_row(&self, plum_body_seal: &PlumBodySeal) -> Result<PlumBodyRow> {
+        self.select_option_plum_body_row(plum_body_seal)?
+            .ok_or_else(|| anyhow::format_err!("PlumBodySeal {} not found", plum_body_seal))
     }
 
     // TEMP HACK -- this should be private

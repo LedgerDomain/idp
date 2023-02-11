@@ -1,11 +1,8 @@
 use crate::Datahost;
 use anyhow::Result;
 use idp_proto::PlumHeadSeal;
-use std::{
-    any::Any,
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use parking_lot::RwLock;
+use std::{any::Any, collections::HashMap, sync::Arc};
 
 type UntypedValueGuts = dyn Any + Send + Sync;
 
@@ -56,7 +53,7 @@ impl Datacache {
     where
         T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sized + Sync,
     {
-        if let Some(cached_value) = self.cached_value_mla.read().unwrap().get(head_seal) {
+        if let Some(cached_value) = self.cached_value_mla.read().get(head_seal) {
             let value_a = cached_value.typed_value::<T>().clone();
             log::trace!(
                 "Datacache::load_content({:?})\n\tcontent was already cached: {:?}",
@@ -72,7 +69,7 @@ impl Datacache {
             head_seal,
         );
         // Otherwise need to load it from Datahost.
-        let plum = self.datahost_la.read().unwrap().load_plum(head_seal)?;
+        let plum = self.datahost_la.read().load_plum(head_seal)?;
         // Now attempt to deserialize the Plum body content into the requested type.
         // NOTE/TODO: This is assuming all plum bodies are serialized via rmp_serde, which will
         // not be the case forever.
@@ -92,7 +89,6 @@ impl Datacache {
         // Store it in the cache.
         self.cached_value_mla
             .write()
-            .unwrap()
             .insert(head_seal.clone(), UntypedValue(Box::new(value_a.clone())));
         log::trace!(
             "Datacache::load_content({:?})\n\tstored content in cache.",
@@ -103,12 +99,12 @@ impl Datacache {
     }
     /// Clears the entire cache.
     pub fn clear_cache(&self) {
-        self.cached_value_mla.write().unwrap().clear();
+        self.cached_value_mla.write().clear();
     }
     /// Clears a single value from the cache.  Note that this only clears the value's Arc<T> from this
     /// data structure, it doesn't clear it from any other location that's storing a clone of that Arc<T>.
     /// Thus it is possible for this call to have no effect.
     pub fn clear_cached_value(&self, head_seal: &PlumHeadSeal) {
-        self.cached_value_mla.write().unwrap().remove(head_seal);
+        self.cached_value_mla.write().remove(head_seal);
     }
 }

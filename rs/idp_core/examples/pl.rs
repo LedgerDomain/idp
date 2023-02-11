@@ -1062,7 +1062,7 @@ fn main() -> Result<()> {
     }
 
     // Now create a Datahost and initialize the Datacache with it.
-    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory()?));
+    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory("PL".to_string())?));
     idp_core::initialize_datacache(idp_core::Datacache::new(datahost_la.clone()));
 
     // Store the functions in the Datahost

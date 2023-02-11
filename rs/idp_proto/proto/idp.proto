@@ -121,151 +121,137 @@ message Plum {
 //
 
 //
-// Push
+// Push -- Push means to push a given Plum and its full tree of dependencies to the server.
+// TODO: Add a PushHeadRequest, which does the same as a full Push, but only pushes heads.
 //
 
-message PushHeadRequest {
-    required PlumHead head = 1;
-}
-
-message PushBodyRequest {
-    required PlumBody body = 1;
-}
-
-message PushHeadAndBodyRequest {
-    required Plum plum = 1;
-}
-
+// These stream from client to server, starting with the PlumHeadSeal, and the server streams
+// responses to say which PlumHeadSeals it already has Plums for (and therefore the client
+// doesn't have to push the Plum or recurse on its dependencies).  Thus there won't be much
+// wasted bandwidth.
+// TODO: break it apart into sending plum head, plum relations, plum body.  This requires
+// the server responding with which ones are needed for a given PlumHeadSeal.
 message PushRequest {
     oneof value {
-        PushHeadRequest push_head_request = 1;
-        PushBodyRequest push_body_request = 2;
-        PushHeadAndBodyRequest push_head_and_body_request = 3;
+        PlumHeadSeal should_i_send_this_plum = 1;
+        Plum here_have_a_plum = 2;
     }
 }
 
-message PushHeadResponse {
-    required PlumHeadSeal head_seal = 1;
-}
-
-message PushBodyResponse {
-    required PlumBodySeal body_seal = 1;
-}
-
-message PushHeadAndBodyResponse {
-    required PlumHeadSeal head_seal = 1;
-    required PlumBodySeal body_seal = 2;
-}
-
+// TODO: Potentially could respond with a boolean, as long as the client can reliably
+// pair the response with the request in the bidirectional streaming.
 message PushResponse {
     oneof value {
-        PushHeadResponse push_head_response = 1;
-        PushBodyResponse push_body_response = 2;
-        PushHeadAndBodyResponse push_head_and_body_response = 3;
+        // Response to here_have_a_plum; carries no information.
+        Acknowledgement ok = 1;
+        // Positive response to should_i_send_this_plum.
+        PlumHeadSeal send_this_plum = 2;
+        // Negative response to should_i_send_this_plum.
+        PlumHeadSeal dont_send_this_plum = 3;
     }
 }
 
-//
-// Pull
-//
+message Acknowledgement {}
 
-message PullHeadRequest {
-    required PlumHeadSeal head_seal = 1;
-}
+// //
+// // Pull
+// //
 
-message PullBodyRequest {
-    required PlumBodySeal body_seal = 1;
-}
+// message PullHeadRequest {
+//     required PlumHeadSeal head_seal = 1;
+// }
 
-message PullHeadAndBodyRequest {
-    required PlumHeadSeal head_seal = 1;
-    required PlumBodySeal body_seal = 2;
-}
+// message PullBodyRequest {
+//     required PlumBodySeal body_seal = 1;
+// }
 
-message PullRequest {
-    oneof value {
-        PullHeadRequest pull_head_request = 1;
-        PullBodyRequest pull_body_request = 2;
-        PullHeadAndBodyRequest pull_head_and_body_request = 3;
-    }
-}
+// message PullHeadAndBodyRequest {
+//     required PlumHeadSeal head_seal = 1;
+//     required PlumBodySeal body_seal = 2;
+// }
 
-message PullHeadResponse {
-    required PlumHead head = 1;
-}
+// message PullRequest {
+//     oneof value {
+//         PullHeadRequest pull_head_request = 1;
+//         PullBodyRequest pull_body_request = 2;
+//         PullHeadAndBodyRequest pull_head_and_body_request = 3;
+//     }
+// }
 
-message PullBodyResponse {
-    required PlumBody body = 1;
-}
+// message PullHeadResponse {
+//     required PlumHead head = 1;
+// }
 
-message PullHeadAndBodyResponse {
-    required Plum plum = 1;
-}
+// message PullBodyResponse {
+//     required PlumBody body = 1;
+// }
 
-message PullResponse {
-    oneof value {
-        PullHeadResponse pull_head_response = 1;
-        PullBodyResponse pull_body_response = 2;
-        PullHeadAndBodyResponse pull_head_and_body_response = 3;
-    }
-}
+// message PullHeadAndBodyResponse {
+//     required Plum plum = 1;
+// }
 
-//
-// Del
-//
+// message PullResponse {
+//     oneof value {
+//         PullHeadResponse pull_head_response = 1;
+//         PullBodyResponse pull_body_response = 2;
+//         PullHeadAndBodyResponse pull_head_and_body_response = 3;
+//     }
+// }
 
-message DelHeadRequest {
-    required PlumHeadSeal head_seal = 1;
-}
+// //
+// // Del
+// //
 
-message DelBodyRequest {
-    required PlumBodySeal body_seal = 1;
-}
+// message DelHeadRequest {
+//     required PlumHeadSeal head_seal = 1;
+// }
 
-message DelHeadAndBodyRequest {
-    required PlumHeadSeal head_seal = 1;
-    required PlumBodySeal body_seal = 2;
-}
+// message DelBodyRequest {
+//     required PlumBodySeal body_seal = 1;
+// }
 
-// TODO: Could implement bidirectional streaming of Del.
-message DelRequest {
-    oneof value {
-        DelHeadRequest del_head_request = 1;
-        DelBodyRequest del_body_request = 2;
-        DelHeadAndBodyRequest del_head_and_body_request = 3;
-    }
-}
+// message DelHeadAndBodyRequest {
+//     required PlumHeadSeal head_seal = 1;
+//     required PlumBodySeal body_seal = 2;
+// }
 
-message DelHeadResponse {
-    // Nothing needed
-}
+// // TODO: Could implement bidirectional streaming of Del.
+// message DelRequest {
+//     oneof value {
+//         DelHeadRequest del_head_request = 1;
+//         DelBodyRequest del_body_request = 2;
+//         DelHeadAndBodyRequest del_head_and_body_request = 3;
+//     }
+// }
 
-message DelBodyResponse {
-    // Nothing needed
-}
+// message DelHeadResponse {
+//     // Nothing needed
+// }
 
-message DelHeadAndBodyResponse {
-    // Nothing needed
-}
+// message DelBodyResponse {
+//     // Nothing needed
+// }
 
-message DelResponse {
-    oneof value {
-        DelHeadResponse del_head_response = 1;
-        DelBodyResponse del_body_response = 2;
-        DelHeadAndBodyResponse del_head_and_body_response = 3;
-    }
-}
+// message DelHeadAndBodyResponse {
+//     // Nothing needed
+// }
+
+// message DelResponse {
+//     oneof value {
+//         DelHeadResponse del_head_response = 1;
+//         DelBodyResponse del_body_response = 2;
+//         DelHeadAndBodyResponse del_head_and_body_response = 3;
+//     }
+// }
 
 //
 // Service definition
 //
 
 service IndoorDataPlumbing {
-    // TODO: Figure out what to pass so that the server could say "i already have that" and then
-    // not transfer the bulk of the data.
-    // TODO: Could implement bidirectional streaming of Push.
-    rpc Push (PushRequest) returns (PushResponse) {}
-    // TODO: Could implement bidirectional streaming of Pull.
-    rpc Pull (PullRequest) returns (PullResponse) {}
-    rpc Del (DelRequest) returns (DelResponse) {}
+    rpc Push (stream PushRequest) returns (stream PushResponse) {}
+
+    // // TODO: Could implement bidirectional streaming of Pull.
+    // rpc Pull (PullRequest) returns (PullResponse) {}
+    // rpc Del (DelRequest) returns (DelResponse) {}
 }

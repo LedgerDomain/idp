@@ -1,4 +1,3 @@
-use anyhow::Result;
 use idp_core::{
     datacache, initialize_datacache, BranchNode, Datacache, Datahost, DirNode, FragmentQueryResult,
     FragmentQueryable, PlumRef,
@@ -7,35 +6,31 @@ use idp_proto::{
     ContentType, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder, PlumHeadBuilder,
     PlumHeadSeal, RelationFlags,
 };
+use parking_lot::RwLock;
 use serial_test::serial;
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
+use std::{collections::BTreeMap, sync::Arc};
 use uuid::Uuid;
 
 #[test]
 #[serial]
-fn open_datahost() -> Result<()> {
+fn open_datahost() {
     let _ = env_logger::try_init();
 
-    Datahost::open_using_env_var()?;
-    Ok(())
+    Datahost::open_using_env_var("test".to_string()).expect("pass");
 }
 
 #[test]
 #[serial]
-fn open_and_close_datahost() -> Result<()> {
+fn open_and_close_datahost() {
     let _ = env_logger::try_init();
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
     datahost.close();
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_create_plum_head() -> Result<()> {
+fn test_datahost_create_plum_head() {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
@@ -45,33 +40,34 @@ fn test_datahost_create_plum_head() -> Result<()> {
                 .as_bytes()
                 .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
-    let head_seal = datahost.store_plum_head(&plum.head)?;
+    let head_seal = datahost.store_plum_head(&plum.head).expect("pass");
     assert_eq!(head_seal, PlumHeadSeal::from(&plum.head));
 
     // store_plum_head again and ensure it worked again.
-    let head_seal_2 = datahost.store_plum_head(&plum.head)?;
+    let head_seal_2 = datahost.store_plum_head(&plum.head).expect("pass");
     assert_eq!(head_seal_2, PlumHeadSeal::from(&plum.head));
 
     // load_plum_head and check that it matches.
-    let plum_head_2 = datahost.load_plum_head(&head_seal)?;
+    let plum_head_2 = datahost.load_plum_head(&head_seal).expect("pass");
     assert_eq!(plum_head_2, plum.head);
 
     log::debug!(
         "reference count for {:?} is {}",
         plum.head.body_seal,
-        datahost.select_plum_body_reference_count(&plum.head.body_seal)?
+        datahost
+            .select_plum_body_reference_count(&plum.head.body_seal)
+            .expect("pass")
     );
-
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_create_plum_body() -> Result<()> {
+fn test_datahost_create_plum_body() {
     let _ = env_logger::try_init();
 
     let plum_body = PlumBodyBuilder::new()
@@ -80,29 +76,30 @@ fn test_datahost_create_plum_body() -> Result<()> {
                 .as_bytes()
                 .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
-    let body_seal = datahost.store_plum_body(&plum_body)?;
+    let body_seal = datahost.store_plum_body(&plum_body).expect("pass");
     assert_eq!(body_seal, PlumBodySeal::from(&plum_body));
 
     // store_plum_body again and ensure it worked again.
-    let body_seal_2 = datahost.store_plum_body(&plum_body)?;
+    let body_seal_2 = datahost.store_plum_body(&plum_body).expect("pass");
     assert_eq!(body_seal_2, PlumBodySeal::from(&plum_body));
 
     log::debug!(
         "reference count for {:?} is {}",
         body_seal,
-        datahost.select_plum_body_reference_count(&body_seal)?
+        datahost
+            .select_plum_body_reference_count(&body_seal)
+            .expect("pass")
     );
-
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_create_plum() -> Result<()> {
+fn test_datahost_create_plum() {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
@@ -112,29 +109,30 @@ fn test_datahost_create_plum() -> Result<()> {
                 .as_bytes()
                 .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
-    let head_seal = datahost.store_plum(&plum)?;
+    let head_seal = datahost.store_plum(&plum).expect("pass");
     assert_eq!(head_seal, PlumHeadSeal::from(&plum.head));
 
     // store_plum again and ensure it worked again
-    let head_seal_2 = datahost.store_plum(&plum)?;
+    let head_seal_2 = datahost.store_plum(&plum).expect("pass");
     assert_eq!(head_seal_2, PlumHeadSeal::from(&plum.head));
 
     log::debug!(
         "reference count for {:?} is {}",
         plum.head.body_seal,
-        datahost.select_plum_body_reference_count(&plum.head.body_seal)?
+        datahost
+            .select_plum_body_reference_count(&plum.head.body_seal)
+            .expect("pass")
     );
-
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_create_plums_with_identical_bodies() -> Result<()> {
+fn test_datahost_create_plums_with_identical_bodies() {
     let _ = env_logger::try_init();
 
     let plum_body = PlumBodyBuilder::new()
@@ -146,17 +144,20 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<()> {
             .as_bytes()
             .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
     let plum_head_0 = PlumHeadBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_head_nonce(Nonce::from("blahdy blah"))
         .with_body(&plum_body)
-        .build()?;
+        .build()
+        .expect("pass");
     let plum_head_1 = PlumHeadBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_head_nonce(Nonce::from("NOTHING"))
         .with_body(&plum_body)
-        .build()?;
+        .build()
+        .expect("pass");
 
     let body_seal = plum_head_0.body_seal.clone();
     let plum_0 = Plum {
@@ -170,15 +171,17 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<()> {
         body: plum_body,
     };
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
-    let head_seal_0 = datahost.store_plum(&plum_0)?;
+    let head_seal_0 = datahost.store_plum(&plum_0).expect("pass");
     assert_eq!(head_seal_0, PlumHeadSeal::from(&plum_0.head));
 
-    let head_seal_1 = datahost.store_plum(&plum_1)?;
+    let head_seal_1 = datahost.store_plum(&plum_1).expect("pass");
     assert_eq!(head_seal_1, PlumHeadSeal::from(&plum_1.head));
 
-    let body_reference_count = datahost.select_plum_body_reference_count(&body_seal)?;
+    let body_reference_count = datahost
+        .select_plum_body_reference_count(&body_seal)
+        .expect("pass");
     assert_eq!(body_reference_count, 2);
 
     log::debug!(
@@ -186,16 +189,14 @@ fn test_datahost_create_plums_with_identical_bodies() -> Result<()> {
         body_seal,
         body_reference_count
     );
-
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_branch_node() -> Result<()> {
+fn test_datahost_branch_node() {
     let _ = env_logger::try_init();
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
     let content_1 = format!("splunges are cool, {}", Uuid::new_v4());
     let content_2 = format!("HIPPOS are cool, {}", Uuid::new_v4());
@@ -203,11 +204,13 @@ fn test_datahost_branch_node() -> Result<()> {
     let content_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(content_1.as_bytes().to_vec())
-        .build()?;
+        .build()
+        .expect("pass");
     let content_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(content_2.as_bytes().to_vec())
-        .build()?;
+        .build()
+        .expect("pass");
 
     let metadata_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
@@ -216,7 +219,8 @@ fn test_datahost_branch_node() -> Result<()> {
                 .as_bytes()
                 .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
     let metadata_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(
@@ -224,7 +228,8 @@ fn test_datahost_branch_node() -> Result<()> {
                 .as_bytes()
                 .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
     let metadata_2_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(
@@ -235,14 +240,15 @@ fn test_datahost_branch_node() -> Result<()> {
             .as_bytes()
             .to_vec(),
         )
-        .build()?;
+        .build()
+        .expect("pass");
 
-    let content_1_plum_head_seal = datahost.store_plum(&content_1_plum)?;
-    let content_2_plum_head_seal = datahost.store_plum(&content_2_plum)?;
+    let content_1_plum_head_seal = datahost.store_plum(&content_1_plum).expect("pass");
+    let content_2_plum_head_seal = datahost.store_plum(&content_2_plum).expect("pass");
 
-    let metadata_0_plum_head_seal = datahost.store_plum(&metadata_0_plum)?;
-    let metadata_1_plum_head_seal = datahost.store_plum(&metadata_1_plum)?;
-    let metadata_2_plum_head_seal = datahost.store_plum(&metadata_2_plum)?;
+    let metadata_0_plum_head_seal = datahost.store_plum(&metadata_0_plum).expect("pass");
+    let metadata_1_plum_head_seal = datahost.store_plum(&metadata_1_plum).expect("pass");
+    let metadata_2_plum_head_seal = datahost.store_plum(&metadata_2_plum).expect("pass");
 
     let branch_node_0 = BranchNode {
         ancestor_o: None,
@@ -252,9 +258,11 @@ fn test_datahost_branch_node() -> Result<()> {
         nega_diff_o: None,
     };
     let branch_node_0_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&branch_node_0)?
-        .build()?;
-    let branch_node_0_plum_head_seal = datahost.store_plum(&branch_node_0_plum)?;
+        .with_relational_typed_content_from(&branch_node_0)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let branch_node_0_plum_head_seal = datahost.store_plum(&branch_node_0_plum).expect("pass");
 
     let branch_node_1 = BranchNode {
         ancestor_o: Some(branch_node_0_plum_head_seal.clone()),
@@ -264,9 +272,11 @@ fn test_datahost_branch_node() -> Result<()> {
         nega_diff_o: None,
     };
     let branch_node_1_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&branch_node_1)?
-        .build()?;
-    let branch_node_1_plum_head_seal = datahost.store_plum(&branch_node_1_plum)?;
+        .with_relational_typed_content_from(&branch_node_1)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let branch_node_1_plum_head_seal = datahost.store_plum(&branch_node_1_plum).expect("pass");
 
     let branch_node_2 = BranchNode {
         ancestor_o: Some(branch_node_1_plum_head_seal.clone()),
@@ -276,9 +286,11 @@ fn test_datahost_branch_node() -> Result<()> {
         nega_diff_o: None,
     };
     let branch_node_2_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&branch_node_2)?
-        .build()?;
-    let branch_node_2_plum_head_seal = datahost.store_plum(&branch_node_2_plum)?;
+        .with_relational_typed_content_from(&branch_node_2)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let branch_node_2_plum_head_seal = datahost.store_plum(&branch_node_2_plum).expect("pass");
 
     //
     // Now accumulate_relations_recursive and check the results.  branch_node_2_plum is the head
@@ -288,44 +300,52 @@ fn test_datahost_branch_node() -> Result<()> {
 
     {
         let relation_flags_m = datahost
-            .accumulated_relations_recursive(&content_1_plum_head_seal, RelationFlags::ALL)?;
+            .accumulated_relations_recursive(&content_1_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
         assert!(relation_flags_m.is_empty());
     }
     {
         let relation_flags_m = datahost
-            .accumulated_relations_recursive(&content_2_plum_head_seal, RelationFlags::ALL)?;
-        assert!(relation_flags_m.is_empty());
-    }
-
-    {
-        let relation_flags_m = datahost
-            .accumulated_relations_recursive(&metadata_0_plum_head_seal, RelationFlags::ALL)?;
-        assert!(relation_flags_m.is_empty());
-    }
-    {
-        let relation_flags_m = datahost
-            .accumulated_relations_recursive(&metadata_1_plum_head_seal, RelationFlags::ALL)?;
-        assert!(relation_flags_m.is_empty());
-    }
-    {
-        let relation_flags_m = datahost
-            .accumulated_relations_recursive(&metadata_2_plum_head_seal, RelationFlags::ALL)?;
+            .accumulated_relations_recursive(&content_2_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
         assert!(relation_flags_m.is_empty());
     }
 
     {
         let relation_flags_m = datahost
-            .accumulated_relations_recursive(&branch_node_0_plum_head_seal, RelationFlags::ALL)?;
+            .accumulated_relations_recursive(&metadata_0_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
+        assert!(relation_flags_m.is_empty());
+    }
+    {
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(&metadata_1_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
+        assert!(relation_flags_m.is_empty());
+    }
+    {
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(&metadata_2_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
+        assert!(relation_flags_m.is_empty());
+    }
+
+    {
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(&branch_node_0_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         assert_eq!(relation_flags_m.len(), 1);
         assert!(relation_flags_m.contains_key(&metadata_0_plum_head_seal));
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &branch_node_0_plum_head_seal,
-            RelationFlags::CONTENT_DEPENDENCY,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &branch_node_0_plum_head_seal,
+                RelationFlags::CONTENT_DEPENDENCY,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         // Empty because metadata is METADATA_DEPENDENCY.
         assert!(relation_flags_m.is_empty());
@@ -333,7 +353,8 @@ fn test_datahost_branch_node() -> Result<()> {
 
     {
         let relation_flags_m = datahost
-            .accumulated_relations_recursive(&branch_node_1_plum_head_seal, RelationFlags::ALL)?;
+            .accumulated_relations_recursive(&branch_node_1_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
 
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         assert_eq!(relation_flags_m.len(), 4);
@@ -347,7 +368,8 @@ fn test_datahost_branch_node() -> Result<()> {
 
     {
         let relation_flags_m = datahost
-            .accumulated_relations_recursive(&branch_node_2_plum_head_seal, RelationFlags::ALL)?;
+            .accumulated_relations_recursive(&branch_node_2_plum_head_seal, RelationFlags::ALL)
+            .expect("pass");
 
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         assert_eq!(relation_flags_m.len(), 7);
@@ -370,7 +392,9 @@ fn test_datahost_branch_node() -> Result<()> {
     {
         // Self-query
         assert_eq!(
-            branch_node_0.fragment_query_single_segment(&branch_node_0_plum_head_seal, "")?,
+            branch_node_0
+                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(branch_node_0_plum_head_seal.clone()),
         );
         // No ancestor
@@ -387,12 +411,14 @@ fn test_datahost_branch_node() -> Result<()> {
             .is_err());
         assert_eq!(
             branch_node_0
-                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata")?,
+                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata")
+                .expect("pass"),
             FragmentQueryResult::Value(metadata_0_plum_head_seal.clone()),
         );
         assert_eq!(
             branch_node_0
-                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/")?,
+                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_0_plum_head_seal.clone(),
                 rest_of_query_str: ""
@@ -400,17 +426,20 @@ fn test_datahost_branch_node() -> Result<()> {
         );
         assert_eq!(
             branch_node_0
-                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/stuff")?,
+                .fragment_query_single_segment(&branch_node_0_plum_head_seal, "metadata/stuff")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_0_plum_head_seal.clone(),
                 rest_of_query_str: "stuff"
             },
         );
         assert_eq!(
-            branch_node_0.fragment_query_single_segment(
-                &branch_node_0_plum_head_seal,
-                "metadata/stuff/and/things"
-            )?,
+            branch_node_0
+                .fragment_query_single_segment(
+                    &branch_node_0_plum_head_seal,
+                    "metadata/stuff/and/things"
+                )
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_0_plum_head_seal.clone(),
                 rest_of_query_str: "stuff/and/things"
@@ -421,18 +450,22 @@ fn test_datahost_branch_node() -> Result<()> {
     {
         // Self-query
         assert_eq!(
-            branch_node_1.fragment_query_single_segment(&branch_node_1_plum_head_seal, "")?,
+            branch_node_1
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(branch_node_1_plum_head_seal.clone()),
         );
         assert_eq!(
             branch_node_1
-                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "ancestor")?,
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "ancestor")
+                .expect("pass"),
             FragmentQueryResult::Value(branch_node_0_plum_head_seal.clone()),
         );
         // No content
         assert_eq!(
             branch_node_1
-                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "content")?,
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "content")
+                .expect("pass"),
             FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
         );
         // Invalid entry
@@ -441,12 +474,14 @@ fn test_datahost_branch_node() -> Result<()> {
             .is_err());
         assert_eq!(
             branch_node_1
-                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata")?,
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata")
+                .expect("pass"),
             FragmentQueryResult::Value(metadata_1_plum_head_seal.clone()),
         );
         assert_eq!(
             branch_node_1
-                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/")?,
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_1_plum_head_seal.clone(),
                 rest_of_query_str: ""
@@ -454,33 +489,34 @@ fn test_datahost_branch_node() -> Result<()> {
         );
         assert_eq!(
             branch_node_1
-                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/stuff")?,
+                .fragment_query_single_segment(&branch_node_1_plum_head_seal, "metadata/stuff")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_1_plum_head_seal.clone(),
                 rest_of_query_str: "stuff"
             },
         );
         assert_eq!(
-            branch_node_1.fragment_query_single_segment(
-                &branch_node_1_plum_head_seal,
-                "metadata/stuff/and/things"
-            )?,
+            branch_node_1
+                .fragment_query_single_segment(
+                    &branch_node_1_plum_head_seal,
+                    "metadata/stuff/and/things"
+                )
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: metadata_1_plum_head_seal.clone(),
                 rest_of_query_str: "stuff/and/things"
             },
         );
     }
-
-    Ok(())
 }
 
 #[test]
 #[serial]
-fn test_datahost_dir_node() -> Result<()> {
+fn test_datahost_dir_node() {
     let _ = env_logger::try_init();
 
-    let datahost = Datahost::open_using_env_var()?;
+    let datahost = Datahost::open_using_env_var("test".to_string()).expect("pass");
 
     let content_0 = format!("ostriches are cool, {}", Uuid::new_v4());
     let content_1 = format!("splunges are cool, {}", Uuid::new_v4());
@@ -488,23 +524,27 @@ fn test_datahost_dir_node() -> Result<()> {
     let content_0_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(content_0.as_bytes().to_vec())
-        .build()?;
+        .build()
+        .expect("pass");
     let content_1_plum = PlumBuilder::new()
         .with_body_content_type(ContentType::from("text/plain"))
         .with_body_content(content_1.as_bytes().to_vec())
-        .build()?;
+        .build()
+        .expect("pass");
 
-    let content_0_plum_head_seal = datahost.store_plum(&content_0_plum)?;
-    let content_1_plum_head_seal = datahost.store_plum(&content_1_plum)?;
+    let content_0_plum_head_seal = datahost.store_plum(&content_0_plum).expect("pass");
+    let content_1_plum_head_seal = datahost.store_plum(&content_1_plum).expect("pass");
 
     let dir_node_0 = DirNode {
         // Make this one an empty DirNode.
         entry_m: BTreeMap::new(),
     };
     let dir_node_0_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&dir_node_0)?
-        .build()?;
-    let dir_node_0_plum_head_seal = datahost.store_plum(&dir_node_0_plum)?;
+        .with_relational_typed_content_from(&dir_node_0)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let dir_node_0_plum_head_seal = datahost.store_plum(&dir_node_0_plum).expect("pass");
 
     let dir_node_1 = DirNode {
         entry_m: maplit::btreemap! {
@@ -512,9 +552,11 @@ fn test_datahost_dir_node() -> Result<()> {
         },
     };
     let dir_node_1_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&dir_node_1)?
-        .build()?;
-    let dir_node_1_plum_head_seal = datahost.store_plum(&dir_node_1_plum)?;
+        .with_relational_typed_content_from(&dir_node_1)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let dir_node_1_plum_head_seal = datahost.store_plum(&dir_node_1_plum).expect("pass");
 
     let dir_node_2 = DirNode {
         entry_m: maplit::btreemap! {
@@ -523,9 +565,11 @@ fn test_datahost_dir_node() -> Result<()> {
         },
     };
     let dir_node_2_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&dir_node_2)?
-        .build()?;
-    let dir_node_2_plum_head_seal = datahost.store_plum(&dir_node_2_plum)?;
+        .with_relational_typed_content_from(&dir_node_2)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let dir_node_2_plum_head_seal = datahost.store_plum(&dir_node_2_plum).expect("pass");
 
     let dir_node_3 = DirNode {
         entry_m: maplit::btreemap! {
@@ -535,9 +579,11 @@ fn test_datahost_dir_node() -> Result<()> {
         },
     };
     let dir_node_3_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&dir_node_3)?
-        .build()?;
-    let dir_node_3_plum_head_seal = datahost.store_plum(&dir_node_3_plum)?;
+        .with_relational_typed_content_from(&dir_node_3)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let dir_node_3_plum_head_seal = datahost.store_plum(&dir_node_3_plum).expect("pass");
 
     let dir_node_4 = DirNode {
         entry_m: maplit::btreemap! {
@@ -546,9 +592,11 @@ fn test_datahost_dir_node() -> Result<()> {
         },
     };
     let dir_node_4_plum = PlumBuilder::new()
-        .with_relational_typed_content_from(&dir_node_4)?
-        .build()?;
-    let dir_node_4_plum_head_seal = datahost.store_plum(&dir_node_4_plum)?;
+        .with_relational_typed_content_from(&dir_node_4)
+        .expect("pass")
+        .build()
+        .expect("pass");
+    let dir_node_4_plum_head_seal = datahost.store_plum(&dir_node_4_plum).expect("pass");
 
     //
     // Now accumulate_relations_recursive and check the results.
@@ -556,44 +604,54 @@ fn test_datahost_dir_node() -> Result<()> {
     //
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&content_0_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&content_0_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         assert!(relation_flags_m.is_empty());
     }
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&content_1_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&content_1_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         assert!(relation_flags_m.is_empty());
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&dir_node_0_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&dir_node_0_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         assert_eq!(relation_flags_m.len(), 0);
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&dir_node_1_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&dir_node_1_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         // These are the dependencies of dir_node_1_plum
         assert!(relation_flags_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&dir_node_2_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&dir_node_2_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         // These are the dependencies of dir_node_2_plum
         assert!(relation_flags_m.contains_key(&PlumHeadSeal::from(&content_0_plum)));
@@ -601,10 +659,12 @@ fn test_datahost_dir_node() -> Result<()> {
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&dir_node_3_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&dir_node_3_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         // These are the dependencies of dir_node_3_plum.  Note that dir_node_0_plum contains no entries.
         assert!(relation_flags_m.contains_key(&PlumHeadSeal::from(&dir_node_0_plum)));
@@ -613,10 +673,12 @@ fn test_datahost_dir_node() -> Result<()> {
     }
 
     {
-        let relation_flags_m = datahost.accumulated_relations_recursive(
-            &PlumHeadSeal::from(&dir_node_4_plum),
-            RelationFlags::ALL,
-        )?;
+        let relation_flags_m = datahost
+            .accumulated_relations_recursive(
+                &PlumHeadSeal::from(&dir_node_4_plum),
+                RelationFlags::ALL,
+            )
+            .expect("pass");
         log::debug!("relation_flags_m: {:?}", relation_flags_m);
         // These are the dependencies of dir_node_4_plum.  Note that content_0_plum and content_1_plum are
         // both contained in dir_node_2_plum, and content_0_plum is contained in dir_node_1_plum.
@@ -632,12 +694,16 @@ fn test_datahost_dir_node() -> Result<()> {
 
     {
         assert_eq!(
-            dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "")?,
+            dir_node_0
+                .fragment_query_single_segment(&dir_node_0_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
         );
         // This should be the same as querying for "" -- TODO FIXME seems to not be working
         assert_eq!(
-            dir_node_0.fragment_query_single_segment(&dir_node_0_plum_head_seal, "/")?,
+            dir_node_0
+                .fragment_query_single_segment(&dir_node_0_plum_head_seal, "/")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
         );
         assert!(dir_node_0
@@ -645,7 +711,9 @@ fn test_datahost_dir_node() -> Result<()> {
             .is_err());
 
         assert_eq!(
-            dir_node_1.fragment_query_single_segment(&dir_node_1_plum_head_seal, "")?,
+            dir_node_1
+                .fragment_query_single_segment(&dir_node_1_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_1_plum_head_seal.clone()),
         );
         assert!(dir_node_1
@@ -653,12 +721,15 @@ fn test_datahost_dir_node() -> Result<()> {
             .is_err());
         assert_eq!(
             dir_node_1
-                .fragment_query_single_segment(&dir_node_1_plum_head_seal, "ostriches.txt")?,
+                .fragment_query_single_segment(&dir_node_1_plum_head_seal, "ostriches.txt")
+                .expect("pass"),
             FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
         );
 
         assert_eq!(
-            dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "")?,
+            dir_node_2
+                .fragment_query_single_segment(&dir_node_2_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_2_plum_head_seal.clone()),
         );
         assert!(dir_node_2
@@ -666,16 +737,21 @@ fn test_datahost_dir_node() -> Result<()> {
             .is_err());
         assert_eq!(
             dir_node_2
-                .fragment_query_single_segment(&dir_node_2_plum_head_seal, "ostriches.txt")?,
+                .fragment_query_single_segment(&dir_node_2_plum_head_seal, "ostriches.txt")
+                .expect("pass"),
             FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
         );
         assert_eq!(
-            dir_node_2.fragment_query_single_segment(&dir_node_2_plum_head_seal, "splunges.txt")?,
+            dir_node_2
+                .fragment_query_single_segment(&dir_node_2_plum_head_seal, "splunges.txt")
+                .expect("pass"),
             FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
         );
 
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "")?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_3_plum_head_seal.clone()),
         );
         assert!(dir_node_3
@@ -683,36 +759,44 @@ fn test_datahost_dir_node() -> Result<()> {
             .is_err());
         assert_eq!(
             dir_node_3
-                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "ostriches.txt")?,
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "ostriches.txt")
+                .expect("pass"),
             FragmentQueryResult::Value(content_0_plum_head_seal.clone()),
         );
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "splunges.txt")?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "splunges.txt")
+                .expect("pass"),
             FragmentQueryResult::Value(content_1_plum_head_seal.clone()),
         );
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0")?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0")
+                .expect("pass"),
             FragmentQueryResult::Value(dir_node_0_plum_head_seal.clone()),
         );
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/stuff")?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/stuff")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: dir_node_0_plum_head_seal.clone(),
                 rest_of_query_str: "stuff",
             },
         );
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/")?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: dir_node_0_plum_head_seal.clone(),
                 rest_of_query_str: "",
             },
         );
         assert_eq!(
-            dir_node_3.fragment_query_single_segment(
-                &dir_node_3_plum_head_seal,
-                "dir0/stuff/and/things"
-            )?,
+            dir_node_3
+                .fragment_query_single_segment(&dir_node_3_plum_head_seal, "dir0/stuff/and/things")
+                .expect("pass"),
             FragmentQueryResult::ForwardQueryTo {
                 target: dir_node_0_plum_head_seal.clone(),
                 rest_of_query_str: "stuff/and/things",
@@ -726,7 +810,9 @@ fn test_datahost_dir_node() -> Result<()> {
 
     {
         assert_eq!(
-            datahost.fragment_query(&dir_node_0_plum_head_seal, "")?,
+            datahost
+                .fragment_query(&dir_node_0_plum_head_seal, "")
+                .expect("pass"),
             dir_node_0_plum_head_seal,
         );
         assert!(datahost
@@ -734,52 +820,68 @@ fn test_datahost_dir_node() -> Result<()> {
             .is_err());
 
         assert_eq!(
-            datahost.fragment_query(&dir_node_1_plum_head_seal, "")?,
+            datahost
+                .fragment_query(&dir_node_1_plum_head_seal, "")
+                .expect("pass"),
             dir_node_1_plum_head_seal,
         );
         assert!(datahost
             .fragment_query(&dir_node_1_plum_head_seal, "nonexistent")
             .is_err());
         assert_eq!(
-            datahost.fragment_query(&dir_node_1_plum_head_seal, "ostriches.txt")?,
+            datahost
+                .fragment_query(&dir_node_1_plum_head_seal, "ostriches.txt")
+                .expect("pass"),
             content_0_plum_head_seal,
         );
 
         assert_eq!(
-            datahost.fragment_query(&dir_node_3_plum_head_seal, "dir0")?,
+            datahost
+                .fragment_query(&dir_node_3_plum_head_seal, "dir0")
+                .expect("pass"),
             dir_node_0_plum_head_seal,
         );
         assert_eq!(
-            datahost.fragment_query(&dir_node_3_plum_head_seal, "ostriches.txt")?,
+            datahost
+                .fragment_query(&dir_node_3_plum_head_seal, "ostriches.txt")
+                .expect("pass"),
             content_0_plum_head_seal,
         );
 
         assert_eq!(
-            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir1")?,
+            datahost
+                .fragment_query(&dir_node_4_plum_head_seal, "dir1")
+                .expect("pass"),
             dir_node_1_plum_head_seal,
         );
         assert_eq!(
-            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2")?,
+            datahost
+                .fragment_query(&dir_node_4_plum_head_seal, "dir2")
+                .expect("pass"),
             dir_node_2_plum_head_seal,
         );
         assert_eq!(
-            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir1/ostriches.txt")?,
+            datahost
+                .fragment_query(&dir_node_4_plum_head_seal, "dir1/ostriches.txt")
+                .expect("pass"),
             content_0_plum_head_seal,
         );
         assert!(datahost
             .fragment_query(&dir_node_4_plum_head_seal, "dir1/nonexistent")
             .is_err());
         assert_eq!(
-            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2/ostriches.txt")?,
+            datahost
+                .fragment_query(&dir_node_4_plum_head_seal, "dir2/ostriches.txt")
+                .expect("pass"),
             content_0_plum_head_seal,
         );
         assert_eq!(
-            datahost.fragment_query(&dir_node_4_plum_head_seal, "dir2/splunges.txt")?,
+            datahost
+                .fragment_query(&dir_node_4_plum_head_seal, "dir2/splunges.txt")
+                .expect("pass"),
             content_1_plum_head_seal,
         );
     }
-
-    Ok(())
 }
 
 #[test]
@@ -787,7 +889,9 @@ fn test_datahost_dir_node() -> Result<()> {
 fn test_plum_ref() {
     let _ = env_logger::try_init();
 
-    let datahost_la = Arc::new(RwLock::new(Datahost::open_using_env_var().expect("pass")));
+    let datahost_la = Arc::new(RwLock::new(
+        Datahost::open_using_env_var("test".to_string()).expect("pass"),
+    ));
     // let datacache_la = Arc::new(RwLock::new(Datacache::new(datahost_la.clone())));
     initialize_datacache(Datacache::new(datahost_la.clone()));
 
@@ -810,12 +914,10 @@ fn test_plum_ref() {
 
     let content_0_plum_head_seal = datahost_la
         .write()
-        .unwrap()
         .store_plum(&content_0_plum)
         .expect("pass");
     let content_1_plum_head_seal = datahost_la
         .write()
-        .unwrap()
         .store_plum(&content_1_plum)
         .expect("pass");
 

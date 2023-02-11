@@ -57,6 +57,8 @@ impl Relational for BranchNode {
                 }
             }
         }
+        // TODO: This may call for a different kind of dependency, since the diffs aren't primary data,
+        // and in principle can be derived from this and its direct ancestor.
         if let Some(posi_diff) = &self.posi_diff_o {
             match relation_flags_m.get_mut(&posi_diff) {
                 Some(relation_flags) => {
@@ -67,6 +69,8 @@ impl Relational for BranchNode {
                 }
             }
         }
+        // TODO: This may call for a different kind of dependency, since the diffs aren't primary data,
+        // and in principle can be derived from this and its direct ancestor.
         if let Some(nega_diff) = &self.nega_diff_o {
             match relation_flags_m.get_mut(&nega_diff) {
                 Some(relation_flags) => {

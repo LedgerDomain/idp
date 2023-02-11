@@ -1,25 +1,26 @@
 use crate::Datacache;
 use anyhow::Result;
 use idp_proto::PlumHeadSeal;
+use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 use std::{
     any::Any,
     sync::{Arc, Weak},
 };
 
 lazy_static::lazy_static! {
-    pub static ref DATACACHE_OLA: Arc<parking_lot::RwLock<Option<Datacache>>> = Arc::new(parking_lot::RwLock::new(None));
+    pub static ref DATACACHE_OLA: Arc<RwLock<Option<Datacache>>> = Arc::new(RwLock::new(None));
 }
 
 pub fn initialize_datacache(datacache: Datacache) {
     *DATACACHE_OLA.write() = Some(datacache);
 }
 
-pub fn datacache() -> parking_lot::MappedRwLockReadGuard<'static, Datacache> {
+pub fn datacache() -> MappedRwLockReadGuard<'static, Datacache> {
     let datacache_og = DATACACHE_OLA.read();
     if datacache_og.is_none() {
         panic!("programmer error: DATACACHE_OLA has not been initialized");
     }
-    parking_lot::RwLockReadGuard::map(datacache_og, |datacache_o| datacache_o.as_ref().unwrap())
+    RwLockReadGuard::map(datacache_og, |datacache_o| datacache_o.as_ref().unwrap())
 }
 
 /// A value specified by its PlumHeadSeal, which is loaded, deserialized, and cached into memory

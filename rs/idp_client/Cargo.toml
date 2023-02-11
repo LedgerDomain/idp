@@ -1,10 +1,17 @@
 [package]
 name = "idp_client"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Victor Dods <victor.dods@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.69"
+idp_core = { path = "../idp_core" }
 idp_proto = { path = "../idp_proto" }
+log = "0.4.14"
+parking_lot = "0.12.1"
+tokio = "1.25.0"
+tokio-stream = "0.1.11"
+tonic = { version = "0.8.3", features = ["tls"] }

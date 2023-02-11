@@ -1,13 +1,8 @@
-// import public "idp_common.proto";
-
-//
-// Helper types
-//
-
 #[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContentType {
     #[prost(bytes = "vec", required, tag = "1")]
@@ -17,6 +12,7 @@ pub struct ContentType {
 #[diesel(deserialize_as = "String")]
 #[diesel(serialize_as = "String")]
 #[sql_type = "diesel::sql_types::Text"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Did {
     #[prost(string, required, tag = "1")]
@@ -26,32 +22,44 @@ pub struct Did {
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Nonce {
     #[prost(bytes = "vec", required, tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
-// message Seal {
-//     oneof value {
-//         Sha256Sum Sha256Sum = 1;
-//         // TODO: Crypto signature types
-//     }
-// }
-
-#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[derive(
+    diesel::AsExpression,
+    Eq,
+    Hash,
+    Ord,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize
+)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Seal {
     /// TEMP HACK -- it should support more seal types
     #[prost(message, required, tag = "1")]
     pub sha256sum: Sha256Sum,
 }
-#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[derive(
+    diesel::AsExpression,
+    Eq,
+    Hash,
+    Ord,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize
+)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sha256Sum {
     #[prost(bytes = "vec", required, tag = "1")]
@@ -61,28 +69,43 @@ pub struct Sha256Sum {
 #[diesel(deserialize_as = "i64")]
 #[diesel(serialize_as = "i64")]
 #[sql_type = "diesel::sql_types::BigInt"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnixSeconds {
     #[prost(int64, required, tag = "1")]
     pub value: i64,
 }
-//
-// Plum-specific types
-//
-
-#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[derive(
+    diesel::AsExpression,
+    Eq,
+    Hash,
+    Ord,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize
+)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHeadSeal {
     #[prost(message, required, tag = "1")]
     pub value: Seal,
 }
-#[derive(diesel::AsExpression, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[derive(
+    diesel::AsExpression,
+    Eq,
+    Hash,
+    Ord,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize
+)]
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelationsSeal {
     #[prost(message, required, tag = "1")]
@@ -92,11 +115,13 @@ pub struct PlumRelationsSeal {
 #[diesel(deserialize_as = "Vec<u8>")]
 #[diesel(serialize_as = "Vec<u8>")]
 #[sql_type = "diesel::sql_types::Binary"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumBodySeal {
     #[prost(message, required, tag = "1")]
     pub value: Seal,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHead {
     /// PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
@@ -129,11 +154,13 @@ pub struct PlumHead {
 #[diesel(deserialize_as = "i32")]
 #[diesel(serialize_as = "i32")]
 #[sql_type = "diesel::sql_types::Integer"]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RelationFlagsRaw {
     #[prost(uint32, required, tag = "1")]
     pub value: u32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelationFlagsMapping {
     #[prost(message, required, tag = "1")]
@@ -144,6 +171,7 @@ pub struct PlumRelationFlagsMapping {
 /// This encapsulates the Relations from a given Plum to all others, and is derived from its PlumBody.
 /// The reason this is separate is because there are situations where the PlumBody won't be present
 /// but that Plum's Relations are needed.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelations {
     /// Optional nonce can be used to prevent dictionary attacks.
@@ -153,6 +181,7 @@ pub struct PlumRelations {
     #[prost(message, repeated, tag = "2")]
     pub relation_flags_mappings: ::prost::alloc::vec::Vec<PlumRelationFlagsMapping>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumBody {
     /// Optional nonce can be used to prevent dictionary attacks.
@@ -164,6 +193,7 @@ pub struct PlumBody {
 }
 /// This represents a single data entry; it's a head (metadata), relations, and a body (file content).
 /// Yes, a stupid name, and I hate cute names in software, but it is distinct, and it's a noun.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Plum {
     #[prost(message, required, tag = "1")]
@@ -173,63 +203,32 @@ pub struct Plum {
     #[prost(message, required, tag = "3")]
     pub body: PlumBody,
 }
-//
-// Requests and Responses
-//
-
-//
-// Push
-//
-
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushHeadRequest {
-    #[prost(message, required, tag = "1")]
-    pub head: PlumHead,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub body: PlumBody,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushHeadAndBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub plum: Plum,
-}
+/// These stream from client to server, starting with the PlumHeadSeal, and the server streams
+/// responses to say which PlumHeadSeals it already has Plums for (and therefore the client
+/// doesn't have to push the Plum or recurse on its dependencies).  Thus there won't be much
+/// wasted bandwidth.
+/// TODO: break it apart into sending plum head, plum relations, plum body.  This requires
+/// the server responding with which ones are needed for a given PlumHeadSeal.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PushRequest {
-    #[prost(oneof = "push_request::Value", tags = "1, 2, 3")]
+    #[prost(oneof = "push_request::Value", tags = "1, 2")]
     pub value: ::core::option::Option<push_request::Value>,
 }
 /// Nested message and enum types in `PushRequest`.
 pub mod push_request {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
-        PushHeadRequest(super::PushHeadRequest),
+        ShouldISendThisPlum(super::PlumHeadSeal),
         #[prost(message, tag = "2")]
-        PushBodyRequest(super::PushBodyRequest),
-        #[prost(message, tag = "3")]
-        PushHeadAndBodyRequest(super::PushHeadAndBodyRequest),
+        HereHaveAPlum(super::Plum),
     }
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushHeadResponse {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushBodyResponse {
-    #[prost(message, required, tag = "1")]
-    pub body_seal: PlumBodySeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushHeadAndBodyResponse {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-    #[prost(message, required, tag = "2")]
-    pub body_seal: PlumBodySeal,
-}
+/// TODO: Potentially could respond with a boolean, as long as the client can reliably
+/// pair the response with the request in the bidirectional streaming.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PushResponse {
     #[prost(oneof = "push_response::Value", tags = "1, 2, 3")]
@@ -237,153 +236,30 @@ pub struct PushResponse {
 }
 /// Nested message and enum types in `PushResponse`.
 pub mod push_response {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
+        /// Response to here_have_a_plum; carries no information.
         #[prost(message, tag = "1")]
-        PushHeadResponse(super::PushHeadResponse),
+        Ok(super::Acknowledgement),
+        /// Positive response to should_i_send_this_plum.
         #[prost(message, tag = "2")]
-        PushBodyResponse(super::PushBodyResponse),
+        SendThisPlum(super::PlumHeadSeal),
+        /// Negative response to should_i_send_this_plum.
         #[prost(message, tag = "3")]
-        PushHeadAndBodyResponse(super::PushHeadAndBodyResponse),
+        DontSendThisPlum(super::PlumHeadSeal),
     }
 }
-//
-// Pull
-//
-
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullHeadRequest {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub body_seal: PlumBodySeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullHeadAndBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-    #[prost(message, required, tag = "2")]
-    pub body_seal: PlumBodySeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullRequest {
-    #[prost(oneof = "pull_request::Value", tags = "1, 2, 3")]
-    pub value: ::core::option::Option<pull_request::Value>,
-}
-/// Nested message and enum types in `PullRequest`.
-pub mod pull_request {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Value {
-        #[prost(message, tag = "1")]
-        PullHeadRequest(super::PullHeadRequest),
-        #[prost(message, tag = "2")]
-        PullBodyRequest(super::PullBodyRequest),
-        #[prost(message, tag = "3")]
-        PullHeadAndBodyRequest(super::PullHeadAndBodyRequest),
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullHeadResponse {
-    #[prost(message, required, tag = "1")]
-    pub head: PlumHead,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullBodyResponse {
-    #[prost(message, required, tag = "1")]
-    pub body: PlumBody,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullHeadAndBodyResponse {
-    #[prost(message, required, tag = "1")]
-    pub plum: Plum,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PullResponse {
-    #[prost(oneof = "pull_response::Value", tags = "1, 2, 3")]
-    pub value: ::core::option::Option<pull_response::Value>,
-}
-/// Nested message and enum types in `PullResponse`.
-pub mod pull_response {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Value {
-        #[prost(message, tag = "1")]
-        PullHeadResponse(super::PullHeadResponse),
-        #[prost(message, tag = "2")]
-        PullBodyResponse(super::PullBodyResponse),
-        #[prost(message, tag = "3")]
-        PullHeadAndBodyResponse(super::PullHeadAndBodyResponse),
-    }
-}
-//
-// Del
-//
-
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelHeadRequest {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub body_seal: PlumBodySeal,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelHeadAndBodyRequest {
-    #[prost(message, required, tag = "1")]
-    pub head_seal: PlumHeadSeal,
-    #[prost(message, required, tag = "2")]
-    pub body_seal: PlumBodySeal,
-}
-/// TODO: Could implement bidirectional streaming of Del.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelRequest {
-    #[prost(oneof = "del_request::Value", tags = "1, 2, 3")]
-    pub value: ::core::option::Option<del_request::Value>,
-}
-/// Nested message and enum types in `DelRequest`.
-pub mod del_request {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Value {
-        #[prost(message, tag = "1")]
-        DelHeadRequest(super::DelHeadRequest),
-        #[prost(message, tag = "2")]
-        DelBodyRequest(super::DelBodyRequest),
-        #[prost(message, tag = "3")]
-        DelHeadAndBodyRequest(super::DelHeadAndBodyRequest),
-    }
-}
-/// Nothing needed
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelHeadResponse {}
-/// Nothing needed
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelBodyResponse {}
-/// Nothing needed
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelHeadAndBodyResponse {}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DelResponse {
-    #[prost(oneof = "del_response::Value", tags = "1, 2, 3")]
-    pub value: ::core::option::Option<del_response::Value>,
-}
-/// Nested message and enum types in `DelResponse`.
-pub mod del_response {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Value {
-        #[prost(message, tag = "1")]
-        DelHeadResponse(super::DelHeadResponse),
-        #[prost(message, tag = "2")]
-        DelBodyResponse(super::DelBodyResponse),
-        #[prost(message, tag = "3")]
-        DelHeadAndBodyResponse(super::DelHeadAndBodyResponse),
-    }
-}
+pub struct Acknowledgement {}
 /// This defines what relations are possible from one Plum to another.
-#[derive(diesel::AsExpression, num_derive::FromPrimitive, serde::Deserialize, serde::Serialize)]
+#[derive(
+    diesel::AsExpression,
+    num_derive::FromPrimitive,
+    serde::Deserialize,
+    serde::Serialize
+)]
 #[diesel(deserialize_as = "i32")]
 #[diesel(serialize_as = "i32")]
 #[sql_type = "diesel::sql_types::Integer"]
@@ -393,15 +269,37 @@ pub enum Relation {
     ContentDependency = 0,
     MetadataDependency = 1,
 }
-#[doc = r" Generated client implementations."]
+impl Relation {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Relation::ContentDependency => "CONTENT_DEPENDENCY",
+            Relation::MetadataDependency => "METADATA_DEPENDENCY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CONTENT_DEPENDENCY" => Some(Self::ContentDependency),
+            "METADATA_DEPENDENCY" => Some(Self::MetadataDependency),
+            _ => None,
+        }
+    }
+}
+/// Generated client implementations.
 pub mod indoor_data_plumbing_client {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    #[derive(Debug, Clone)]
     pub struct IndoorDataPlumbingClient<T> {
         inner: tonic::client::Grpc<T>,
     }
     impl IndoorDataPlumbingClient<tonic::transport::Channel> {
-        #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
+        /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
             D: std::convert::TryInto<tonic::transport::Endpoint>,
@@ -414,129 +312,148 @@ pub mod indoor_data_plumbing_client {
     impl<T> IndoorDataPlumbingClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + HttpBody + Send + 'static,
         T::Error: Into<StdError>,
-        <T::ResponseBody as HttpBody>::Error: Into<StdError> + Send,
+        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = tonic::client::Grpc::with_interceptor(inner, interceptor);
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
-        #[doc = " TODO: Figure out what to pass so that the server could say \"i already have that\" and then"]
-        #[doc = " not transfer the bulk of the data."]
-        #[doc = " TODO: Could implement bidirectional streaming of Push."]
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> IndoorDataPlumbingClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
+        {
+            IndoorDataPlumbingClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
         pub async fn push(
             &mut self,
-            request: impl tonic::IntoRequest<super::PushRequest>,
-        ) -> Result<tonic::Response<super::PushResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            request: impl tonic::IntoStreamingRequest<Message = super::PushRequest>,
+        ) -> Result<
+            tonic::Response<tonic::codec::Streaming<super::PushResponse>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/idp.IndoorDataPlumbing/Push");
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        #[doc = " TODO: Could implement bidirectional streaming of Pull."]
-        pub async fn pull(
-            &mut self,
-            request: impl tonic::IntoRequest<super::PullRequest>,
-        ) -> Result<tonic::Response<super::PullResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/idp.IndoorDataPlumbing/Pull");
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        pub async fn del(
-            &mut self,
-            request: impl tonic::IntoRequest<super::DelRequest>,
-        ) -> Result<tonic::Response<super::DelResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/idp.IndoorDataPlumbing/Del");
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-    }
-    impl<T: Clone> Clone for IndoorDataPlumbingClient<T> {
-        fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
-        }
-    }
-    impl<T> std::fmt::Debug for IndoorDataPlumbingClient<T> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "IndoorDataPlumbingClient {{ ... }}")
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/Push",
+            );
+            self.inner.streaming(request.into_streaming_request(), path, codec).await
         }
     }
 }
-#[doc = r" Generated server implementations."]
+/// Generated server implementations.
 pub mod indoor_data_plumbing_server {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    #[doc = "Generated trait containing gRPC methods that should be implemented for use with IndoorDataPlumbingServer."]
+    /// Generated trait containing gRPC methods that should be implemented for use with IndoorDataPlumbingServer.
     #[async_trait]
     pub trait IndoorDataPlumbing: Send + Sync + 'static {
-        #[doc = " TODO: Figure out what to pass so that the server could say \"i already have that\" and then"]
-        #[doc = " not transfer the bulk of the data."]
-        #[doc = " TODO: Could implement bidirectional streaming of Push."]
+        /// Server streaming response type for the Push method.
+        type PushStream: futures_core::Stream<
+                Item = Result<super::PushResponse, tonic::Status>,
+            >
+            + Send
+            + 'static;
         async fn push(
             &self,
-            request: tonic::Request<super::PushRequest>,
-        ) -> Result<tonic::Response<super::PushResponse>, tonic::Status>;
-        #[doc = " TODO: Could implement bidirectional streaming of Pull."]
-        async fn pull(
-            &self,
-            request: tonic::Request<super::PullRequest>,
-        ) -> Result<tonic::Response<super::PullResponse>, tonic::Status>;
-        async fn del(
-            &self,
-            request: tonic::Request<super::DelRequest>,
-        ) -> Result<tonic::Response<super::DelResponse>, tonic::Status>;
+            request: tonic::Request<tonic::Streaming<super::PushRequest>>,
+        ) -> Result<tonic::Response<Self::PushStream>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct IndoorDataPlumbingServer<T: IndoorDataPlumbing> {
         inner: _Inner<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
-    struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
+    struct _Inner<T>(Arc<T>);
     impl<T: IndoorDataPlumbing> IndoorDataPlumbingServer<T> {
         pub fn new(inner: T) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, None);
-            Self { inner }
+            Self::from_arc(Arc::new(inner))
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, Some(interceptor.into()));
-            Self { inner }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
-    impl<T, B> Service<http::Request<B>> for IndoorDataPlumbingServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for IndoorDataPlumbingServer<T>
     where
         T: IndoorDataPlumbing,
-        B: HttpBody + Send + Sync + 'static,
+        B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
-        type Error = Never;
+        type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -545,116 +462,70 @@ pub mod indoor_data_plumbing_server {
                 "/idp.IndoorDataPlumbing/Push" => {
                     #[allow(non_camel_case_types)]
                     struct PushSvc<T: IndoorDataPlumbing>(pub Arc<T>);
-                    impl<T: IndoorDataPlumbing> tonic::server::UnaryService<super::PushRequest> for PushSvc<T> {
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::StreamingService<super::PushRequest>
+                    for PushSvc<T> {
                         type Response = super::PushResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type ResponseStream = T::PushStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::PushRequest>,
+                            request: tonic::Request<tonic::Streaming<super::PushRequest>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).push(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = PushSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
-                        let res = grpc.unary(method, req).await;
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                "/idp.IndoorDataPlumbing/Pull" => {
-                    #[allow(non_camel_case_types)]
-                    struct PullSvc<T: IndoorDataPlumbing>(pub Arc<T>);
-                    impl<T: IndoorDataPlumbing> tonic::server::UnaryService<super::PullRequest> for PullSvc<T> {
-                        type Response = super::PullResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PullRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).pull(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let interceptor = inner.1.clone();
-                        let inner = inner.0;
-                        let method = PullSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
                 }
-                "/idp.IndoorDataPlumbing/Del" => {
-                    #[allow(non_camel_case_types)]
-                    struct DelSvc<T: IndoorDataPlumbing>(pub Arc<T>);
-                    impl<T: IndoorDataPlumbing> tonic::server::UnaryService<super::DelRequest> for DelSvc<T> {
-                        type Response = super::DelResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::DelRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).del(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let interceptor = inner.1.clone();
-                        let inner = inner.0;
-                        let method = DelSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(tonic::body::BoxBody::empty())
-                        .unwrap())
-                }),
             }
         }
     }
     impl<T: IndoorDataPlumbing> Clone for IndoorDataPlumbingServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner }
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+            }
         }
     }
     impl<T: IndoorDataPlumbing> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone(), self.1.clone())
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
@@ -662,7 +533,8 @@ pub mod indoor_data_plumbing_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: IndoorDataPlumbing> tonic::transport::NamedService for IndoorDataPlumbingServer<T> {
+    impl<T: IndoorDataPlumbing> tonic::server::NamedService
+    for IndoorDataPlumbingServer<T> {
         const NAME: &'static str = "idp.IndoorDataPlumbing";
     }
 }

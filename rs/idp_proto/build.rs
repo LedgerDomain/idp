@@ -1,4 +1,8 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // trigger recompilation only when the proto dir is changed.
+    // println!("cargo:rerun-if-changed=proto/idp.proto");
+    println!("cargo:rerun-if-changed=proto");
+
     // This allows customization of the generated Rust code, in particular trait derivation.
     // TODO: Derive Debug traits for everything.
     tonic_build::configure()

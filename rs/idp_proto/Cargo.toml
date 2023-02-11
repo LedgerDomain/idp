@@ -1,8 +1,8 @@
 [package]
 name = "idp_proto"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Victor Dods <victor.dods@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,15 +13,15 @@ chrono = { version = "0.4.19", features = ["serde"] }
 diesel = { version = "1.4.7", features = ["sqlite"] }
 num-derive = "0.3"
 num-traits = "0.2"
-prost = "0.7.0"
+prost = "0.11.0"
 rmp-serde = "0.15.5"
 serde = { version = "1.0.126", features = ["derive"] }
 sha2 = "0.9.5"
-tonic = { version = "0.4.3", features = ["tls"] }
+tonic = { version = "0.8.3", features = ["tls"] }
 
 # This is for building protobufs and GRPC service from .proto files
 [build-dependencies]
-tonic-build = { version = "0.4.2", features = ["prost"] }
+tonic-build = { version = "0.8.3", features = ["prost"] }
 
 [dev-dependencies]
 env_logger = "0.8.4"

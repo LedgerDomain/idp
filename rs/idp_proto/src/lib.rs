@@ -180,7 +180,7 @@ impl From<Seal> for PlumBodySeal {
         PlumBodySeal { value }
     }
 }
-
+/*
 //
 // PushRequest
 //
@@ -348,7 +348,7 @@ impl From<DelHeadAndBodyResponse> for DelResponse {
         }
     }
 }
-
+*/
 //
 // Deriving Seal values from Plum, PlumHead, PlumBody
 //
