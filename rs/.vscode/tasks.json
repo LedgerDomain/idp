@@ -1,0 +1,208 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "rust: cargo test --all-features --no-run",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--all-features",
+				"--no-run"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp --all-features --no-run",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp",
+				"--all-features",
+				"--no-run"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp --all-features",
+			"group": {
+				"kind": "test"
+			},
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp",
+				"--all-features"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp_client --all-features --no-run",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp_client",
+				"--all-features",
+				"--no-run"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp_core --all-features --no-run",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp_core",
+				"--all-features",
+				"--no-run"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp_core --all-features",
+			"group": {
+				"kind": "test"
+			},
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp_core",
+				"--all-features"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo test --package idp_server --all-features --no-run",
+			"group": {
+				"kind": "build"
+			},
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"idp_server",
+				"--all-features",
+				"--no-run"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "rust: cargo build --example pl",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"build",
+				"--example",
+				"pl"
+			],
+			"presentation": {
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		}
+	]
+}
