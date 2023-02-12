@@ -1,5 +1,5 @@
+use crate::Datahost;
 use anyhow::Result;
-use idp_core::Datahost;
 use idp_proto::{indoor_data_plumbing_client::IndoorDataPlumbingClient, PlumHeadSeal, PushRequest};
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ pub struct IDPClient {
 
 impl IDPClient {
     // TODO: Add URL for server to connect to
-    pub async fn connect(datahost_la: Arc<RwLock<Datahost>>) -> Result<Self> {
+    pub async fn connect(url: String, datahost_la: Arc<RwLock<Datahost>>) -> Result<Self> {
         // let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
         //     .connect()
         //     .await?;
@@ -24,7 +24,8 @@ impl IDPClient {
         //         Ok(req)
         //     }
         // });
-        let grpc_client = IndoorDataPlumbingClient::connect("http://[::1]:50051").await?;
+        // let grpc_client = IndoorDataPlumbingClient::connect("http://[::1]:50051").await?;
+        let grpc_client = IndoorDataPlumbingClient::connect(url).await?;
         Ok(Self {
             datahost_la,
             grpc_client,
@@ -51,6 +52,7 @@ impl IDPClient {
         accumulated_plum_head_seal_v.extend(relation_flags_m.keys().into_iter().cloned());
 
         let datahost_la = self.datahost_la.clone();
+        // TODO: Figure out if this can be refactored to not require tokio_stream crate.
         use tokio_stream::StreamExt;
         self.grpc_client
             .push(

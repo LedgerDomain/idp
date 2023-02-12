@@ -1,10 +1,13 @@
 [package]
 name = "idp_core"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Victor Dods <victor.dods@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+client = ["dep:tokio-stream", "dep:tonic"]
 
 [dependencies]
 anyhow = "1.0.69"
@@ -20,6 +23,8 @@ log = "0.4.14"
 parking_lot = "0.12.1"
 rmp-serde = "0.15.5"
 serde = { version = "1.0.126", features = ["derive"] }
+tokio-stream = { version = "0.1.11", optional = true }
+tonic = { version = "0.8.3", features = ["tls"], optional = true }
 
 [dev-dependencies]
 env_logger = "0.8.4"

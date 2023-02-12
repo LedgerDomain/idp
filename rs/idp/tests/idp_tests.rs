@@ -1,6 +1,5 @@
 use anyhow::Result;
-use idp_client::IDPClient;
-use idp_core::{BranchNode, Datahost, FragmentQueryResult, FragmentQueryable};
+use idp_core::{BranchNode, Datahost, FragmentQueryResult, FragmentQueryable, IDPClient};
 use idp_proto::{ContentType, Plum, PlumBuilder, PlumHeadSeal, RelationFlags};
 use idp_server::IDPServer;
 use parking_lot::RwLock;
@@ -416,7 +415,8 @@ async fn run_client_task(client_datahost_la: Arc<RwLock<Datahost>>) -> Result<Te
     // });
 
     let test_data = TestData::create(client_datahost_la.clone());
-    let mut idp_client = IDPClient::connect(client_datahost_la.clone()).await?;
+    let mut idp_client =
+        IDPClient::connect("http://[::1]:50051".to_string(), client_datahost_la.clone()).await?;
 
     // Happy path
     {

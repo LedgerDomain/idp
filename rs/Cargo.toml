@@ -1,2 +1,2 @@
 [workspace]
-members = ["idp", "idp_client", "idp_core", "idp_proto", "idp_server"]
+members = ["idp", "idp_core", "idp_proto", "idp_server"]

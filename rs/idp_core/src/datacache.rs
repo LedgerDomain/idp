@@ -1,4 +1,4 @@
-use crate::Datahost;
+use crate::{Datahost, PlumURI};
 use anyhow::Result;
 use idp_proto::PlumHeadSeal;
 use parking_lot::RwLock;
@@ -49,15 +49,19 @@ impl Datacache {
     /// an Arc<T>, store a copy of that Arc<T> in this Datacache's cached values, and then return
     /// the Arc<T>.  Thus, if this function is called on an already-cached PlumHeadSeal's value,
     /// it will simply return the cached Arc<T>, thereby eliminating duplication.
-    pub fn get_or_load_value<T>(&self, head_seal: &PlumHeadSeal) -> Result<Arc<T>>
+    pub fn get_or_load_value<T>(&self, plum_uri: &PlumURI) -> Result<Arc<T>>
     where
         T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sized + Sync,
     {
-        if let Some(cached_value) = self.cached_value_mla.read().get(head_seal) {
+        if let Some(cached_value) = self
+            .cached_value_mla
+            .read()
+            .get(plum_uri.get_plum_head_seal())
+        {
             let value_a = cached_value.typed_value::<T>().clone();
             log::trace!(
-                "Datacache::load_content({:?})\n\tcontent was already cached: {:?}",
-                head_seal,
+                "Datacache::get_or_load_value({})\n\tcontent was already cached: {:?}",
+                plum_uri,
                 value_a,
             );
             // It already exists in the cached content, so just return that.
@@ -65,36 +69,66 @@ impl Datacache {
         }
 
         log::trace!(
-            "Datacache::load_content({:?})\n\tcontent was not already cached; attempting to load...",
-            head_seal,
+            "Datacache::get_or_load_value({})\n\tcontent was not already cached; attempting to load...",
+            plum_uri,
         );
-        // Otherwise need to load it from Datahost.
-        let plum = self.datahost_la.read().load_plum(head_seal)?;
+        // Otherwise try to load it from Datahost.
+        let plum = match self
+            .datahost_la
+            .read()
+            .load_option_plum(plum_uri.get_plum_head_seal())?
+        {
+            Some(plum) => plum,
+            None => {
+                // It's not present in this Datahost, so attempt to retrieve it from the remote
+                // (only if the PlumURI is PlumURI::Remote).
+                match plum_uri {
+                    PlumURI::Local(_) => {
+                        anyhow::bail!("can't load {} -- this Plum is not present on local Datahost, and this URI doesn't specify a remote from which to retrieve it", plum_uri);
+                    }
+                    #[allow(unused_variables)]
+                    PlumURI::Remote(plum_uri_remote) => {
+                        #[cfg(feature = "client")]
+                        {
+                            // let idp_client = IDPClient::connect(plum_uri_remote.remote_server_url().as_str(), self.datahost_la.clone())?;
+                            // idp_client.pull(TODO)
+                            unimplemented!("blah");
+                        }
+                        #[cfg(not(feature = "client"))]
+                        {
+                            anyhow::bail!("can't load {} -- this Plum is not present on local Datahost, and idp_core feature 'client' is not enabled, so pulling from the remote is not possible", plum_uri_remote);
+                        }
+                    }
+                }
+            }
+        };
+
         // Now attempt to deserialize the Plum body content into the requested type.
         // NOTE/TODO: This is assuming all plum bodies are serialized via rmp_serde, which will
         // not be the case forever.
         log::trace!(
-            "Datacache::load_content({:?})\n\tloaded plum: {:?}",
-            head_seal,
+            "Datacache::get_or_load_value({})\n\tloaded plum: {:?}",
+            plum_uri,
             plum,
         );
         let value: T = rmp_serde::from_read(plum.body.body_content.as_slice())?;
         log::trace!(
-            "Datacache::load_content({:?})\n\tdeserialized to typed_content: {:?}",
-            head_seal,
+            "Datacache::get_or_load_value({})\n\tdeserialized to typed_content: {:?}",
+            plum_uri,
             value,
         );
         // Store the typed content
         let value_a = Arc::new(value);
         // Store it in the cache.
-        self.cached_value_mla
-            .write()
-            .insert(head_seal.clone(), UntypedValue(Box::new(value_a.clone())));
-        log::trace!(
-            "Datacache::load_content({:?})\n\tstored content in cache.",
-            head_seal,
+        self.cached_value_mla.write().insert(
+            plum_uri.get_plum_head_seal().clone(),
+            UntypedValue(Box::new(value_a.clone())),
         );
-        // Return it.
+        log::trace!(
+            "Datacache::get_or_load_value({})\n\tstored content in cache.",
+            plum_uri,
+        );
+
         Ok(value_a)
     }
     /// Clears the entire cache.

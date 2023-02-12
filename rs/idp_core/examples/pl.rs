@@ -1062,7 +1062,9 @@ fn main() -> Result<()> {
     }
 
     // Now create a Datahost and initialize the Datacache with it.
-    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory("PL".to_string())?));
+    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory(
+        "PL".to_string(),
+    )?));
     idp_core::initialize_datacache(idp_core::Datacache::new(datahost_la.clone()));
 
     // Store the functions in the Datahost
@@ -1097,10 +1099,10 @@ fn main() -> Result<()> {
         log::debug!("------------------------------------------------------");
         rt.reset();
         let program = block! {
-            define!(norm_squared, plum_ref!(norm_squared_plum_head_seal.clone()));
-            define!(exp, plum_ref!(exp_plum_head_seal.clone()));
-            define!(cos, plum_ref!(cos_plum_head_seal.clone()));
-            define!(sin, plum_ref!(sin_plum_head_seal.clone()));
+            define!(norm_squared, plum_ref!(norm_squared_plum_head_seal.clone().into()));
+            define!(exp, plum_ref!(exp_plum_head_seal.clone().into()));
+            define!(cos, plum_ref!(cos_plum_head_seal.clone().into()));
+            define!(sin, plum_ref!(sin_plum_head_seal.clone().into()));
             ;
             call!(symbolic_ref!(norm_squared), (call!(symbolic_ref!(cos), (float64!(0.83))), call!(symbolic_ref!(sin), (float64!(0.83)))))
             // call!(symbolic_ref!(exp), (float64!(1.0)))

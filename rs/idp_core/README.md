@@ -4,9 +4,9 @@ Indoor Data Plumbing core data model and DB frontend.
 
 ## Running Tests
 
-The tests run against a local SQLite database named `idp_datahost.rs`.  For full debug spew, run:
+The tests run against a local SQLite database named `idp_datahost.db`.  For full debug spew, run:
 
-    RUST_LOG=trace cargo test -- --nocapture
+    RUST_BACKTRACE=1 RUST_LOG=trace cargo test --all-features -- --nocapture
 
 ## How to Define and Use Migrations
 
@@ -36,18 +36,30 @@ Generally, see `diesel migration --help` (or `./diesel-migration --help`) for mo
 
 ## To-dos
 
+-   Add PlumRef capability to retrieve from remote Datahost.  This will need a notion of an address
+    of a remote datahost.  That should probably look like a URI.  It could be e.g.
+
+        idp://<hostname>[:port]/<plum-head-seal>
+
+    The following URI might be used to indicate the plum head seal only, and not its origin:
+
+        idp:///<plum-head-seal>
+
+    And of course, the fragment query can be appended to a URI, e.g.
+
+        idp://<hostname>[:port]/<plum-head-seal>#<fragment-query-string>
+
 -   Switch to `sqlx` for DB backends -- this is because it's simpler, cleaner, and supports async.
     In order to support multiple DB backends, a "DatahostStorage" trait should be defined which
     defines all the storage operations, and each DB backend has an implementation (which unfortunately
     has to be in its own crate in order to respect sqlx's compile-time SQL checking).
 -   See about automating setting of "updated_at" timestamps in DB operations.
--   Consider using the `parking_lot` crate, as it apparently has sync primitives (Mutex, RwLock, etc)
-    that are "smaller, faster, and more flexible than those in the Rust standard library".
--   Use protobufs only as a serialization format, not as the in-memory/API format.  Create API structs
-    which are independent of any given serialization format.  This way, multiple different formats
-    can be used for serialization.  This is partially motivated by the fact that `prost::Message`
-    implements `Debug`, and one can't override its implementation (e.g. for Sha256Sum, which would
-    ideally be printed as a hex string instead of as a byte array of decimal values).
+-   Use protobufs only as a serialization format, not as the in-memory/API format.  And perhaps only
+    use protobufs for GRPC services.  Create API structs which are independent of any given serialization
+    format.  This way, multiple different formats can be used for serialization.  This is partially
+    motivated by the fact that `prost::Message` implements `Debug`, and one can't override its
+    implementation (e.g. for Sha256Sum, which would ideally be printed as a hex string instead of
+    as a byte array of decimal values).
 
 ## To-don'ts (I.e. Done)
 
@@ -55,3 +67,5 @@ Generally, see `diesel migration --help` (or `./diesel-migration --help`) for mo
     migrations at runtime, so that migrations don't have to be run as a separate process.
 -   Create `PlumRef<T>` which uses a `PlumHeadSeal` to address a specific value, and which loads,
     deserializes, and caches the value into memory, making for a very powerful abstraction.
+-   Use the `parking_lot` crate, as it apparently has sync primitives (Mutex, RwLock, etc)
+    that are "smaller, faster, and more flexible than those in the Rust standard library".

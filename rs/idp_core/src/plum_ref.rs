@@ -1,6 +1,5 @@
-use crate::Datacache;
+use crate::{Datacache, PlumURI};
 use anyhow::Result;
-use idp_proto::PlumHeadSeal;
 use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 use std::{
     any::Any,
@@ -39,10 +38,13 @@ pub fn datacache() -> MappedRwLockReadGuard<'static, Datacache> {
 // PlumHeadSeal, then get rid of PlumRef::head_seal, and change the guts of UnsafeCell to an
 // enum whose variants are PlumHeadSeal and Weak<Content>.  This way, the overall data structure
 // can stay relatively small, instead of being at least as large as PlumHeadSeal (256 bits).
+// TODO: Also consider uniquefying the PlumHeadSeal-s (or PlumURI-s) that PlumRef uses.
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct PlumRef<T> {
-    /// The address of the PlumRef itself.
-    pub head_seal: PlumHeadSeal,
+    // /// The address of the PlumRef itself.
+    // pub head_seal: PlumHeadSeal,
+    // TODO: Consider uniquefying this (probably within Datacache).
+    pub plum_uri: PlumURI,
     /// Weak pointer to the cached value.  The choice of Weak for this variable serves two purposes:
     /// - Allow the PlumRef to begin in a "non-linked" state (regardless of if it's cached in Datacache)
     /// - Allow the Datacache to reclaim memory if needed, by dropping the cached Arc<T>, after
@@ -58,9 +60,9 @@ pub struct PlumRef<T> {
 }
 
 impl<T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
-    pub fn new(head_seal: PlumHeadSeal) -> Self {
+    pub fn new(plum_uri: PlumURI) -> Self {
         Self {
-            head_seal,
+            plum_uri,
             value_wu: Default::default(),
             phantom: Default::default(),
         }
@@ -69,7 +71,7 @@ impl<T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sync> PlumR
         unsafe { &*self.value_wu.get() }.strong_count() > 0
     }
     pub fn clear_cached_value(&self) {
-        datacache().clear_cached_value(&self.head_seal);
+        datacache().clear_cached_value(self.plum_uri.get_plum_head_seal());
     }
     /// The only reason this returns `Result<Arc<T>, _>` instead of `Arc<T>` directly is because
     /// it calls Datacache::load_typed_content internally, which can fail because of connectivity
@@ -81,7 +83,7 @@ impl<T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sync> PlumR
             value_a
         } else {
             // Otherwise the Weak pointer is not linked, so load the content from Datacache and link it.
-            let value_a = datacache().get_or_load_value::<T>(&self.head_seal)?;
+            let value_a = datacache().get_or_load_value::<T>(&self.plum_uri)?;
             unsafe { *self.value_wu.get() = Arc::downgrade(&value_a) };
             value_a
         };
@@ -92,7 +94,7 @@ impl<T: Any + std::fmt::Debug + serde::de::DeserializeOwned + Send + Sync> PlumR
 impl<T> Clone for PlumRef<T> {
     fn clone(&self) -> Self {
         PlumRef {
-            head_seal: self.head_seal.clone(),
+            plum_uri: self.plum_uri.clone(),
             value_wu: std::cell::UnsafeCell::new(unsafe { &*self.value_wu.get() }.clone()),
             phantom: Default::default(),
         }
@@ -102,7 +104,7 @@ impl<T> Clone for PlumRef<T> {
 impl<T: std::fmt::Debug> std::fmt::Debug for PlumRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("PlumRef")
-            .field("head_seal", &self.head_seal)
+            .field("plum_uri", &self.plum_uri)
             .field("value_wu", unsafe { &*self.value_wu.get() })
             .finish()
     }

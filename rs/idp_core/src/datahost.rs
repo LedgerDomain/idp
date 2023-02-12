@@ -195,6 +195,13 @@ impl Datahost {
         Ok(plum_head_seal)
     }
 
+    /// If the specified PlumHead doesn't exist in this Datahost, returns None.
+    pub fn load_option_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<Option<PlumHead>> {
+        Ok(self
+            .select_option_plum_head_row(plum_head_seal)?
+            .map(|x| x.into()))
+    }
+    /// If the specified PlumHead doesn't exist in this Datahost, returns error.
     pub fn load_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHead> {
         Ok(self.select_plum_head_row(plum_head_seal)?.into())
     }
@@ -203,11 +210,47 @@ impl Datahost {
     //         TODO -- implement
     //     }
 
+    /// If the specified PlumBody doesn't exist in this Datahost, returns None.
+    pub fn load_option_plum_body(&self, plum_body_seal: &PlumBodySeal) -> Result<Option<PlumBody>> {
+        // use std::convert::TryInto;
+        Ok(self
+            .select_option_plum_body_row(plum_body_seal)?
+            .map(|x| x.try_into())
+            .transpose()?)
+    }
+    /// If the specified PlumBody doesn't exist in this Datahost, returns error.
     pub fn load_plum_body(&self, plum_body_seal: &PlumBodySeal) -> Result<PlumBody> {
-        use std::convert::TryInto;
+        // use std::convert::TryInto;
         Ok(self.select_plum_body_row(plum_body_seal)?.try_into()?)
     }
 
+    /// If either of the PlumHead or PlumBody for the specified Plum doesn't exist in this Datahost,
+    /// returns None.
+    pub fn load_option_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Option<Plum>> {
+        let head_o = self.load_option_plum_head(plum_head_seal)?;
+        if head_o.is_none() {
+            return Ok(None);
+        }
+        let head = head_o.unwrap();
+
+        let relations_o = match &head.relations_seal_o {
+            //             Some(relations_seal) => self.load_plum_relations(relations_seal),
+            //             None => None,
+            _ => None, // TEMP HACK
+        };
+
+        let body_o = self.load_option_plum_body(&head.body_seal)?;
+        if body_o.is_none() {
+            return Ok(None);
+        }
+        let body = body_o.unwrap();
+
+        Ok(Some(Plum {
+            head,
+            relations_o,
+            body,
+        }))
+    }
     pub fn load_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Plum> {
         let head = self.load_plum_head(plum_head_seal)?;
         let relations_o = match &head.relations_seal_o {

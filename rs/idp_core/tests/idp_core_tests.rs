@@ -1,6 +1,6 @@
 use idp_core::{
     datacache, initialize_datacache, BranchNode, Datacache, Datahost, DirNode, FragmentQueryResult,
-    FragmentQueryable, PlumRef,
+    FragmentQueryable, PlumRef, PlumURI, PlumURILocal,
 };
 use idp_proto::{
     ContentType, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder, PlumHeadBuilder,
@@ -921,8 +921,11 @@ fn test_plum_ref() {
         .store_plum(&content_1_plum)
         .expect("pass");
 
-    let plum_0_ref = PlumRef::<String>::new(content_0_plum_head_seal);
-    let plum_1_ref = PlumRef::<u32>::new(content_1_plum_head_seal);
+    let content_0_plum_uri = PlumURI::from(PlumURILocal::from(content_0_plum_head_seal.clone()));
+    let content_1_plum_uri = PlumURI::from(PlumURILocal::from(content_1_plum_head_seal.clone()));
+
+    let plum_0_ref = PlumRef::<String>::new(content_0_plum_uri);
+    let plum_1_ref = PlumRef::<u32>::new(content_1_plum_uri);
 
     log::debug!("plum_0_ref: {:?}", plum_0_ref);
     log::debug!("plum_1_ref: {:?}", plum_1_ref);
