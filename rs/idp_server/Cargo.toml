@@ -8,14 +8,14 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.69"
+async-lock = "2.6.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 futures = { version = "0.3", default-features = false }
 h2 = "0.3"
 idp_core = { path = "../idp_core" }
-idp_proto = { path = "../idp_proto" }
+idp_proto = { path = "../idp_proto", features = ["server"] }
 log = "0.4.14"
 maplit = "1.0.2"
-parking_lot = "0.12.1"
 tokio = "1.25.0"
 tokio-stream = "0.1.11"
 tonic = { version = "0.8.3", features = ["tls"] }

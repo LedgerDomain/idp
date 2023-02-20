@@ -1,27 +1,18 @@
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
+#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContentType {
     #[prost(bytes = "vec", required, tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "String")]
-#[diesel(serialize_as = "String")]
-#[sql_type = "diesel::sql_types::Text"]
+#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Did {
+pub struct Id {
     #[prost(string, required, tag = "1")]
     pub value: ::prost::alloc::string::String,
 }
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
+#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Nonce {
@@ -29,17 +20,15 @@ pub struct Nonce {
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(
-    diesel::AsExpression,
+    derive_more::Deref,
+    serde::Deserialize,
     Eq,
+    derive_more::From,
     Hash,
     Ord,
     PartialOrd,
-    serde::Deserialize,
     serde::Serialize
 )]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Seal {
@@ -48,45 +37,45 @@ pub struct Seal {
     pub sha256sum: Sha256Sum,
 }
 #[derive(
-    diesel::AsExpression,
+    derive_more::Deref,
+    serde::Deserialize,
     Eq,
+    derive_more::From,
     Hash,
     Ord,
     PartialOrd,
-    serde::Deserialize,
     serde::Serialize
 )]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sha256Sum {
     #[prost(bytes = "vec", required, tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "i64")]
-#[diesel(serialize_as = "i64")]
-#[sql_type = "diesel::sql_types::BigInt"]
+/// Storing nanoseconds in an int64 gives 292.27 years range around the Unix epoch, 1970-01-01 UTC.
+#[derive(
+    Copy,
+    serde::Deserialize,
+    derive_more::From,
+    derive_more::Into,
+    serde::Serialize
+)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct UnixSeconds {
+pub struct UnixNanoseconds {
     #[prost(int64, required, tag = "1")]
     pub value: i64,
 }
 #[derive(
-    diesel::AsExpression,
+    derive_more::Deref,
+    serde::Deserialize,
     Eq,
+    derive_more::From,
     Hash,
     Ord,
     PartialOrd,
-    serde::Deserialize,
     serde::Serialize
 )]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHeadSeal {
@@ -94,27 +83,22 @@ pub struct PlumHeadSeal {
     pub value: Seal,
 }
 #[derive(
-    diesel::AsExpression,
+    derive_more::Deref,
+    serde::Deserialize,
     Eq,
+    derive_more::From,
     Hash,
     Ord,
     PartialOrd,
-    serde::Deserialize,
     serde::Serialize
 )]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelationsSeal {
     #[prost(message, required, tag = "1")]
     pub value: Seal,
 }
-#[derive(diesel::AsExpression, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "Vec<u8>")]
-#[diesel(serialize_as = "Vec<u8>")]
-#[sql_type = "diesel::sql_types::Binary"]
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumBodySeal {
@@ -124,39 +108,35 @@ pub struct PlumBodySeal {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumHead {
+    /// Optional nonce for preventing dictionary attacks.  This would be left as None e.g. in storing "a plain file"
+    /// or otherwise for data that has no need for the protection the nonce provides.
+    #[prost(message, optional, tag = "1")]
+    pub plum_head_nonce_o: ::core::option::Option<Nonce>,
+    /// Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es).
+    /// This would be left as None e.g. in storing "a plain file", or otherwise for data that doesn't have any
+    /// formal plum_relations.
+    #[prost(message, optional, tag = "2")]
+    pub plum_relations_seal_o: ::core::option::Option<PlumRelationsSeal>,
     /// PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
-    #[prost(message, required, tag = "1")]
-    pub body_seal: PlumBodySeal,
-    /// Content type for the Plum body.
-    #[prost(message, required, tag = "2")]
-    pub body_content_type: ContentType,
-    /// Number of bytes in the Plum body itself.
-    #[prost(uint64, required, tag = "3")]
-    pub body_length: u64,
-    /// Optional nonce for preventing dictionary attacks.
+    #[prost(message, required, tag = "3")]
+    pub plum_body_seal: PlumBodySeal,
+    /// Optional owner DID.  This would be left as None e.g. in storing "a plain file", or otherwise for data that
+    /// has no need for a formal owner.
     #[prost(message, optional, tag = "4")]
-    pub head_nonce_o: ::core::option::Option<Nonce>,
-    /// Optional owner DID.
-    #[prost(message, optional, tag = "5")]
-    pub owner_did_o: ::core::option::Option<Did>,
+    pub owner_id_o: ::core::option::Option<Id>,
     /// Optional Plum creation timestamp.
-    #[prost(message, optional, tag = "6")]
-    pub created_at_o: ::core::option::Option<UnixSeconds>,
-    /// Optional, unstructured metadata.
-    #[prost(bytes = "vec", optional, tag = "7")]
+    #[prost(message, optional, tag = "5")]
+    pub created_at_o: ::core::option::Option<UnixNanoseconds>,
+    /// Optional, unstructured metadata.  This would be left as None e.g. in storing "a plain file", or otherwise
+    /// for data that has no need for metadata.
+    #[prost(bytes = "vec", optional, tag = "6")]
     pub metadata_o: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
-    /// Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es)
-    #[prost(message, optional, tag = "8")]
-    pub relations_seal_o: ::core::option::Option<PlumRelationsSeal>,
 }
 /// A set of Relations, encoded as bitflags.
-#[derive(diesel::AsExpression, Copy, serde::Deserialize, serde::Serialize)]
-#[diesel(deserialize_as = "i32")]
-#[diesel(serialize_as = "i32")]
-#[sql_type = "diesel::sql_types::Integer"]
+#[derive(Copy, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RelationFlagsRaw {
+pub struct PlumRelationFlagsRaw {
     #[prost(uint32, required, tag = "1")]
     pub value: u32,
 }
@@ -164,9 +144,9 @@ pub struct RelationFlagsRaw {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelationFlagsMapping {
     #[prost(message, required, tag = "1")]
-    pub target_head_seal: PlumHeadSeal,
+    pub target_plum_head_seal: PlumHeadSeal,
     #[prost(message, required, tag = "2")]
-    pub relation_flags_raw: RelationFlagsRaw,
+    pub plum_relation_flags_raw: PlumRelationFlagsRaw,
 }
 /// This encapsulates the Relations from a given Plum to all others, and is derived from its PlumBody.
 /// The reason this is separate is because there are situations where the PlumBody won't be present
@@ -176,38 +156,53 @@ pub struct PlumRelationFlagsMapping {
 pub struct PlumRelations {
     /// Optional nonce can be used to prevent dictionary attacks.
     #[prost(message, optional, tag = "1")]
-    pub relations_nonce_o: ::core::option::Option<Nonce>,
-    /// Content of the relations itself.  This consists of entries to add to the relations DB table.
-    #[prost(message, repeated, tag = "2")]
-    pub relation_flags_mappings: ::prost::alloc::vec::Vec<PlumRelationFlagsMapping>,
+    pub plum_relations_nonce_o: ::core::option::Option<Nonce>,
+    /// PlumBodySeal of the Plum that these relations come from.
+    #[prost(message, required, tag = "2")]
+    pub source_plum_body_seal: PlumBodySeal,
+    /// Content of the plum_relations itself.  This consists of entries to add to the plum_relations DB table.
+    #[prost(message, repeated, tag = "3")]
+    pub plum_relation_flags_mapping_v: ::prost::alloc::vec::Vec<
+        PlumRelationFlagsMapping,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumBody {
     /// Optional nonce can be used to prevent dictionary attacks.
     #[prost(message, optional, tag = "1")]
-    pub body_nonce_o: ::core::option::Option<Nonce>,
+    pub plum_body_nonce_o: ::core::option::Option<Nonce>,
+    /// Number of bytes in the Plum body itself.
+    #[prost(uint64, required, tag = "2")]
+    pub plum_body_content_length: u64,
+    /// Content type for the Plum body.
+    #[prost(message, required, tag = "3")]
+    pub plum_body_content_type: ContentType,
     /// Content of the plum itself.  The content type of the bytes is given in the PlumHead.
-    #[prost(bytes = "vec", required, tag = "2")]
-    pub body_content: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", required, tag = "4")]
+    pub plum_body_content: ::prost::alloc::vec::Vec<u8>,
 }
-/// This represents a single data entry; it's a head (metadata), relations, and a body (file content).
+/// This represents a single data entry; it's a head (metadata), plum_relations, and a body (file content).
 /// Yes, a stupid name, and I hate cute names in software, but it is distinct, and it's a noun.
+/// And at least it doesn't end with "ly".
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Plum {
     #[prost(message, required, tag = "1")]
-    pub head: PlumHead,
+    pub plum_head: PlumHead,
     #[prost(message, optional, tag = "2")]
-    pub relations_o: ::core::option::Option<PlumRelations>,
+    pub plum_relations_o: ::core::option::Option<PlumRelations>,
     #[prost(message, required, tag = "3")]
-    pub body: PlumBody,
+    pub plum_body: PlumBody,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Acknowledgement {}
 /// These stream from client to server, starting with the PlumHeadSeal, and the server streams
 /// responses to say which PlumHeadSeals it already has Plums for (and therefore the client
 /// doesn't have to push the Plum or recurse on its dependencies).  Thus there won't be much
 /// wasted bandwidth.
-/// TODO: break it apart into sending plum head, plum relations, plum body.  This requires
+/// TODO: break it apart into sending plum head, plum plum_relations, plum body.  This requires
 /// the server responding with which ones are needed for a given PlumHeadSeal.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -239,45 +234,92 @@ pub mod push_response {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
-        /// Response to here_have_a_plum; carries no information.
+        /// Response to here_have_a_plum; carries no information.  TODO: This isn't actually necessary,
+        /// as long as the request/response streaming doesn't need to be 1-to-1
         #[prost(message, tag = "1")]
         Ok(super::Acknowledgement),
-        /// Positive response to should_i_send_this_plum.
+        /// Positive response to should_i_send_this_plum.  TODO: Maybe rename to i_want_this_plum.
         #[prost(message, tag = "2")]
         SendThisPlum(super::PlumHeadSeal),
-        /// Negative response to should_i_send_this_plum.
+        /// Negative response to should_i_send_this_plum.  TODO: This isn't actually necessary,
+        /// as long as the request/response streaming doesn't need to be 1-to-1
         #[prost(message, tag = "3")]
         DontSendThisPlum(super::PlumHeadSeal),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Acknowledgement {}
-/// This defines what relations are possible from one Plum to another.
-#[derive(
-    diesel::AsExpression,
-    num_derive::FromPrimitive,
-    serde::Deserialize,
-    serde::Serialize
-)]
-#[diesel(deserialize_as = "i32")]
-#[diesel(serialize_as = "i32")]
-#[sql_type = "diesel::sql_types::Integer"]
+pub struct PlumHeadAndRelations {
+    #[prost(message, required, tag = "1")]
+    pub plum_head: PlumHead,
+    #[prost(message, required, tag = "2")]
+    pub plum_relations: PlumRelations,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumHeadSealAndRelations {
+    #[prost(message, required, tag = "1")]
+    pub plum_head_seal: PlumHeadSeal,
+    #[prost(message, required, tag = "2")]
+    pub plum_relations: PlumRelations,
+}
+/// These stream from client to server, starting with the PlumHeadSeal, and the server streams
+/// responses to say which PlumHeadSeals it already has Plums for (and therefore the client
+/// doesn't have to push the Plum or recurse on its dependencies).  Thus there won't be much
+/// wasted bandwidth.
+/// TODO: break it apart into sending plum head, plum plum_relations, plum body.  This requires
+/// the server responding with which ones are needed for a given PlumHeadSeal.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PullRequest {
+    #[prost(oneof = "pull_request::Value", tags = "1")]
+    pub value: ::core::option::Option<pull_request::Value>,
+}
+/// Nested message and enum types in `PullRequest`.
+pub mod pull_request {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        /// TEMP HACK -- simple for now.
+        #[prost(message, tag = "1")]
+        IWantThisPlum(super::PlumHeadSeal),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PullResponse {
+    #[prost(oneof = "pull_response::Value", tags = "1, 2")]
+    pub value: ::core::option::Option<pull_response::Value>,
+}
+/// Nested message and enum types in `PullResponse`.
+pub mod pull_response {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        /// TEMP HACK -- simple for now.
+        #[prost(message, tag = "1")]
+        Plum(super::Plum),
+        #[prost(message, tag = "2")]
+        IDontHaveThisPlum(super::PlumHeadSeal),
+    }
+}
+/// This defines what plum_relations are possible from one Plum to another.
+#[derive(serde::Deserialize, num_derive::FromPrimitive, serde::Serialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum Relation {
+pub enum PlumRelation {
     ContentDependency = 0,
     MetadataDependency = 1,
 }
-impl Relation {
+impl PlumRelation {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            Relation::ContentDependency => "CONTENT_DEPENDENCY",
-            Relation::MetadataDependency => "METADATA_DEPENDENCY",
+            PlumRelation::ContentDependency => "CONTENT_DEPENDENCY",
+            PlumRelation::MetadataDependency => "METADATA_DEPENDENCY",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -290,6 +332,7 @@ impl Relation {
     }
 }
 /// Generated client implementations.
+#[cfg(feature = "client")]
 pub mod indoor_data_plumbing_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
@@ -380,9 +423,32 @@ pub mod indoor_data_plumbing_client {
             );
             self.inner.streaming(request.into_streaming_request(), path, codec).await
         }
+        pub async fn pull(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PullRequest>,
+        ) -> Result<
+            tonic::Response<tonic::codec::Streaming<super::PullResponse>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/Pull",
+            );
+            self.inner.server_streaming(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
+#[cfg(feature = "server")]
 pub mod indoor_data_plumbing_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
@@ -399,6 +465,16 @@ pub mod indoor_data_plumbing_server {
             &self,
             request: tonic::Request<tonic::Streaming<super::PushRequest>>,
         ) -> Result<tonic::Response<Self::PushStream>, tonic::Status>;
+        /// Server streaming response type for the Pull method.
+        type PullStream: futures_core::Stream<
+                Item = Result<super::PullResponse, tonic::Status>,
+            >
+            + Send
+            + 'static;
+        async fn pull(
+            &self,
+            request: tonic::Request<super::PullRequest>,
+        ) -> Result<tonic::Response<Self::PullStream>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct IndoorDataPlumbingServer<T: IndoorDataPlumbing> {
@@ -494,6 +570,45 @@ pub mod indoor_data_plumbing_server {
                                 send_compression_encodings,
                             );
                         let res = grpc.streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/idp.IndoorDataPlumbing/Pull" => {
+                    #[allow(non_camel_case_types)]
+                    struct PullSvc<T: IndoorDataPlumbing>(pub Arc<T>);
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::ServerStreamingService<super::PullRequest>
+                    for PullSvc<T> {
+                        type Response = super::PullResponse;
+                        type ResponseStream = T::PullStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PullRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).pull(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = PullSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)

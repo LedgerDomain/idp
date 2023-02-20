@@ -1,7 +1,7 @@
 #![allow(unused_macros)]
 
 use anyhow::Result;
-use parking_lot::RwLock;
+use async_lock::RwLock;
 use std::{boxed::Box, collections::HashMap, sync::Arc};
 
 pub struct Runtime {
@@ -91,8 +91,9 @@ impl<'a> Drop for StackGuard<'a> {
     }
 }
 
+#[async_trait::async_trait]
 pub trait Executable {
-    fn exec(&self, rt: &mut Runtime) -> Result<()>;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()>;
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -105,15 +106,16 @@ pub enum Statement {
     DivAssignment(Box<DivAssignment>),
 }
 
+#[async_trait::async_trait]
 impl Executable for Statement {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
         match self {
-            Statement::Definition(x) => x.exec(rt),
-            Statement::Assignment(x) => x.exec(rt),
-            Statement::AddAssignment(x) => x.exec(rt),
-            Statement::SubAssignment(x) => x.exec(rt),
-            Statement::MulAssignment(x) => x.exec(rt),
-            Statement::DivAssignment(x) => x.exec(rt),
+            Statement::Definition(x) => x.exec(rt).await,
+            Statement::Assignment(x) => x.exec(rt).await,
+            Statement::AddAssignment(x) => x.exec(rt).await,
+            Statement::SubAssignment(x) => x.exec(rt).await,
+            Statement::MulAssignment(x) => x.exec(rt).await,
+            Statement::DivAssignment(x) => x.exec(rt).await,
         }
     }
 }
@@ -124,9 +126,10 @@ pub struct Definition {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for Definition {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         rt.define(self.symbol_id.clone(), value)
     }
 }
@@ -146,11 +149,12 @@ pub struct Assignment {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for Assignment {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
-        *symbol_value_la.write() = value;
+        *symbol_value_la.write().await = value;
         Ok(())
     }
 }
@@ -170,11 +174,12 @@ pub struct AddAssignment {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for AddAssignment {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
-        *symbol_value_la.write() += value;
+        *symbol_value_la.write().await += value;
         Ok(())
     }
 }
@@ -194,11 +199,12 @@ pub struct SubAssignment {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for SubAssignment {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
-        *symbol_value_la.write() -= value;
+        *symbol_value_la.write().await -= value;
         Ok(())
     }
 }
@@ -218,11 +224,12 @@ pub struct MulAssignment {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for MulAssignment {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
-        *symbol_value_la.write() *= value;
+        *symbol_value_la.write().await *= value;
         Ok(())
     }
 }
@@ -242,11 +249,12 @@ pub struct DivAssignment {
     pub expr: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Executable for DivAssignment {
-    fn exec(&self, rt: &mut Runtime) -> Result<()> {
-        let value = self.expr.eval(rt)?;
+    async fn exec(&self, rt: &mut Runtime) -> Result<()> {
+        let value = self.expr.eval(rt).await?;
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
-        *symbol_value_la.write() /= value;
+        *symbol_value_la.write().await /= value;
         Ok(())
     }
 }
@@ -268,38 +276,35 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn run_as_program(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+    pub async fn run_as_program(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         assert_eq!(rt.symbol_mv.len(), 1, "Block::run_as_program can only be used when the Runtime's symbol table stack is depth 1");
-        self.eval_impl(rt, false)
+        self.eval_impl(rt, false).await
     }
-    fn eval_impl(&self, rt: &mut Runtime, use_inner_stack_guard: bool) -> Result<ConcreteValue> {
-        log::trace!("Block::eval");
+    async fn eval_impl(
+        &self,
+        rt: &mut Runtime,
+        use_inner_stack_guard: bool,
+    ) -> Result<ConcreteValue> {
         if use_inner_stack_guard {
             let stack_guard = StackGuard::new(rt);
             for statement in self.statement_v.iter() {
-                statement.exec(stack_guard.rt)?;
+                statement.exec(stack_guard.rt).await?;
             }
-            let value = self.expr.eval(stack_guard.rt)?;
+            let value = self.expr.eval(stack_guard.rt).await?;
             Ok(value)
         } else {
             for statement in self.statement_v.iter() {
-                statement.exec(rt)?;
+                statement.exec(rt).await?;
             }
-            self.expr.eval(rt)
+            self.expr.eval(rt).await
         }
     }
 }
 
+#[async_trait::async_trait]
 impl Expr for Block {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        self.eval_impl(rt, true)
-        // log::trace!("Block::eval");
-        // let stack_guard = StackGuard::new(rt);
-        // for statement in self.statement_v.iter() {
-        //     statement.exec(stack_guard.rt)?;
-        // }
-        // let value = self.expr.eval(stack_guard.rt)?;
-        // Ok(value)
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        self.eval_impl(rt, true).await
     }
 }
 
@@ -414,14 +419,16 @@ impl std::ops::DivAssign for ConcreteValue {
     }
 }
 
+#[async_trait::async_trait]
 pub trait Expr {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue>;
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue>;
 }
 
+#[async_trait::async_trait]
 impl Expr for idp_core::PlumRef<ASTNode> {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         // The call to value() will handle loading, deserializing, and caching into memory.
-        self.value()?.eval(rt)
+        self.value_a().await?.eval(rt).await
     }
 }
 
@@ -439,8 +446,9 @@ pub struct Function {
     pub body: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Function {
-    fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
+    async fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
         // Inefficient, but fine for now.
         Ok(ConcreteValue::Function(self.clone()))
     }
@@ -462,22 +470,22 @@ pub struct Call {
     pub argument_expr_v: Vec<ASTNode>,
 }
 
+#[async_trait::async_trait]
 impl Expr for Call {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        log::trace!("Call::eval");
-        let function_eval = self.function.eval(rt)?;
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let function_eval = self.function.eval(rt).await?;
         let function = function_eval.as_function()?;
         let stack_guard = StackGuard::new(rt);
         for (argument_name, argument_expr) in
             std::iter::zip(function.argument_name_v.iter(), self.argument_expr_v.iter())
         {
-            let argument_value = argument_expr.eval(stack_guard.rt)?;
+            let argument_value = argument_expr.eval(stack_guard.rt).await?;
 
             stack_guard
                 .rt
                 .define(argument_name.clone(), argument_value)?;
         }
-        let retval = function.body.eval(stack_guard.rt)?;
+        let retval = function.body.eval(stack_guard.rt).await?;
         Ok(retval)
     }
 }
@@ -511,8 +519,9 @@ impl Float64 {
     }
 }
 
+#[async_trait::async_trait]
 impl Expr for Float64 {
-    fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
+    async fn eval(&self, _rt: &mut Runtime) -> Result<ConcreteValue> {
         Ok(ConcreteValue::Float64(*self))
     }
 }
@@ -526,11 +535,12 @@ macro_rules! float64 {
 #[derive(Clone, Debug, derive_more::Deref, serde::Deserialize, serde::Serialize)]
 pub struct SymbolicRef(String);
 
+#[async_trait::async_trait]
 impl Expr for SymbolicRef {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         // This is inefficient, but is fine for now.  The solution would be to return
         // Arc<RwLock<ConcreteValue>> from Expr::eval, but that has its own drawbacks.
-        Ok(rt.dereference(self.as_str())?.read().clone())
+        Ok(rt.dereference(self.as_str())?.read().await.clone())
     }
 }
 
@@ -545,9 +555,10 @@ pub struct Neg {
     pub operand: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Neg {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let x = self.operand.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let x = self.operand.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(-x)))
     }
 }
@@ -564,10 +575,11 @@ pub struct Add {
     pub rhs: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Add {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
-        let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
+        let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs + rhs)))
     }
 }
@@ -587,10 +599,11 @@ pub struct Sub {
     pub rhs: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Sub {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
-        let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
+        let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs - rhs)))
     }
 }
@@ -610,10 +623,11 @@ pub struct Mul {
     pub rhs: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Mul {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
-        let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
+        let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs * rhs)))
     }
 }
@@ -633,10 +647,11 @@ pub struct Div {
     pub rhs: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Div {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let lhs = self.lhs.eval(rt)?.as_float64()?.as_f64();
-        let rhs = self.rhs.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
+        let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs / rhs)))
     }
 }
@@ -656,10 +671,11 @@ pub struct Pow {
     pub exponent: ASTNode,
 }
 
+#[async_trait::async_trait]
 impl Expr for Pow {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
-        let base = self.base.eval(rt)?.as_float64()?.as_f64();
-        let exponent = self.exponent.eval(rt)?.as_float64()?.as_f64();
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+        let base = self.base.eval(rt).await?.as_float64()?.as_f64();
+        let exponent = self.exponent.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(base.powf(exponent))))
     }
 }
@@ -673,7 +689,6 @@ macro_rules! pow {
     };
 }
 
-// TODO: This could be called ASTNode
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum ASTNode {
     Float64(Float64),
@@ -713,21 +728,22 @@ impl ASTNode {
     }
 }
 
+#[async_trait::async_trait]
 impl Expr for ASTNode {
-    fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
+    async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         match self {
-            ASTNode::Float64(x) => x.eval(rt),
-            ASTNode::Block(x) => x.eval(rt),
-            ASTNode::SymbolicRef(x) => x.eval(rt),
-            ASTNode::Neg(x) => x.eval(rt),
-            ASTNode::Add(x) => x.eval(rt),
-            ASTNode::Sub(x) => x.eval(rt),
-            ASTNode::Mul(x) => x.eval(rt),
-            ASTNode::Div(x) => x.eval(rt),
-            ASTNode::Pow(x) => x.eval(rt),
-            ASTNode::Function(x) => x.eval(rt),
-            ASTNode::Call(x) => x.eval(rt),
-            ASTNode::PlumRef(x) => x.eval(rt),
+            ASTNode::Float64(x) => x.eval(rt).await,
+            ASTNode::Block(x) => x.eval(rt).await,
+            ASTNode::SymbolicRef(x) => x.eval(rt).await,
+            ASTNode::Neg(x) => x.eval(rt).await,
+            ASTNode::Add(x) => x.eval(rt).await,
+            ASTNode::Sub(x) => x.eval(rt).await,
+            ASTNode::Mul(x) => x.eval(rt).await,
+            ASTNode::Div(x) => x.eval(rt).await,
+            ASTNode::Pow(x) => x.eval(rt).await,
+            ASTNode::Function(x) => x.eval(rt).await,
+            ASTNode::Call(x) => x.eval(rt).await,
+            ASTNode::PlumRef(x) => x.eval(rt).await,
         }
     }
 }
@@ -782,14 +798,16 @@ impl std::ops::Div for ASTNode {
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    // console_subscriber::init();
     env_logger::init();
 
     let mut rt = Runtime::new();
 
     {
         let expr = float64!(123.456);
-        log::debug!("expr -> {:.17}", expr.eval(&mut rt)?.as_float64()?);
+        log::debug!("expr -> {:.17}", expr.eval(&mut rt).await?.as_float64()?);
     }
 
     {
@@ -822,7 +840,7 @@ fn main() -> Result<()> {
                 )
             )
         );
-        log::debug!("cos_1 -> {:.17}", cos_1.eval(&mut rt)?.as_float64()?);
+        log::debug!("cos_1 -> {:.17}", cos_1.eval(&mut rt).await?.as_float64()?);
     }
 
     {
@@ -837,13 +855,16 @@ fn main() -> Result<()> {
                                 * (one.clone()
                                     - float64!(1.0 / (7.0 * 8.0))
                                         * (one.clone() - float64!(1.0 / (9.0 * 10.0))))));
-        log::debug!("cos_1 -> {:.17}", cos_1.eval(&mut rt)?.as_float64()?);
+        log::debug!("cos_1 -> {:.17}", cos_1.eval(&mut rt).await?.as_float64()?);
     }
 
     {
         log::debug!("-- block_0 --------------");
         let block_0 = block!(float64!(1.2));
-        log::debug!("block_0 -> {:.17}", block_0.eval(&mut rt)?.as_float64()?);
+        log::debug!(
+            "block_0 -> {:.17}",
+            block_0.eval(&mut rt).await?.as_float64()?
+        );
     }
 
     {
@@ -852,7 +873,10 @@ fn main() -> Result<()> {
             define!(y, float64!(888.9999));;
             symbolic_ref!(x)
         };
-        log::debug!("block_1 -> {:.17}", block_1.eval(&mut rt)?.as_float64()?);
+        log::debug!(
+            "block_1 -> {:.17}",
+            block_1.eval(&mut rt).await?.as_float64()?
+        );
     }
 
     {
@@ -890,7 +914,7 @@ fn main() -> Result<()> {
             ;
             symbolic_ref!(y)
         };
-        let value = cos_2.eval(&mut rt)?.as_float64()?.as_f64();
+        let value = cos_2.eval(&mut rt).await?.as_float64()?.as_f64();
         let error = (value - 2.0f64.cos()).abs();
         log::debug!(
             "cos_2 -> {:.17}; 'actual' value is {:.17}; error: {:.17e}",
@@ -1044,12 +1068,16 @@ fn main() -> Result<()> {
             call!(symbolic_ref!(exp), (float64!(1.0)))
         }
         .into_block()?;
-        let program_value = program.run_as_program(&mut rt)?.as_float64()?.as_f64();
+        let program_return_value = program
+            .run_as_program(&mut rt)
+            .await?
+            .as_float64()?
+            .as_f64();
         let actual_value = 1.0f64.exp();
-        let error = (program_value - actual_value).abs();
+        let error = (program_return_value - actual_value).abs();
         log::debug!(
             "program -> {:.17}; actual value: {:.17}; error: {:.17e}",
-            program_value,
+            program_return_value,
             actual_value,
             error,
         );
@@ -1062,41 +1090,66 @@ fn main() -> Result<()> {
     }
 
     // Now create a Datahost and initialize the Datacache with it.
-    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open_in_memory(
+    let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open(
         "PL".to_string(),
-    )?));
-    idp_core::initialize_datacache(idp_core::Datacache::new(datahost_la.clone()));
+        idp_datahost_storage_sqlite::DatahostStorageSQLite::new_in_memory().await?,
+    )));
+    idp_core::Datacache::set_singleton(Box::new(idp_core::Datacache::new(datahost_la.clone())));
 
     // Store the functions in the Datahost
-    let norm_squared_plum_head_seal = datahost_la.write().store_plum(
-        &idp_proto::PlumBuilder::new()
-            .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
-            .with_body_content(rmp_serde::to_vec(&norm_squared_function)?)
-            .build()?,
-    )?;
-    let exp_plum_head_seal = datahost_la.write().store_plum(
-        &idp_proto::PlumBuilder::new()
-            .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
-            .with_body_content(rmp_serde::to_vec(&exp_function)?)
-            .build()?,
-    )?;
-    let cos_plum_head_seal = datahost_la.write().store_plum(
-        &idp_proto::PlumBuilder::new()
-            .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
-            .with_body_content(rmp_serde::to_vec(&cos_function)?)
-            .build()?,
-    )?;
-    let sin_plum_head_seal = datahost_la.write().store_plum(
-        &idp_proto::PlumBuilder::new()
-            .with_body_content_type(idp_proto::ContentType::from("pl/function".as_bytes()))
-            .with_body_content(rmp_serde::to_vec(&sin_function)?)
-            .build()?,
-    )?;
+    let norm_squared_plum_head_seal = datahost_la
+        .write()
+        .await
+        .store_plum(
+            &idp_proto::PlumBuilder::new()
+                .with_plum_body_content_type(idp_proto::ContentType::from(
+                    "pl/function".as_bytes().to_vec(),
+                ))
+                .with_plum_body_content(rmp_serde::to_vec(&norm_squared_function)?)
+                .build()?,
+        )
+        .await?;
+    let exp_plum_head_seal = datahost_la
+        .write()
+        .await
+        .store_plum(
+            &idp_proto::PlumBuilder::new()
+                .with_plum_body_content_type(idp_proto::ContentType::from(
+                    "pl/function".as_bytes().to_vec(),
+                ))
+                .with_plum_body_content(rmp_serde::to_vec(&exp_function)?)
+                .build()?,
+        )
+        .await?;
+    let cos_plum_head_seal = datahost_la
+        .write()
+        .await
+        .store_plum(
+            &idp_proto::PlumBuilder::new()
+                .with_plum_body_content_type(idp_proto::ContentType::from(
+                    "pl/function".as_bytes().to_vec(),
+                ))
+                .with_plum_body_content(rmp_serde::to_vec(&cos_function)?)
+                .build()?,
+        )
+        .await?;
+    let sin_plum_head_seal = datahost_la
+        .write()
+        .await
+        .store_plum(
+            &idp_proto::PlumBuilder::new()
+                .with_plum_body_content_type(idp_proto::ContentType::from(
+                    "pl/function".as_bytes().to_vec(),
+                ))
+                .with_plum_body_content(rmp_serde::to_vec(&sin_function)?)
+                .build()?,
+        )
+        .await?;
 
     // Here, create a program where the functions are linked in from hash-addressed Plums in the Datahost,
     // automatically loaded via PlumRef and Datacache.
     {
-        log::debug!("------------------------------------------------------");
+        log::debug!("- Program with functions linked via PlumRef -----------------------------------------------------");
         rt.reset();
         let program = block! {
             define!(norm_squared, plum_ref!(norm_squared_plum_head_seal.clone().into()));
@@ -1108,16 +1161,16 @@ fn main() -> Result<()> {
             // call!(symbolic_ref!(exp), (float64!(1.0)))
         }
         .into_block()?;
-        log::debug!(
-            "program with PlumRef -> {:.17}",
-            program.run_as_program(&mut rt)?.as_float64()?
-        );
+        let program_return_value = program.run_as_program(&mut rt).await?.as_float64()?.clone();
+        log::debug!("program_return_value: {:.17}", program_return_value);
         log::debug!("rt.symbol_mv.len(): {}", rt.symbol_mv.len());
         log::debug!(
             "rt.symbol_mv.last().unwrap().keys():\n{:#?}",
             rt.symbol_mv.last().unwrap().keys()
         );
     }
+
+    println!("finished");
 
     Ok(())
 }

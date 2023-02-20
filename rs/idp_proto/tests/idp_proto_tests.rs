@@ -3,7 +3,7 @@
 use anyhow::Result;
 use idp_proto::{
     ContentType, ContentTypeable, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder,
-    PlumHeadBuilder, PlumHeadSeal, RelationFlags, Relational,
+    PlumHeadBuilder, PlumHeadSeal, PlumRelationFlags, PlumRelational,
 };
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -17,16 +17,16 @@ pub struct DummyTypedBody {
 
 impl ContentTypeable for DummyTypedBody {
     fn content_type() -> ContentType {
-        ContentType::from("idp_proto::tests::DummyTypedBody")
+        ContentType::from("idp_proto::tests::DummyTypedBody".as_bytes().to_vec())
     }
 }
 
-impl Relational for DummyTypedBody {
-    fn accumulate_relations_nonrecursive(
+impl PlumRelational for DummyTypedBody {
+    fn accumulate_plum_relations_nonrecursive(
         &self,
-        relation_flags_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
+        plum_relation_flags_m: &mut HashMap<PlumHeadSeal, PlumRelationFlags>,
     ) {
-        relation_flags_m.insert(self.content.clone(), RelationFlags::CONTENT_DEPENDENCY);
+        plum_relation_flags_m.insert(self.content.clone(), PlumRelationFlags::CONTENT_DEPENDENCY);
     }
 }
 
@@ -35,8 +35,8 @@ fn test_plum_builder() {
     let _ = env_logger::try_init();
 
     let plum = PlumBuilder::new()
-        .with_body_content_type(ContentType::from("text/plain"))
-        .with_body_content(
+        .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
+        .with_plum_body_content(
             format!("test_plum_builder, {}.", Uuid::new_v4())
                 .as_bytes()
                 .to_vec(),
@@ -65,7 +65,7 @@ fn test_plum_builder() {
         let plum_2r = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2r_head_seal = PlumHeadSeal::from(&plum_2r);
@@ -73,7 +73,7 @@ fn test_plum_builder() {
         let plum_2b = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2b_head_seal = PlumHeadSeal::from(&plum_2b);
@@ -81,7 +81,7 @@ fn test_plum_builder() {
         let plum_2h = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2h_head_seal = PlumHeadSeal::from(&plum_2h);
@@ -89,8 +89,8 @@ fn test_plum_builder() {
         let plum_2br = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
-            .with_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2br_head_seal = PlumHeadSeal::from(&plum_2br);
@@ -98,8 +98,8 @@ fn test_plum_builder() {
         let plum_2hr = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
-            .with_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2hr_head_seal = PlumHeadSeal::from(&plum_2hr);
@@ -107,8 +107,8 @@ fn test_plum_builder() {
         let plum_2bh = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
-            .with_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2bh_head_seal = PlumHeadSeal::from(&plum_2bh);
@@ -116,9 +116,9 @@ fn test_plum_builder() {
         let plum_2bhr = PlumBuilder::new()
             .with_relational_typed_content_from(&data_2)
             .expect("pass")
-            .with_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
-            .with_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
-            .with_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_body_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_head_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
+            .with_plum_relations_nonce(Nonce::from(vec![1u8, 2u8, 3u8, 4u8]))
             .build()
             .expect("pass");
         let plum_2bhr_head_seal = PlumHeadSeal::from(&plum_2bhr);

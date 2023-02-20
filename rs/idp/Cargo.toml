@@ -15,9 +15,11 @@ idp_server = { path = "../idp_server" }
 
 [dev-dependencies]
 anyhow = "1.0.69"
+async-lock = "2.6.0"
 env_logger = "0.8.4"
+idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
 log = "0.4.14"
-parking_lot = "0.12.1"
+serial_test = "0.5.1"
 tokio = { version = "1.25.0", features = [
     "rt-multi-thread",
     "time",

@@ -4,18 +4,17 @@ Rust SDK for Indoor Data Plumbing
 
 ## Rust Crate Contents
 
--   `idp` -- Top-level module for crate, which imports the `idp_*` crates as submodules.
-    -   [`idp_client`](idp_client) aka `idp::client` -- Indoor Data Plumbing client, using GRPC.
-    -   [`idp_core`](idp_core) aka `idp::core` -- Indoor Data Plumbing core data model and DB frontend.
+-   `idp` -- Top-level module for crate, which imports the `idp_*` crates as submodules and has client/server integration tests.
+    -   [`idp_core`](idp_core) aka `idp::core` -- Indoor Data Plumbing core data model and DB frontend, and feature-enabled GRPC client.
     -   [`idp_proto`](idp_proto) aka `idp::proto` -- Indoor Data Plumbing protobufs and GRPC functionality.
     -   [`idp_server`](idp_server) aka `idp::server` -- Indoor Data Plumbing server, using GRPC.
 
 ## To-dos
 
+-   In client/server tests, use appropriate wait conditions instead of sleep statements to coordinate
+    startup and shutdown of client/server.
 -   Maybe use https://philcalcado.com/2018/11/19/a_structured_rfc_process.html within this git repo
     to document and moderate feature development process.
--   Using features to enable client and/or server code generation within `idp_proto` and generally in `idp`.
-    This way no redundant/unused code is generated.
 -   Each data type has an optional query method which can be used to query data out of that Plum.
 -   Each data type has an optional relations method which can be used to determine which Plums
     a given Plum is related to.  Because some Plum bodies will be opaque data in certain contexts
@@ -343,3 +342,8 @@ Rust SDK for Indoor Data Plumbing
         -   Could operate as the authority for certain data (or on behalf of some other authority), which is
             just the special case where it's acting as a traditional server.
     -   The challenge to this approach is that it's harder to push code updates to an IOS app than to a server.
+
+## To-don'ts (I.e. Done)
+
+-   Using features to enable client and/or server code generation within `idp_proto` and generally in `idp`.
+    This way no redundant/unused code is generated.

@@ -3,31 +3,40 @@ name = "idp_core"
 version = "0.1.0"
 authors = ["Victor Dods <victor.dods@gmail.com>"]
 edition = "2021"
+rust-version = "1.61"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-client = ["dep:tokio-stream", "dep:tonic"]
+client = ["idp_proto/client", "dep:tokio-stream", "dep:tonic"]
+# This enables the SqlxError variant of DatahostStorageError.
+sqlx-error = ["dep:sqlx"]
 
 [dependencies]
 anyhow = "1.0.69"
+async-lock = "2.6.0"
+async-trait = "0.1.64"
 chrono = { version = "0.4.19", features = ["serde"] }
-# So far, this is only used in the examples.
 derive_more = "0.99.17"
-diesel = { version = "1.4.7", features = ["numeric", "sqlite"] }
-diesel_migrations = "1.4.0"
-dotenv = "0.15.0"
 idp_proto = { path = "../idp_proto" }
 lazy_static = "1.4.0"
 log = "0.4.14"
-parking_lot = "0.12.1"
+maplit = "1.0.2"
 rmp-serde = "0.15.5"
 serde = { version = "1.0.126", features = ["derive"] }
+sqlx = { version = "0.6.2", default-features = false, features = [
+    "runtime-tokio-native-tls",
+], optional = true }
+sync-unsafe-cell = "0.1.0"
+thiserror = "1.0.38"
 tokio-stream = { version = "0.1.11", optional = true }
 tonic = { version = "0.8.3", features = ["tls"], optional = true }
 
 [dev-dependencies]
+ctor = "0.1.21"
 env_logger = "0.8.4"
+idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
 maplit = "1.0.2"
 serial_test = "0.5.1"
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "0.8.2", features = ["v4"] }

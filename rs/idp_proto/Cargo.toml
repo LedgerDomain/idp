@@ -6,18 +6,23 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+client = ["dep:tonic"]
+server = ["dep:tonic"]
+
 [dependencies]
 anyhow = "1.0.69"
 bitflags = "1.3.2"
 chrono = { version = "0.4.19", features = ["serde"] }
-diesel = { version = "1.4.7", features = ["sqlite"] }
+derive_more = "0.99.17"
 num-derive = "0.3"
 num-traits = "0.2"
 prost = "0.11.0"
 rmp-serde = "0.15.5"
 serde = { version = "1.0.126", features = ["derive"] }
 sha2 = "0.9.5"
-tonic = { version = "0.8.3", features = ["tls"] }
+thiserror = "1.0.38"
+tonic = { version = "0.8.3", features = ["tls"], optional = true }
 
 # This is for building protobufs and GRPC service from .proto files
 [build-dependencies]

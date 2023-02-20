@@ -1,6 +1,6 @@
 use crate::{FragmentQueryResult, FragmentQueryable};
 use anyhow::Result;
-use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, RelationFlags, Relational};
+use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, PlumRelationFlags, PlumRelational};
 use std::collections::HashMap;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -20,64 +20,71 @@ pub struct BranchNode {
 
 impl ContentTypeable for BranchNode {
     fn content_type() -> ContentType {
-        ContentType::from("idp::BranchNode")
+        ContentType::from("idp::BranchNode".as_bytes().to_vec())
     }
 }
 
-impl Relational for BranchNode {
-    fn accumulate_relations_nonrecursive(
+impl PlumRelational for BranchNode {
+    fn accumulate_plum_relations_nonrecursive(
         &self,
-        relation_flags_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
+        plum_relation_flags_m: &mut HashMap<PlumHeadSeal, PlumRelationFlags>,
     ) {
         if let Some(ancestor) = &self.ancestor_o {
-            match relation_flags_m.get_mut(&ancestor) {
-                Some(relation_flags) => {
-                    *relation_flags |= RelationFlags::METADATA_DEPENDENCY;
+            match plum_relation_flags_m.get_mut(&ancestor) {
+                Some(plum_relation_flags) => {
+                    *plum_relation_flags |= PlumRelationFlags::METADATA_DEPENDENCY;
                 }
                 None => {
-                    relation_flags_m.insert(ancestor.clone(), RelationFlags::METADATA_DEPENDENCY);
+                    plum_relation_flags_m
+                        .insert(ancestor.clone(), PlumRelationFlags::METADATA_DEPENDENCY);
                 }
             }
         }
-        match relation_flags_m.get_mut(&self.metadata) {
-            Some(relation_flags) => {
-                *relation_flags |= RelationFlags::METADATA_DEPENDENCY;
+        match plum_relation_flags_m.get_mut(&self.metadata) {
+            Some(plum_relation_flags) => {
+                *plum_relation_flags |= PlumRelationFlags::METADATA_DEPENDENCY;
             }
             None => {
-                relation_flags_m.insert(self.metadata.clone(), RelationFlags::METADATA_DEPENDENCY);
+                plum_relation_flags_m.insert(
+                    self.metadata.clone(),
+                    PlumRelationFlags::METADATA_DEPENDENCY,
+                );
             }
         }
         if let Some(content) = &self.content_o {
-            match relation_flags_m.get_mut(&content) {
-                Some(relation_flags) => {
-                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+            match plum_relation_flags_m.get_mut(&content) {
+                Some(plum_relation_flags) => {
+                    *plum_relation_flags |= PlumRelationFlags::CONTENT_DEPENDENCY;
                 }
                 None => {
-                    relation_flags_m.insert(content.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                    plum_relation_flags_m
+                        .insert(content.clone(), PlumRelationFlags::CONTENT_DEPENDENCY);
                 }
             }
         }
         // TODO: This may call for a different kind of dependency, since the diffs aren't primary data,
         // and in principle can be derived from this and its direct ancestor.
         if let Some(posi_diff) = &self.posi_diff_o {
-            match relation_flags_m.get_mut(&posi_diff) {
-                Some(relation_flags) => {
-                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+            match plum_relation_flags_m.get_mut(&posi_diff) {
+                Some(plum_relation_flags) => {
+                    *plum_relation_flags |= PlumRelationFlags::CONTENT_DEPENDENCY;
                 }
                 None => {
-                    relation_flags_m.insert(posi_diff.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                    plum_relation_flags_m
+                        .insert(posi_diff.clone(), PlumRelationFlags::CONTENT_DEPENDENCY);
                 }
             }
         }
         // TODO: This may call for a different kind of dependency, since the diffs aren't primary data,
         // and in principle can be derived from this and its direct ancestor.
         if let Some(nega_diff) = &self.nega_diff_o {
-            match relation_flags_m.get_mut(&nega_diff) {
-                Some(relation_flags) => {
-                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+            match plum_relation_flags_m.get_mut(&nega_diff) {
+                Some(plum_relation_flags) => {
+                    *plum_relation_flags |= PlumRelationFlags::CONTENT_DEPENDENCY;
                 }
                 None => {
-                    relation_flags_m.insert(nega_diff.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                    plum_relation_flags_m
+                        .insert(nega_diff.clone(), PlumRelationFlags::CONTENT_DEPENDENCY);
                 }
             }
         }

@@ -50,7 +50,7 @@ impl std::fmt::Display for PlumURIRemote {
 
 impl PlumURIRemote {
     pub fn remote_server_url(&self) -> String {
-        let scheme = if self.hostname.as_str() == "localhost" {
+        let scheme = if self.hostname_is_local() {
             "http://"
         } else {
             "https://"
@@ -63,6 +63,13 @@ impl PlumURIRemote {
     }
     pub fn get_plum_head_seal(&self) -> &PlumHeadSeal {
         &self.plum_head_seal
+    }
+
+    fn hostname_is_local(&self) -> bool {
+        match self.hostname.as_str() {
+            "localhost" | "127.0.0.1" | "0.0.0.0" => true,
+            _ => false,
+        }
     }
 }
 

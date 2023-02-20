@@ -1,6 +1,6 @@
 use crate::{FragmentQueryResult, FragmentQueryable};
 use anyhow::Result;
-use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, RelationFlags};
+use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, PlumRelationFlags};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -11,22 +11,23 @@ pub struct DirNode {
 
 impl ContentTypeable for DirNode {
     fn content_type() -> ContentType {
-        ContentType::from("idp::DirNode")
+        ContentType::from("idp::DirNode".as_bytes().to_vec())
     }
 }
 
-impl idp_proto::Relational for DirNode {
-    fn accumulate_relations_nonrecursive(
+impl idp_proto::PlumRelational for DirNode {
+    fn accumulate_plum_relations_nonrecursive(
         &self,
-        relation_flags_m: &mut HashMap<PlumHeadSeal, RelationFlags>,
+        plum_relation_flags_m: &mut HashMap<PlumHeadSeal, PlumRelationFlags>,
     ) {
         for entry in self.entry_m.values() {
-            match relation_flags_m.get_mut(&entry) {
-                Some(relation_flags) => {
-                    *relation_flags |= RelationFlags::CONTENT_DEPENDENCY;
+            match plum_relation_flags_m.get_mut(&entry) {
+                Some(plum_relation_flags) => {
+                    *plum_relation_flags |= PlumRelationFlags::CONTENT_DEPENDENCY;
                 }
                 None => {
-                    relation_flags_m.insert(entry.clone(), RelationFlags::CONTENT_DEPENDENCY);
+                    plum_relation_flags_m
+                        .insert(entry.clone(), PlumRelationFlags::CONTENT_DEPENDENCY);
                 }
             }
         }
