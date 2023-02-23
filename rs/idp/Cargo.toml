@@ -6,12 +6,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+client = ["idp_core/client"]
+server = ["dep:idp_server"]
+sqlite = ["dep:idp_datahost_storage_sqlite"]
+
 # This crate really just combines the separate idp_* crates into one.
-# TODO: Add a feature for each sub-crate.
 [dependencies]
-idp_core = { path = "../idp_core", features = ["client"] }
+idp_core = { path = "../idp_core" }
+idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite", optional = true }
 idp_proto = { path = "../idp_proto" }
-idp_server = { path = "../idp_server" }
+idp_server = { path = "../idp_server", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.69"

@@ -1,11 +1,13 @@
 use async_lock::RwLock;
-use idp_core::{
-    BranchNode, Datacache, Datahost, FragmentQueryResult, FragmentQueryable, IDPClient, PlumRef,
-    PlumURI, PlumURIRemote,
+use idp::{
+    core::{
+        BranchNode, Datacache, Datahost, FragmentQueryResult, FragmentQueryable, IDPClient,
+        PlumRef, PlumURI, PlumURIRemote,
+    },
+    datahost_storage_sqlite::DatahostStorageSQLite,
+    proto::{ContentType, Plum, PlumBuilder, PlumHeadSeal, PlumRelationFlags},
+    server::IDPServer,
 };
-use idp_datahost_storage_sqlite::DatahostStorageSQLite;
-use idp_proto::{ContentType, Plum, PlumBuilder, PlumHeadSeal, PlumRelationFlags};
-use idp_server::IDPServer;
 use std::sync::Arc;
 use uuid::Uuid;
 
