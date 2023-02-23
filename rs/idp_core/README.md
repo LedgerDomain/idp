@@ -10,12 +10,16 @@ The tests run against a local SQLite database named `idp_core_tests.db`.  For fu
 
 ## To-dos
 
--   Use protobufs only as a serialization format, not as the in-memory/API format.  And perhaps only
-    use protobufs for GRPC services.  Create API structs which are independent of any given serialization
-    format.  This way, multiple different formats can be used for serialization.  This is partially
-    motivated by the fact that `prost::Message` implements `Debug`, and one can't override its
-    implementation (e.g. for Sha256Sum, which would ideally be printed as a hex string instead of
-    as a byte array of decimal values).
+-   Probably create an idp API consisting of all the datatypes currently in idp_proto (but not the
+    GRPC-specific ones), and then rename `idp_proto` to `idp_grpc` and make that all GRPC-specific
+    stuff.  The idea here being that multiple different protocols can be used to implement IDP nodes,
+    such as GRPC, libp2p, JSON-RPC, HTTP REST, etc.
+    -   Use protobufs only as a serialization format, not as the in-memory/API format.  And perhaps only
+        use protobufs for GRPC services.  Create API structs which are independent of any given serialization
+        format.  This way, multiple different formats can be used for serialization.  This is partially
+        motivated by the fact that `prost::Message` implements `Debug`, and one can't override its
+        implementation (e.g. for Sha256Sum, which would ideally be printed as a hex string instead of
+        as a byte array of decimal values).
 -   Make sure that the seal is checked on all sealed values upon transfer between Datahosts.
 -   Add an "has_broken_relations" boolean to the plum_heads table, so that efficient dependency breakage can
     be tracked.  Perhaps track the number of expected relations and the number of stored relations.
