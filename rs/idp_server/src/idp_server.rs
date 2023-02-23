@@ -1,6 +1,3 @@
-// TEMP HACK
-#![allow(unused)]
-
 use async_lock::RwLock;
 use idp_core::Datahost;
 use idp_proto::{

@@ -1,11 +1,8 @@
-// TEMP HACK
-#![allow(unused)]
-
 use crate::{
     BranchNode, DatahostStorage, DatahostStorageError, DatahostStorageTransaction, DirNode,
     FragmentQueryResult, FragmentQueryable,
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 use idp_proto::{
     Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags, PlumRelations,
     PlumRelationsSeal,
@@ -103,7 +100,6 @@ impl Datahost {
 
     pub async fn store_plum_relations(
         &self,
-        source_head_seal: &PlumHeadSeal,
         plum_relations: &PlumRelations,
     ) -> Result<PlumRelationsSeal> {
         log::trace!(

@@ -1,9 +1,6 @@
-#![allow(unused_imports)] // TEMP HACK
-
-use anyhow::Result;
 use idp_proto::{
-    ContentType, ContentTypeable, Nonce, Plum, PlumBodyBuilder, PlumBodySeal, PlumBuilder,
-    PlumHeadBuilder, PlumHeadSeal, PlumRelationFlags, PlumRelational,
+    ContentType, ContentTypeable, Nonce, PlumBuilder, PlumHeadSeal, PlumRelationFlags,
+    PlumRelational,
 };
 use std::collections::HashMap;
 use uuid::Uuid;

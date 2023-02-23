@@ -3,7 +3,10 @@
 	"tasks": [
 		{
 			"label": "all build",
-			"group": "build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
 			"type": "shell",
 			"command": "cargo",
 			"args": [
@@ -27,7 +30,7 @@
 		},
 		{
 			"label": "all test",
-			"group": "test",
+			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
@@ -76,10 +79,7 @@
 		},
 		{
 			"label": "idp test",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [

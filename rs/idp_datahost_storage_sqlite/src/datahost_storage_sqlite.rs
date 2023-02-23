@@ -1,10 +1,7 @@
-use crate::{
-    sqlite_transaction_mut, DatahostStorageSQLiteTransaction, MinimalPlumHeadsRow, PlumBodiesRow,
-    PlumRelationMappingsRow, PlumRelationsRow,
-};
+use crate::{sqlite_transaction_mut, DatahostStorageSQLiteTransaction};
 use idp_core::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
-    ContentType, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags,
+    ContentType, Id, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags,
     PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum, UnixNanoseconds,
 };
 
@@ -357,10 +354,7 @@ impl DatahostStorage for DatahostStorageSQLite {
     ) -> Result<Option<PlumHead>, DatahostStorageError> {
         let sqlite_transaction = sqlite_transaction_mut(transaction);
 
-        // TODO: Get rid of MinimalPlumHeadsRow and just use the sqlx::query-generated Record type,
-        // doing the conversion here.
-        let minimal_plum_heads_row_r = sqlx::query_as!(
-            MinimalPlumHeadsRow,
+        let plum_heads_row_r = sqlx::query!(
             r#"SELECT
                 plum_head_nonce_o,
                 plum_relations_seal_o,
@@ -375,8 +369,23 @@ impl DatahostStorage for DatahostStorageSQLite {
         .fetch_one(sqlite_transaction)
         .await;
 
-        match minimal_plum_heads_row_r {
-            Ok(minimal_plum_heads_row) => Ok(Some(minimal_plum_heads_row.into())),
+        match plum_heads_row_r {
+            Ok(plum_heads_row) => Ok(Some({
+                PlumHead {
+                    plum_head_nonce_o: plum_heads_row.plum_head_nonce_o.map(Nonce::from),
+                    plum_relations_seal_o: plum_heads_row
+                        .plum_relations_seal_o
+                        .map(Sha256Sum::from)
+                        .map(Seal::from)
+                        .map(PlumRelationsSeal::from),
+                    plum_body_seal: PlumBodySeal::from(Seal::from(Sha256Sum::from(
+                        plum_heads_row.plum_body_seal,
+                    ))),
+                    owner_id_o: plum_heads_row.owner_id_o.map(Id::from),
+                    created_at_o: plum_heads_row.created_at_o.map(UnixNanoseconds::from),
+                    metadata_o: plum_heads_row.metadata_o,
+                }
+            })),
             Err(sqlx::Error::RowNotFound) => Ok(None),
             Err(e) => Err(e.into()),
         }
@@ -389,8 +398,7 @@ impl DatahostStorage for DatahostStorageSQLite {
         let sqlite_transaction = sqlite_transaction_mut(transaction);
 
         // TODO: No need to query the whole row, only need a few column values.
-        let plum_relations_row_r = sqlx::query_as!(
-            PlumRelationsRow,
+        let plum_relations_row_r = sqlx::query!(
             r#"SELECT
                 plum_relations_rowid,
                 row_inserted_at,

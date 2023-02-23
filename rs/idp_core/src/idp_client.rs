@@ -1,17 +1,8 @@
-// TEMP HACK
-#![allow(unused)]
-
 use crate::Datahost;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_lock::RwLock;
-use idp_proto::{
-    IndoorDataPlumbingClient, PlumBodySeal, PlumHeadSeal, PlumRelationsSeal, PullRequest,
-    PushRequest,
-};
-use std::{
-    collections::{HashSet, VecDeque},
-    sync::Arc,
-};
+use idp_proto::{IndoorDataPlumbingClient, PlumHeadSeal, PullRequest, PushRequest};
+use std::sync::Arc;
 
 pub struct IDPClient {
     datahost_la: Arc<RwLock<Datahost>>,
@@ -20,7 +11,6 @@ pub struct IDPClient {
 }
 
 impl IDPClient {
-    // TODO: Add URL for server to connect to
     pub async fn connect(url: String, datahost_la: Arc<RwLock<Datahost>>) -> Result<Self> {
         // let channel = tonic::transport::Channel::from_static("http://0.0.0.0:50051")
         //     .connect()
@@ -106,7 +96,7 @@ impl IDPClient {
         }
 
         // TODO: Figure out if this can be refactored to not require tokio_stream crate.
-        use tokio_stream::StreamExt;
+        // use tokio_stream::StreamExt;
         self.grpc_client
             .push(
                 tokio_stream::iter(push_request_v),
@@ -456,22 +446,22 @@ impl IDPClient {
     }
 }
 
-/// This will remove and return the "first" element (in the randomized order that the HashSet stores
-/// elements in), or None if the HashSet is empty.
-fn take_any_element_from_hash_set<T>(s: &mut HashSet<T>) -> Option<T>
-where
-    T: Clone + std::cmp::Eq + std::hash::Hash,
-{
-    // match s.iter().next() {
-    //     Some(value) => s.take
-    // }
+// /// This will remove and return the "first" element (in the randomized order that the HashSet stores
+// /// elements in), or None if the HashSet is empty.
+// fn take_any_element_from_hash_set<T>(s: &mut HashSet<T>) -> Option<T>
+// where
+//     T: Clone + std::cmp::Eq + std::hash::Hash,
+// {
+//     // match s.iter().next() {
+//     //     Some(value) => s.take
+//     // }
 
-    if s.is_empty() {
-        return None;
-    }
+//     if s.is_empty() {
+//         return None;
+//     }
 
-    // NOTE: This clone is only to be able to stop immutably borrowing s before calling s.take.
-    // TODO: Fix this, a clone is not strictly logically necessary
-    let value = s.iter().next().unwrap().clone();
-    s.take(&value)
-}
+//     // NOTE: This clone is only to be able to stop immutably borrowing s before calling s.take.
+//     // TODO: Fix this, a clone is not strictly logically necessary
+//     let value = s.iter().next().unwrap().clone();
+//     s.take(&value)
+// }
