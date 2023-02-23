@@ -335,6 +335,31 @@
 					]
 				}
 			]
+		},
+		{
+			"label": "example `pl` test",
+			"group": "test",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"pl",
+				"--all-features"
+			],
+			"presentation": {
+				"clear": true,
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
 		}
 	]
 }
