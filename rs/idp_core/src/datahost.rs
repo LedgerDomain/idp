@@ -10,10 +10,6 @@ use idp_proto::{
 use std::{collections::HashMap, convert::TryFrom};
 
 pub struct Datahost {
-    // TEMP HACK -- this is not stored in the DB (which means it's not really a formal and persistent
-    // property of the Datahost), and is really only meant to distinguish Datahost log messages in tests.
-    // TODO: Take this out probably, or formalize it into the DB itself.
-    pub name: String,
     datahost_storage_b: Box<dyn DatahostStorage>,
 }
 
@@ -23,9 +19,8 @@ unsafe impl Send for Datahost {}
 unsafe impl Sync for Datahost {}
 
 impl Datahost {
-    pub fn open(name: String, datahost_storage: impl DatahostStorage + 'static) -> Self {
+    pub fn open(datahost_storage: impl DatahostStorage + 'static) -> Self {
         Self {
-            name,
             datahost_storage_b: Box::new(datahost_storage),
         }
     }
@@ -84,8 +79,7 @@ impl Datahost {
     }
     pub async fn store_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal> {
         log::trace!(
-            "Datahost({:?})::store_plum_head; PlumHeadSeal is {}",
-            self.name,
+            "Datahost::store_plum_head; PlumHeadSeal is {}",
             PlumHeadSeal::from(plum_head)
         );
 
@@ -103,8 +97,7 @@ impl Datahost {
         plum_relations: &PlumRelations,
     ) -> Result<PlumRelationsSeal> {
         log::trace!(
-            "Datahost({:?})::store_plum_relations; PlumRelationsSeal is {}",
-            self.name,
+            "Datahost::store_plum_relations; PlumRelationsSeal is {}",
             PlumRelationsSeal::from(plum_relations)
         );
 
@@ -119,8 +112,7 @@ impl Datahost {
 
     pub async fn store_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal> {
         log::trace!(
-            "Datahost({:?})::store_plum_body; PlumBodySeal is {}",
-            self.name,
+            "Datahost::store_plum_body; PlumBodySeal is {}",
             PlumBodySeal::from(plum_body)
         );
 
@@ -135,8 +127,7 @@ impl Datahost {
 
     pub async fn store_plum(&self, plum: &Plum) -> Result<PlumHeadSeal> {
         log::debug!(
-            "Datahost({:?})::store_plum; plum's PlumHeadSeal is {}",
-            self.name,
+            "Datahost::store_plum; plum's PlumHeadSeal is {}",
             PlumHeadSeal::from(&plum.plum_head),
         );
         let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
@@ -402,6 +393,6 @@ impl Datahost {
 
 impl Drop for Datahost {
     fn drop(&mut self) {
-        log::info!("Datahost({:?}) closed", self.name);
+        log::info!("Datahost closed");
     }
 }

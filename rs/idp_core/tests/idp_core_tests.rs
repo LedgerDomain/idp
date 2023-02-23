@@ -28,7 +28,6 @@ async fn datahost_from_env_var() -> Datahost {
         database_url
     );
     Datahost::open(
-        "test".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations(database_url)
             .await
             .expect("pass"),

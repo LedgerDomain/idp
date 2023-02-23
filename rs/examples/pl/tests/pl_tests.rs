@@ -383,7 +383,6 @@ async fn test_plum_ref_call() {
 
     // Now create a Datahost and initialize the Datacache with it.
     let datahost_la = Arc::new(RwLock::new(idp_core::Datahost::open(
-        "PL".to_string(),
         idp_datahost_storage_sqlite::DatahostStorageSQLite::new_in_memory()
             .await
             .expect("pass"),

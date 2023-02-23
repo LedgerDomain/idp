@@ -677,7 +677,6 @@ async fn test_client_server_push() {
 
     // Regarding `?mode=rwc`, see https://github.com/launchbadge/sqlx/issues/1114#issuecomment-827815038
     let client_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "client datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_client.db?mode=rwc")
             .await
             .expect("pass"),
@@ -685,7 +684,6 @@ async fn test_client_server_push() {
     let client_created_test_data = TestData::create(client_datahost_la.clone()).await;
 
     let server_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "server datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_server.db?mode=rwc")
             .await
             .expect("pass"),
@@ -748,14 +746,12 @@ async fn test_client_server_pull() {
 
     // Regarding `?mode=rwc`, see https://github.com/launchbadge/sqlx/issues/1114#issuecomment-827815038
     let client_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "client datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_client.db?mode=rwc")
             .await
             .expect("pass"),
     )));
 
     let server_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "server datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_server.db?mode=rwc")
             .await
             .expect("pass"),
@@ -815,7 +811,6 @@ async fn test_client_server_plum_ref() {
 
     // Regarding `?mode=rwc`, see https://github.com/launchbadge/sqlx/issues/1114#issuecomment-827815038
     let client_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "client datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_client.db?mode=rwc")
             .await
             .expect("pass"),
@@ -824,7 +819,6 @@ async fn test_client_server_plum_ref() {
     Datacache::set_singleton(Box::new(Datacache::new(client_datahost_la.clone())));
 
     let server_datahost_la = Arc::new(RwLock::new(Datahost::open(
-        "server datahost".to_string(),
         DatahostStorageSQLite::connect_and_run_migrations("sqlite:idp_tests_server.db?mode=rwc")
             .await
             .expect("pass"),
