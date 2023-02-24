@@ -1,6 +1,7 @@
 use crate::{DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
-    Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelations, PlumRelationsSeal,
+    Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelations,
+    PlumRelationsSeal,
 };
 
 #[async_trait::async_trait]
@@ -232,4 +233,39 @@ pub trait DatahostStorage: Send + Sync {
             plum_body,
         })
     }
+
+    async fn has_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<bool, DatahostStorageError>;
+    async fn load_option_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<Option<PathState>, DatahostStorageError>;
+    async fn load_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<PathState, DatahostStorageError> {
+        self.load_option_path_state(transaction, path)
+            .await?
+            .ok_or_else(|| DatahostStorageError::PathNotFound(path.clone()))
+    }
+    async fn insert_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path_state: &PathState,
+    ) -> Result<(), DatahostStorageError>;
+    async fn update_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path_state: &PathState,
+    ) -> Result<(), DatahostStorageError>;
+    async fn delete_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<(), DatahostStorageError>;
 }

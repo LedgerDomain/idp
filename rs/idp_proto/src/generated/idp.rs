@@ -303,6 +303,83 @@ pub mod pull_response {
         IDontHaveThisPlum(super::PlumHeadSeal),
     }
 }
+#[derive(
+    derive_more::Deref,
+    serde::Deserialize,
+    derive_more::Display,
+    derive_more::From,
+    serde::Serialize
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Path {
+    #[prost(string, required, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PathState {
+    #[prost(message, required, tag = "1")]
+    pub path: Path,
+    /// TODO: Consider including the "updated at" timestamp
+    #[prost(message, required, tag = "2")]
+    pub current_state_plum_head_seal: PlumHeadSeal,
+}
+/// The requester should have already pushed the BranchNode Plum referred to in this request.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchCreateRequest {
+    #[prost(message, required, tag = "1")]
+    pub branch_path_state: PathState,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchCreateResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchDeleteRequest {
+    #[prost(message, required, tag = "1")]
+    pub branch_path: Path,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchDeleteResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchGetHeadRequest {
+    #[prost(message, required, tag = "1")]
+    pub branch_path: Path,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchGetHeadResponse {
+    #[prost(message, required, tag = "1")]
+    pub branch_head_plum_head_seal: PlumHeadSeal,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchSetHeadRequest {
+    #[prost(message, required, tag = "1")]
+    pub branch_path: Path,
+    #[prost(oneof = "branch_set_head_request::Value", tags = "2, 3, 4")]
+    pub value: ::core::option::Option<branch_set_head_request::Value>,
+}
+/// Nested message and enum types in `BranchSetHeadRequest`.
+pub mod branch_set_head_request {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        #[prost(message, tag = "2")]
+        BranchFastForwardToPlumHeadSeal(super::PlumHeadSeal),
+        #[prost(message, tag = "3")]
+        BranchRewindToPlumHeadSeal(super::PlumHeadSeal),
+        #[prost(message, tag = "4")]
+        BranchForceResetToPlumHeadSeal(super::PlumHeadSeal),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BranchSetHeadResponse {}
 /// This defines what plum_relations are possible from one Plum to another.
 #[derive(serde::Deserialize, num_derive::FromPrimitive, serde::Serialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -445,6 +522,84 @@ pub mod indoor_data_plumbing_client {
             );
             self.inner.server_streaming(request.into_request(), path, codec).await
         }
+        /// TEMP HACK
+        /// TODO: Consider moving these into a separate GRPC service
+        pub async fn branch_create(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BranchCreateRequest>,
+        ) -> Result<tonic::Response<super::BranchCreateResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/BranchCreate",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn branch_delete(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BranchDeleteRequest>,
+        ) -> Result<tonic::Response<super::BranchDeleteResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/BranchDelete",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn branch_get_head(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BranchGetHeadRequest>,
+        ) -> Result<tonic::Response<super::BranchGetHeadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/BranchGetHead",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn branch_set_head(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BranchSetHeadRequest>,
+        ) -> Result<tonic::Response<super::BranchSetHeadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/idp.IndoorDataPlumbing/BranchSetHead",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -475,6 +630,24 @@ pub mod indoor_data_plumbing_server {
             &self,
             request: tonic::Request<super::PullRequest>,
         ) -> Result<tonic::Response<Self::PullStream>, tonic::Status>;
+        /// TEMP HACK
+        /// TODO: Consider moving these into a separate GRPC service
+        async fn branch_create(
+            &self,
+            request: tonic::Request<super::BranchCreateRequest>,
+        ) -> Result<tonic::Response<super::BranchCreateResponse>, tonic::Status>;
+        async fn branch_delete(
+            &self,
+            request: tonic::Request<super::BranchDeleteRequest>,
+        ) -> Result<tonic::Response<super::BranchDeleteResponse>, tonic::Status>;
+        async fn branch_get_head(
+            &self,
+            request: tonic::Request<super::BranchGetHeadRequest>,
+        ) -> Result<tonic::Response<super::BranchGetHeadResponse>, tonic::Status>;
+        async fn branch_set_head(
+            &self,
+            request: tonic::Request<super::BranchSetHeadRequest>,
+        ) -> Result<tonic::Response<super::BranchSetHeadResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct IndoorDataPlumbingServer<T: IndoorDataPlumbing> {
@@ -609,6 +782,166 @@ pub mod indoor_data_plumbing_server {
                                 send_compression_encodings,
                             );
                         let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/idp.IndoorDataPlumbing/BranchCreate" => {
+                    #[allow(non_camel_case_types)]
+                    struct BranchCreateSvc<T: IndoorDataPlumbing>(pub Arc<T>);
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::UnaryService<super::BranchCreateRequest>
+                    for BranchCreateSvc<T> {
+                        type Response = super::BranchCreateResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BranchCreateRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).branch_create(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BranchCreateSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/idp.IndoorDataPlumbing/BranchDelete" => {
+                    #[allow(non_camel_case_types)]
+                    struct BranchDeleteSvc<T: IndoorDataPlumbing>(pub Arc<T>);
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::UnaryService<super::BranchDeleteRequest>
+                    for BranchDeleteSvc<T> {
+                        type Response = super::BranchDeleteResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BranchDeleteRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).branch_delete(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BranchDeleteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/idp.IndoorDataPlumbing/BranchGetHead" => {
+                    #[allow(non_camel_case_types)]
+                    struct BranchGetHeadSvc<T: IndoorDataPlumbing>(pub Arc<T>);
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::UnaryService<super::BranchGetHeadRequest>
+                    for BranchGetHeadSvc<T> {
+                        type Response = super::BranchGetHeadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BranchGetHeadRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).branch_get_head(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BranchGetHeadSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/idp.IndoorDataPlumbing/BranchSetHead" => {
+                    #[allow(non_camel_case_types)]
+                    struct BranchSetHeadSvc<T: IndoorDataPlumbing>(pub Arc<T>);
+                    impl<
+                        T: IndoorDataPlumbing,
+                    > tonic::server::UnaryService<super::BranchSetHeadRequest>
+                    for BranchSetHeadSvc<T> {
+                        type Response = super::BranchSetHeadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BranchSetHeadRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).branch_set_head(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BranchSetHeadSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)

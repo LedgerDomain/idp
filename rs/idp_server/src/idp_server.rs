@@ -1,8 +1,10 @@
 use async_lock::RwLock;
-use idp_core::Datahost;
+use idp_core::{BranchNode, Datahost};
 use idp_proto::{
-    IndoorDataPlumbing, IndoorDataPlumbingServer, PlumHeadSeal, PullRequest, PullResponse,
-    PushRequest, PushResponse,
+    BranchCreateRequest, BranchCreateResponse, BranchDeleteRequest, BranchDeleteResponse,
+    BranchGetHeadRequest, BranchGetHeadResponse, BranchSetHeadRequest, BranchSetHeadResponse,
+    IndoorDataPlumbing, IndoorDataPlumbingServer, PathState, PlumHeadSeal, PullRequest,
+    PullResponse, PushRequest, PushResponse,
 };
 use std::sync::Arc;
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
@@ -67,8 +69,7 @@ impl IDPServer {
                     .read()
                     .await
                     .has_plum(&plum_head_seal)
-                    .await
-                    .map_err(|e| tonic::Status::internal(e.to_string()))?
+                    .await?
                 {
                     // If the Datahost already has this Plum, the client shouldn't send it.
                     idp_proto::push_response::Value::DontSendThisPlum(plum_head_seal)
@@ -187,8 +188,7 @@ impl IDPServer {
         //         if let Some(plum_head_row) = self
         //             .datahost_la
         //             .read()
-        //             .select_option_plum_head_row(&plum_head_seal)
-        //             .map_err(|e| tonic::Status::internal(e.to_string()))?
+        //             .select_option_plum_head_row(&plum_head_seal)?
         //         {
         //             Ok(idp_proto::PullResponse {
         //                 value: Some(idp_proto::pull_response::Value::PlumHead(PlumHead::from(
@@ -207,8 +207,7 @@ impl IDPServer {
         //         if let Some(plum_head_row) = self
         //             .datahost_la
         //             .read()
-        //             .select_option_plum_head_row(&plum_head_seal)
-        //             .map_err(|e| tonic::Status::internal(e.to_string()))?
+        //             .select_option_plum_head_row(&plum_head_seal)?
         //         {
         //             Ok(idp_proto::PullResponse {
         //                 value: Some(idp_proto::pull_response::Value::PlumHead(PlumHead::from(
@@ -231,8 +230,7 @@ impl IDPServer {
         //         let value = if self
         //             .datahost_la
         //             .read()
-        //             .select_option_plum_head_row(&plum_head_seal)
-        //             .map_err(|e| tonic::Status::internal(e.to_string()))?
+        //             .select_option_plum_head_row(&plum_head_seal)?
         //             .is_some()
         //         {
         //             // If the Datahost already has this Plum, the client shouldn't send it.
@@ -246,8 +244,7 @@ impl IDPServer {
         //     idp_proto::push_request::Value::HereHaveAPlum(plum) => {
         //         self.datahost_la
         //             .read()
-        //             .store_plum(&plum)
-        //             .map_err(|e| tonic::Status::internal(e.to_string()))?;
+        //             .store_plum(&plum)?;
         //         Ok(PushResponse {
         //             value: Some(idp_proto::push_response::Value::Ok(
         //                 idp_proto::Acknowledgement {},
@@ -289,8 +286,7 @@ impl IndoorDataPlumbing for IDPServer {
                             //     .expect("tx error");
 
                             // tx.send(idp_server.handle_push_request(push_request))
-                            //     .await
-                            //     .map_err(|_| tonic::Status::internal("tx send error"))?;
+                            //     .await?;
 
                             match tx
                                 .send(idp_server.handle_push_request(push_request).await)
@@ -409,19 +405,258 @@ impl IndoorDataPlumbing for IDPServer {
         // ))
     }
 
-    // async fn pull(
-    //     &self,
-    //     _request: tonic::Request<PullRequest>,
-    // ) -> Result<tonic::Response<PullResponse>, tonic::Status> {
-    //     Err(tonic::Status::unimplemented("sorry!"))
-    // }
-
     // async fn del(
     //     &self,
     //     _request: tonic::Request<DelRequest>,
     // ) -> Result<tonic::Response<DelResponse>, tonic::Status> {
     //     Err(tonic::Status::unimplemented("sorry!"))
     // }
+
+    async fn branch_create(
+        &self,
+        request: tonic::Request<BranchCreateRequest>,
+    ) -> Result<tonic::Response<BranchCreateResponse>, tonic::Status> {
+        let req = request.into_inner();
+
+        // Validity checking on the path.  For now, disallow '/'.
+        if req.branch_path_state.path.contains('/') {
+            return Err(tonic::Status::invalid_argument(format!(
+                "path (which was `{}`) may not contain '/' (for now)",
+                req.branch_path_state.path
+            )));
+        }
+
+        // TODO: Any authorization checks for creating a branch with the given path
+
+        let mut transaction_b = self.datahost_la.read().await.begin_transaction().await?;
+
+        // Check if the PathState already exists.
+        if self
+            .datahost_la
+            .read()
+            .await
+            .has_path_state(&req.branch_path_state.path, Some(transaction_b.as_mut()))
+            .await?
+        {
+            return Err(tonic::Status::already_exists(format!(
+                "path `{}` already exists",
+                req.branch_path_state.path
+            )));
+        }
+
+        // Check that the BranchNode Plum already has already been pushed.
+        if !self
+            .datahost_la
+            .read()
+            .await
+            .has_plum(&req.branch_path_state.current_state_plum_head_seal)
+            .await?
+        {
+            return Err(tonic::Status::failed_precondition(format!(
+                "BranchNode Plum {} must already be pushed to this server",
+                req.branch_path_state.current_state_plum_head_seal
+            )));
+        }
+        // TODO: Check that req.branch_path_state.current_state_plum_head_seal is dependency-complete.
+
+        // TODO: Move this BranchNode validation stuff into helper function
+
+        // Check that the BranchNode Plum is actually a BranchNode.
+        let branch_node_plum = self
+            .datahost_la
+            .read()
+            .await
+            .load_plum(&req.branch_path_state.current_state_plum_head_seal)
+            .await
+            .map_err(|e| tonic::Status::internal(e.to_string()))?;
+        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+            return Err(tonic::Status::invalid_argument(format!(
+                "{} specifies a Plum which is not a BranchNode",
+                req.branch_path_state.current_state_plum_head_seal
+            )));
+        }
+        // TEMP HACK: Assume always rmp_serde serialization for now.
+        let _branch_node: BranchNode = rmp_serde::from_read(
+            branch_node_plum.plum_body.plum_body_content.as_slice(),
+        )
+        .map_err(|e| {
+            tonic::Status::invalid_argument(format!(
+                "Plum {} could not be deserialized as a BranchNode; {}",
+                req.branch_path_state.current_state_plum_head_seal, e
+            ))
+        })?;
+
+        // The BranchNode Plum has been validated.  It can be stored now.
+        self.datahost_la
+            .read()
+            .await
+            .insert_path_state(&req.branch_path_state, Some(transaction_b.as_mut()))
+            .await?;
+
+        transaction_b.commit().await?;
+
+        Ok(tonic::Response::new(BranchCreateResponse {}))
+    }
+    async fn branch_delete(
+        &self,
+        request: tonic::Request<BranchDeleteRequest>,
+    ) -> Result<tonic::Response<BranchDeleteResponse>, tonic::Status> {
+        let req = request.into_inner();
+
+        // Validity checking on the path.  For now, disallow '/'.
+        if req.branch_path.contains('/') {
+            return Err(tonic::Status::invalid_argument(format!(
+                "path (which was `{}`) may not contain '/' (for now)",
+                req.branch_path
+            )));
+        }
+
+        // TODO: Any authorization checks for deleting the branch.
+
+        let mut transaction_b = self.datahost_la.read().await.begin_transaction().await?;
+
+        self.datahost_la
+            .read()
+            .await
+            .delete_path_state(&req.branch_path, Some(transaction_b.as_mut()))
+            .await?;
+
+        transaction_b.commit().await?;
+
+        Ok(tonic::Response::new(BranchDeleteResponse {}))
+    }
+    async fn branch_get_head(
+        &self,
+        request: tonic::Request<BranchGetHeadRequest>,
+    ) -> Result<tonic::Response<BranchGetHeadResponse>, tonic::Status> {
+        let req = request.into_inner();
+
+        // Validity checking on the path.  For now, disallow '/'.
+        if req.branch_path.contains('/') {
+            return Err(tonic::Status::invalid_argument(format!(
+                "path (which was `{}`) may not contain '/' (for now)",
+                req.branch_path
+            )));
+        }
+
+        // TODO: Any authorization checks for getting the branch head
+
+        let mut transaction_b = self.datahost_la.read().await.begin_transaction().await?;
+
+        // Query storage for the current PlumHeadSeal of the given path
+
+        let path_state = self
+            .datahost_la
+            .read()
+            .await
+            .load_path_state(&req.branch_path, Some(transaction_b.as_mut()))
+            .await?;
+
+        transaction_b.commit().await?;
+
+        Ok(tonic::Response::new(BranchGetHeadResponse {
+            branch_head_plum_head_seal: path_state.current_state_plum_head_seal,
+        }))
+    }
+    async fn branch_set_head(
+        &self,
+        request: tonic::Request<BranchSetHeadRequest>,
+    ) -> Result<tonic::Response<BranchSetHeadResponse>, tonic::Status> {
+        let req = request.into_inner();
+
+        // Validity checking on the path.  For now, disallow '/'.
+        if req.branch_path.contains('/') {
+            return Err(tonic::Status::invalid_argument(format!(
+                "path (which was `{}`) may not contain '/' (for now)",
+                req.branch_path
+            )));
+        }
+        // Any authorization checks for the given path
+
+        let branch_node_plum_head_seal = match req.value.ok_or_else(|| {
+            tonic::Status::invalid_argument("Malformed request; req.value is None".to_string())
+        })? {
+            idp_proto::branch_set_head_request::Value::BranchFastForwardToPlumHeadSeal(
+                plum_head_seal,
+            ) => plum_head_seal,
+            idp_proto::branch_set_head_request::Value::BranchRewindToPlumHeadSeal(
+                plum_head_seal,
+            ) => plum_head_seal,
+            idp_proto::branch_set_head_request::Value::BranchForceResetToPlumHeadSeal(
+                plum_head_seal,
+            ) => plum_head_seal,
+        };
+
+        let mut transaction_b = self.datahost_la.read().await.begin_transaction().await?;
+
+        // Check that the BranchNode Plum already has already been pushed.
+        if !self
+            .datahost_la
+            .read()
+            .await
+            .has_plum(&branch_node_plum_head_seal)
+            .await?
+        {
+            return Err(tonic::Status::failed_precondition(format!(
+                "BranchNode Plum {} must already be pushed to this server",
+                branch_node_plum_head_seal
+            )));
+        }
+        // TODO: Check that branch_node_plum_head_seal is dependency-complete.
+
+        // TODO: Move this BranchNode validation stuff into helper function
+
+        // Check that the BranchNode Plum is actually a BranchNode.
+        let branch_node_plum = self
+            .datahost_la
+            .read()
+            .await
+            .load_plum(&branch_node_plum_head_seal)
+            .await
+            .map_err(|e| tonic::Status::internal(e.to_string()))?;
+        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+            return Err(tonic::Status::invalid_argument(format!(
+                "{} specifies a Plum which is not a BranchNode",
+                branch_node_plum_head_seal
+            )));
+        }
+        // TEMP HACK: Assume always rmp_serde serialization for now.
+        let _branch_node: BranchNode = rmp_serde::from_read(
+            branch_node_plum.plum_body.plum_body_content.as_slice(),
+        )
+        .map_err(|e| {
+            tonic::Status::invalid_argument(format!(
+                "Plum {} could not be deserialized as a BranchNode; {}",
+                branch_node_plum_head_seal, e
+            ))
+        })?;
+
+        // The BranchNode Plum has been validated.  Now check the validity of the branch operation.
+        // If it's a fast-forward, check that the history of the specified Plum includes the current branch head.
+        // If it's a rewind, check that the specified Plum is in the history of the current branch head.
+        // If it's a reset, check that there is a common ancestor between the specified Plum and the current branch head (otherwise it's a complete reset with no common history, which is a much stronger operation).
+
+        // TODO: Compute the common ancestor of req, then use that to validate the requested operation.
+
+        // TEMP HACK -- for now, only support reset, and don't bother even validating that there's a common ancestor.
+        self.datahost_la
+            .read()
+            .await
+            .update_path_state(
+                &PathState {
+                    path: req.branch_path,
+                    current_state_plum_head_seal: branch_node_plum_head_seal,
+                },
+                Some(transaction_b.as_mut()),
+            )
+            .await?;
+
+        transaction_b.commit().await?;
+
+        Ok(tonic::Response::new(BranchSetHeadResponse {}))
+
+        // Check that the specified Plum is actually present on this server's Datahost
+    }
 }
 
 /// Reference: https://github.com/hyperium/tonic/blob/82770713b58892203a83c307729b3e7bebe574e3/examples/src/streaming/server.rs

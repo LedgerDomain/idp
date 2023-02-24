@@ -12,10 +12,12 @@ async-lock = "2.6.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 futures = { version = "0.3", default-features = false }
 h2 = "0.3"
-idp_core = { path = "../idp_core" }
+idp_core = { path = "../idp_core", features = ["tonic"] }
 idp_proto = { path = "../idp_proto", features = ["server"] }
 log = "0.4.14"
 maplit = "1.0.2"
+# NOTE: This will go away when branch methods are put into Datahost
+rmp-serde = "0.15.5"
 tokio = "1.25.0"
 tokio-stream = "0.1.11"
 tonic = { version = "0.8.3", features = ["tls"] }

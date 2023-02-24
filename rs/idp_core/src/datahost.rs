@@ -4,8 +4,8 @@ use crate::{
 };
 use anyhow::Result;
 use idp_proto::{
-    Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags, PlumRelations,
-    PlumRelationsSeal,
+    Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags,
+    PlumRelations, PlumRelationsSeal,
 };
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -388,6 +388,198 @@ impl Datahost {
                 }
             }
         }
+    }
+
+    //
+    // Methods for path-based state
+    //
+
+    // TODO: Move to somewhere appropriate
+    pub async fn begin_transaction(
+        &self,
+    ) -> std::result::Result<Box<dyn DatahostStorageTransaction>, DatahostStorageError> {
+        self.datahost_storage_b.begin_transaction().await
+    }
+    // TODO: This should probably return a DatahostError type instead of DatahostStorageError.
+    pub async fn has_path_state(
+        &self,
+        path: &Path,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> std::result::Result<bool, DatahostStorageError> {
+        // A trick for declaring a locally-scoped transaction if needed.
+        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
+        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
+            None
+        } else {
+            Some(self.begin_transaction().await?)
+        };
+        let transaction = match (
+            transaction_o,
+            locally_scoped_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        };
+
+        let retval = self
+            .datahost_storage_b
+            .has_path_state(transaction, path)
+            .await?;
+
+        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
+            locally_scoped_transaction_b.commit().await?;
+        }
+
+        Ok(retval)
+    }
+    pub async fn load_path_state(
+        &self,
+        path: &Path,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PathState, DatahostStorageError> {
+        // A trick for declaring a locally-scoped transaction if needed.
+        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
+        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
+            None
+        } else {
+            Some(self.begin_transaction().await?)
+        };
+        let transaction = match (
+            transaction_o,
+            locally_scoped_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        };
+
+        let retval = self
+            .datahost_storage_b
+            .load_path_state(transaction, path)
+            .await?;
+
+        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
+            locally_scoped_transaction_b.commit().await?;
+        }
+
+        Ok(retval)
+    }
+    pub async fn insert_path_state(
+        &self,
+        path_state: &PathState,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<(), DatahostStorageError> {
+        // A trick for declaring a locally-scoped transaction if needed.
+        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
+        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
+            None
+        } else {
+            Some(self.begin_transaction().await?)
+        };
+        let transaction = match (
+            transaction_o,
+            locally_scoped_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        };
+
+        let retval = self
+            .datahost_storage_b
+            .insert_path_state(transaction, path_state)
+            .await?;
+
+        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
+            locally_scoped_transaction_b.commit().await?;
+        }
+
+        Ok(retval)
+    }
+    pub async fn update_path_state(
+        &self,
+        path_state: &PathState,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<(), DatahostStorageError> {
+        // A trick for declaring a locally-scoped transaction if needed.
+        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
+        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
+            None
+        } else {
+            Some(self.begin_transaction().await?)
+        };
+        let transaction = match (
+            transaction_o,
+            locally_scoped_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        };
+
+        let retval = self
+            .datahost_storage_b
+            .update_path_state(transaction, path_state)
+            .await?;
+
+        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
+            locally_scoped_transaction_b.commit().await?;
+        }
+
+        Ok(retval)
+    }
+    pub async fn delete_path_state(
+        &self,
+        path: &Path,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<(), DatahostStorageError> {
+        // A trick for declaring a locally-scoped transaction if needed.
+        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
+        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
+            None
+        } else {
+            Some(self.begin_transaction().await?)
+        };
+        let transaction = match (
+            transaction_o,
+            locally_scoped_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        };
+
+        let retval = self
+            .datahost_storage_b
+            .delete_path_state(transaction, path)
+            .await?;
+
+        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
+            locally_scoped_transaction_b.commit().await?;
+        }
+
+        Ok(retval)
     }
 }
 

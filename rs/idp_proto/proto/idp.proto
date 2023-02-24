@@ -320,6 +320,48 @@ message PullResponse {
 //     }
 // }
 
+message Path {
+    required string value = 1;
+}
+
+message PathState {
+    required Path path = 1;
+    required PlumHeadSeal current_state_plum_head_seal = 2;
+    // TODO: Consider including the "updated at" and "deleted at" timestamps; also ownership/permissions when the time comes
+}
+
+// The requester should have already pushed the BranchNode Plum referred to in this request.
+message BranchCreateRequest {
+    required PathState branch_path_state = 1;
+}
+
+message BranchCreateResponse { }
+
+message BranchDeleteRequest {
+    required Path branch_path = 1;
+}
+
+message BranchDeleteResponse { }
+
+message BranchGetHeadRequest {
+    required Path branch_path = 1;
+}
+
+message BranchGetHeadResponse {
+    required PlumHeadSeal branch_head_plum_head_seal = 1;
+}
+
+message BranchSetHeadRequest {
+    required Path branch_path = 1;
+    oneof value {
+        PlumHeadSeal branch_fast_forward_to_plum_head_seal = 2;
+        PlumHeadSeal branch_rewind_to_plum_head_seal = 3;
+        PlumHeadSeal branch_force_reset_to_plum_head_seal = 4;
+    }
+}
+
+message BranchSetHeadResponse { }
+
 //
 // Service definition
 //
@@ -331,4 +373,11 @@ service IndoorDataPlumbing {
     // // TODO: Could implement bidirectional streaming of Pull.
     // rpc Pull (PullRequest) returns (PullResponse) {}
     // rpc Del (DelRequest) returns (DelResponse) {}
+
+    // TEMP HACK
+    // TODO: Consider moving these into a separate GRPC service
+    rpc BranchCreate (BranchCreateRequest) returns (BranchCreateResponse) {}
+    rpc BranchDelete (BranchDeleteRequest) returns (BranchDeleteResponse) {}
+    rpc BranchGetHead (BranchGetHeadRequest) returns (BranchGetHeadResponse) {}
+    rpc BranchSetHead (BranchSetHeadRequest) returns (BranchSetHeadResponse) {}
 }

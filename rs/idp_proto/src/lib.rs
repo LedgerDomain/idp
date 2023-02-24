@@ -20,8 +20,11 @@ pub use crate::{
     content_type::{},
     content_typeable::ContentTypeable,
     generated::idp::{
-        pull_request, pull_response, push_request, push_response, Acknowledgement, ContentType, Id, Nonce, Plum, PlumBody,
-        PlumBodySeal, PlumHead, PlumHeadAndRelations, PlumHeadSeal, PlumHeadSealAndRelations, PlumRelation,
+        branch_set_head_request, pull_request, pull_response, push_request, push_response,
+        BranchCreateRequest, BranchCreateResponse, BranchDeleteRequest, BranchDeleteResponse,
+        BranchGetHeadRequest, BranchGetHeadResponse, BranchSetHeadRequest,
+        BranchSetHeadResponse, Acknowledgement, ContentType, Id, Nonce, Plum, PlumBody,
+        PlumBodySeal, PlumHead, PlumHeadAndRelations, PlumHeadSeal, PlumHeadSealAndRelations, PlumRelation, Path, PathState,
         PlumRelationFlagsMapping, PlumRelationFlagsRaw, PlumRelations, PlumRelationsSeal,
         PullRequest, PullResponse, PushRequest, PushResponse, Seal, Sha256Sum, UnixNanoseconds,
     },

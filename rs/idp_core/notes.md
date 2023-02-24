@@ -160,3 +160,42 @@
         If this is tracked with an i32 (DBs typically store signed ints), the max number of transitive dependencies is a bit more than 2 billion, which could conceivably be achieved in some cases for a very large collection of indexed data.  Thus i64 would certainly be more than enough.  So this would add two i64 columns to each Plum (stored in the plum_heads table).  If the PlumRelations for a Plum aren't present, then the plum_heads row should contain NULL for expected and present values, since neither can be computed.  Once the PlumRelations is obtained, then expected and present can be computed recursively.  PlumRelations should store the expected number of transitive dependencies, since computing it directly would require having all PlumRelations.
 
         Could "incomplete" vs "complete" be tracked using a single bit?  Certainly transitioning from complete (1) to incomplete (0) is easy.  However to go from incomplete to complete requires verifying that each dependency is present and each dependency has its complete bit marked.  The advantage of this is that each relation type can be tracked.  This probably also lends itself well to scanning the DB and identifying which Plums are incomplete for any subset of relation types (this involves a bitwise AND with a relation type bitmask and then a comparison with that bitmask; if they're not equal, then the Plum is incomplete in the bits that are different).
+
+-   Potential POCs
+    -   Non-versioned state, addressed via path.
+        -   A path simply maps to a PlumHeadSeal.
+        -   There should be a notion of permissions.  Probably those permissions are also simply state-based, no Plum necessary; this would be proportional to what this "non-versioned state" is.  Though perhaps permissions' versionedness can be a separate thing than the state's versionedness.
+    -   Versioned data tracking (equivalent to a branch in git).  This would involve having a kind of service that handles state update, and could warrant fleshing out the state/service abstraction.  Operations:
+        -   Get PlumHeadSeal of current head BranchNode (the user can pull that Plum as a separate operation in order to retrieve the entire branch history).
+        -   Fast-forward branch to a given PlumHeadSeal; equivalent to `git push` (the user must have pushed that Plum in order for the server to have the necessary updated branch history).
+        -   Rewind branch to a given PlumHeadSeal in its history.
+        Realistically, these should be permissioned operations, but for now, no need.
+
+        The state of these needs to be tracked, the most obvious would be in the same DB as the plums, though in the future it might make sense to track that separately, especially as arbitrary, plug-in stateful services are implemented.  Needed table(s):
+        -   path_states (these store a PlumHeadSeal for a given path); columns:
+            -   path_states_rowid (integer PK)
+            -   path (string; let's disallow '/' for now, because paths for a directory hierarchy is different)
+            -   plum_head_seal (PlumHeadSeal; this is the state of this path)
+            -   something for permissions (TODO: there should be a history of permissions encoded in a plum, probably, but practically speaking it would likely also be tracked in the DB for efficient queries)
+    -   Digital signatures
+        -   Null hypothesis would be that a digital signature is just a piece of data like any other and would be stored as a Plum, and reasoned/handled accordingly, though it would introduce a new relation type "signature on" (or something to that effect).
+        -   Potentially a digital signature could be used as a Seal.  This would be primarily useful in proving authorship.
+    -   A strong DID method (or something analogous but simpler), capable of historical DID doc resolution. This would also be stateful.
+        -   The DID itself would be a URL to a state on a particular server, e.g.
+
+                did:idp:example.com/path/to/thing
+
+        -   The DID doc would just be the expected JSON document, but it would be stored indirectly via versioned datatypes, e.g.
+            -   did:idp:example.com/path/to/thing -> PlumHeadSeal of head BranchNode (call this XYZ)
+            -   BranchNode XYZ
+                -   content -> PlumHeadSeal of DID doc
+                -   metadata -> Relevant signatures authorizing the update to the DID doc, relevant timestamps, etc.
+                -   ancestor -> PlumHeadSeal of BranchNode for previous state of DID doc
+
+        -   The "endpoint" idp://example.com/path/to/thing is really a stateful service, and should have its own API, which isn't necessarily the same as HTTP or HTTP's CRUD-like operations.  For example, historical DID document resolution should be possible via some particular API call like "give me the PlumHeadSeal of the BranchNode active during timestamp X".  Then, there are two useful situations:
+            -   The user retrieves (or has already retrieved) the entire branch history of the DID and has verified its correctness (all seals, signatures, and any other constraints).
+            -   The user could be using a proxy IDP Datahost which they trust to have retrieved and verified the entire branch history of the DID, and user can simply retrieve the specified BranchNode and its contents.
+
+        -   The "endpoint" also has an update operation which simply checks that the update is well-formed and has all the necessary signatures.  This well-formedness and verification of necessary signatures functions as authorization.
+        -   Ideally the document update and verification logic is generic, not DID-specific.  This would involve some sort of generic "strong, versioned document" abstraction which is simply used to store DID documents.  Similarly, revocation could be handled this way without any logic specific to revocation.
+

@@ -1,8 +1,9 @@
 use crate::{sqlite_transaction_mut, DatahostStorageSQLiteTransaction};
 use idp_core::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
-    ContentType, Id, Nonce, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags,
-    PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum, UnixNanoseconds,
+    ContentType, Id, Nonce, Path, PathState, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
+    PlumRelationFlags, PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum,
+    UnixNanoseconds,
 };
 
 pub struct DatahostStorageSQLite {
@@ -506,5 +507,142 @@ impl DatahostStorage for DatahostStorageSQLite {
             Err(sqlx::Error::RowNotFound) => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    async fn has_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<bool, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        // TODO: Would need to figure out how soft-deleted state is handled -- "has_path_state" really becomes
+        // two parts, one is "has non-deleted path state" and the other is "has deleted path state".
+        let value = sqlx::query!(
+            "SELECT EXISTS(SELECT 1 FROM path_states WHERE path = $1) AS value",
+            path.value
+        )
+        .fetch_one(sqlite_transaction)
+        .await?
+        .value;
+        Ok(value != 0)
+    }
+    async fn load_option_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<Option<PathState>, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+
+        let path_states_row_r = sqlx::query!(
+            r#"SELECT
+                path,
+                current_state_plum_head_seal
+            FROM path_states
+            WHERE path = $1"#,
+            path.value
+        )
+        .fetch_one(sqlite_transaction)
+        .await;
+
+        match path_states_row_r {
+            Ok(path_states_row) => Ok(Some({
+                PathState {
+                    path: Path::from(path_states_row.path),
+                    current_state_plum_head_seal: PlumHeadSeal::from(Seal::from(Sha256Sum::from(
+                        path_states_row.current_state_plum_head_seal,
+                    ))),
+                }
+            })),
+            Err(sqlx::Error::RowNotFound) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+    async fn insert_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path_state: &PathState,
+    ) -> Result<(), DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        let now = UnixNanoseconds::now();
+
+        let insert_r = sqlx::query!(
+            r#"INSERT INTO path_states (
+                row_inserted_at,
+                row_updated_at,
+                path,
+                current_state_plum_head_seal
+            ) VALUES ($1, $2, $3, $4)"#,
+            now.value,
+            now.value,
+            path_state.path.value,
+            path_state
+                .current_state_plum_head_seal
+                .value
+                .sha256sum
+                .value,
+        )
+        .fetch_one(sqlite_transaction)
+        .await;
+
+        // TODO: Handle collision -- not sure which error code is right.
+        // match insert_r {
+        //     Ok(insert) => Ok(()),
+        //     Err(sqlx::Error::)
+
+        // }
+        insert_r?;
+
+        Ok(())
+    }
+    async fn update_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path_state: &PathState,
+    ) -> Result<(), DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        let now = UnixNanoseconds::now();
+
+        sqlx::query!(
+            r#"UPDATE path_states
+            SET row_updated_at = $1,
+                current_state_plum_head_seal = $2
+            WHERE path = $3"#,
+            now.value,
+            path_state
+                .current_state_plum_head_seal
+                .value
+                .sha256sum
+                .value,
+            path_state.path.value
+        )
+        .fetch_one(sqlite_transaction)
+        .await?;
+
+        Ok(())
+    }
+    async fn delete_path_state(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        path: &Path,
+    ) -> Result<(), DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        // let now = UnixNanoseconds::now();
+
+        // // Use soft deletes so that a non-owner can't resurrect the path and pass themselves off as the original.
+        // sqlx::query!(
+        //     r#"UPDATE path_states
+        //     SET row_deleted_at = $1
+        //     WHERE path = $3"#,
+        //     now.value,
+        //     path.value,
+        // )
+        // .fetch_one(sqlite_transaction)
+        // .await?;
+
+        sqlx::query!(r#"DELETE FROM path_states WHERE path = $1"#, path.value,)
+            .fetch_one(sqlite_transaction)
+            .await?;
+
+        Ok(())
     }
 }

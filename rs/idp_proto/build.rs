@@ -8,6 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute("idp.ContentType", "#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]")
         .type_attribute("idp.Id", "#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]")
         .type_attribute("idp.Nonce", "#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]")
+        .type_attribute("idp.Path", "#[derive(derive_more::Deref, serde::Deserialize, derive_more::Display, derive_more::From, serde::Serialize)]")
         .type_attribute("idp.PlumBodySeal", "#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]")
         .type_attribute("idp.PlumHeadSeal", "#[derive(derive_more::Deref, serde::Deserialize, Eq, derive_more::From, Hash, Ord, PartialOrd, serde::Serialize)]")
         .type_attribute("idp.PlumRelation", "#[derive(serde::Deserialize, num_derive::FromPrimitive, serde::Serialize)]")

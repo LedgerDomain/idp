@@ -31,6 +31,11 @@ The tests run against a local SQLite database named `idp_core_tests.db`.  For fu
     directly possible, because relations are addressed via `PlumHeadSeal`, and those can't be known
     in advance, so even forming a cycle of relations is infeasible.  It would require one level
     of indirection, such as a piece of mutable state being addressed via (e.g.) a URL.
+-   Efficient implementations of push and pull; use GRPC streaming to handle multiple requests within
+    the same connection.  Though if there's some sort of keepalive, then streaming may not matter.
+    -   Dumb implementations would simply assume that dependency trees can't be incomplete
+        from below (meaning if a Plum is present all its dependencies are present).
+    -   Correct implementations would do dependency completeness tracking.
 
 ## To-don'ts (I.e. Done)
 
