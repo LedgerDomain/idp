@@ -79,7 +79,7 @@ impl Datacache {
             .datahost_la
             .read()
             .await
-            .load_option_plum(plum_uri.get_plum_head_seal())
+            .load_option_plum(plum_uri.get_plum_head_seal(), None)
             .await?;
         let plum = match plum_o {
             Some(plum) => plum,
@@ -103,7 +103,7 @@ impl Datacache {
                             self.datahost_la
                                 .read()
                                 .await
-                                .load_plum(plum_uri.get_plum_head_seal())
+                                .load_plum(plum_uri.get_plum_head_seal(), None)
                                 .await?
                         }
                         #[cfg(not(feature = "client"))]

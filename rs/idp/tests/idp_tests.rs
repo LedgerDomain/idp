@@ -85,18 +85,30 @@ impl TestData {
             .build()
             .expect("pass");
 
-        let content_1_plum_head_seal = datahost_g.store_plum(&content_1_plum).await.expect("pass");
-        let content_2_plum_head_seal = datahost_g.store_plum(&content_2_plum).await.expect("pass");
+        let content_1_plum_head_seal = datahost_g
+            .store_plum(&content_1_plum, None)
+            .await
+            .expect("pass");
+        let content_2_plum_head_seal = datahost_g
+            .store_plum(&content_2_plum, None)
+            .await
+            .expect("pass");
 
         log::trace!("content_1_plum_head_seal: {}", content_1_plum_head_seal);
         log::trace!("content_2_plum_head_seal: {}", content_2_plum_head_seal);
 
-        let metadata_0_plum_head_seal =
-            datahost_g.store_plum(&metadata_0_plum).await.expect("pass");
-        let metadata_1_plum_head_seal =
-            datahost_g.store_plum(&metadata_1_plum).await.expect("pass");
-        let metadata_2_plum_head_seal =
-            datahost_g.store_plum(&metadata_2_plum).await.expect("pass");
+        let metadata_0_plum_head_seal = datahost_g
+            .store_plum(&metadata_0_plum, None)
+            .await
+            .expect("pass");
+        let metadata_1_plum_head_seal = datahost_g
+            .store_plum(&metadata_1_plum, None)
+            .await
+            .expect("pass");
+        let metadata_2_plum_head_seal = datahost_g
+            .store_plum(&metadata_2_plum, None)
+            .await
+            .expect("pass");
 
         log::trace!("metadata_0_plum_head_seal: {}", metadata_0_plum_head_seal);
         log::trace!("metadata_1_plum_head_seal: {}", metadata_1_plum_head_seal);
@@ -115,7 +127,7 @@ impl TestData {
             .build()
             .expect("pass");
         let branch_node_0_plum_head_seal = datahost_g
-            .store_plum(&branch_node_0_plum)
+            .store_plum(&branch_node_0_plum, None)
             .await
             .expect("pass");
 
@@ -132,7 +144,7 @@ impl TestData {
             .build()
             .expect("pass");
         let branch_node_1_plum_head_seal = datahost_g
-            .store_plum(&branch_node_1_plum)
+            .store_plum(&branch_node_1_plum, None)
             .await
             .expect("pass");
 
@@ -149,7 +161,7 @@ impl TestData {
             .build()
             .expect("pass");
         let branch_node_2_plum_head_seal = datahost_g
-            .store_plum(&branch_node_2_plum)
+            .store_plum(&branch_node_2_plum, None)
             .await
             .expect("pass");
 
@@ -174,14 +186,22 @@ impl TestData {
 
         {
             let plum_relation_flags_m = datahost_g
-                .accumulated_relations_recursive(&content_1_plum_head_seal, PlumRelationFlags::ALL)
+                .accumulated_relations_recursive(
+                    &content_1_plum_head_seal,
+                    PlumRelationFlags::ALL,
+                    None,
+                )
                 .await
                 .expect("pass");
             assert!(plum_relation_flags_m.is_empty());
         }
         {
             let plum_relation_flags_m = datahost_g
-                .accumulated_relations_recursive(&content_2_plum_head_seal, PlumRelationFlags::ALL)
+                .accumulated_relations_recursive(
+                    &content_2_plum_head_seal,
+                    PlumRelationFlags::ALL,
+                    None,
+                )
                 .await
                 .expect("pass");
             assert!(plum_relation_flags_m.is_empty());
@@ -189,21 +209,33 @@ impl TestData {
 
         {
             let plum_relation_flags_m = datahost_g
-                .accumulated_relations_recursive(&metadata_0_plum_head_seal, PlumRelationFlags::ALL)
+                .accumulated_relations_recursive(
+                    &metadata_0_plum_head_seal,
+                    PlumRelationFlags::ALL,
+                    None,
+                )
                 .await
                 .expect("pass");
             assert!(plum_relation_flags_m.is_empty());
         }
         {
             let plum_relation_flags_m = datahost_g
-                .accumulated_relations_recursive(&metadata_1_plum_head_seal, PlumRelationFlags::ALL)
+                .accumulated_relations_recursive(
+                    &metadata_1_plum_head_seal,
+                    PlumRelationFlags::ALL,
+                    None,
+                )
                 .await
                 .expect("pass");
             assert!(plum_relation_flags_m.is_empty());
         }
         {
             let plum_relation_flags_m = datahost_g
-                .accumulated_relations_recursive(&metadata_2_plum_head_seal, PlumRelationFlags::ALL)
+                .accumulated_relations_recursive(
+                    &metadata_2_plum_head_seal,
+                    PlumRelationFlags::ALL,
+                    None,
+                )
                 .await
                 .expect("pass");
             assert!(plum_relation_flags_m.is_empty());
@@ -214,6 +246,7 @@ impl TestData {
                 .accumulated_relations_recursive(
                     &branch_node_0_plum_head_seal,
                     PlumRelationFlags::ALL,
+                    None,
                 )
                 .await
                 .expect("pass");
@@ -227,6 +260,7 @@ impl TestData {
                 .accumulated_relations_recursive(
                     &branch_node_0_plum_head_seal,
                     PlumRelationFlags::CONTENT_DEPENDENCY,
+                    None,
                 )
                 .await
                 .expect("pass");
@@ -240,6 +274,7 @@ impl TestData {
                 .accumulated_relations_recursive(
                     &branch_node_1_plum_head_seal,
                     PlumRelationFlags::ALL,
+                    None,
                 )
                 .await
                 .expect("pass");
@@ -259,6 +294,7 @@ impl TestData {
                 .accumulated_relations_recursive(
                     &branch_node_2_plum_head_seal,
                     PlumRelationFlags::ALL,
+                    None,
                 )
                 .await
                 .expect("pass");
@@ -430,7 +466,7 @@ impl TestData {
     async fn check_target_datahost(&self, target_name: &str, target_datahost: &Datahost) {
         assert!(
             target_datahost
-                .has_plum_head(&self.branch_node_2_plum_head_seal)
+                .has_plum_head(&self.branch_node_2_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -439,7 +475,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.branch_node_2_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.branch_node_2_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -448,7 +484,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_head(&self.content_2_plum_head_seal)
+                .has_plum_head(&self.content_2_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -457,7 +493,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.content_2_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.content_2_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -466,7 +502,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_head(&self.metadata_2_plum_head_seal)
+                .has_plum_head(&self.metadata_2_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -475,7 +511,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.metadata_2_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.metadata_2_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -489,7 +525,7 @@ impl TestData {
 
         assert!(
             target_datahost
-                .has_plum_head(&self.branch_node_1_plum_head_seal)
+                .has_plum_head(&self.branch_node_1_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -498,7 +534,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.branch_node_1_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.branch_node_1_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -507,7 +543,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_head(&self.content_1_plum_head_seal)
+                .has_plum_head(&self.content_1_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -516,7 +552,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.content_1_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.content_1_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -525,7 +561,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_head(&self.metadata_1_plum_head_seal)
+                .has_plum_head(&self.metadata_1_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -534,7 +570,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.metadata_1_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.metadata_1_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -548,7 +584,7 @@ impl TestData {
 
         assert!(
             target_datahost
-                .has_plum_head(&self.branch_node_0_plum_head_seal)
+                .has_plum_head(&self.branch_node_0_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -557,7 +593,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.branch_node_0_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.branch_node_0_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",
@@ -566,7 +602,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_head(&self.metadata_0_plum_head_seal)
+                .has_plum_head(&self.metadata_0_plum_head_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumHead {}",
@@ -575,7 +611,7 @@ impl TestData {
         );
         assert!(
             target_datahost
-                .has_plum_body(&self.metadata_0_plum.plum_head.plum_body_seal)
+                .has_plum_body(&self.metadata_0_plum.plum_head.plum_body_seal, None)
                 .await
                 .expect("pass"),
             "{} is missing PlumBody {}",

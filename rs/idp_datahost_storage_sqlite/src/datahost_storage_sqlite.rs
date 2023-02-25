@@ -565,7 +565,7 @@ impl DatahostStorage for DatahostStorageSQLite {
         let sqlite_transaction = sqlite_transaction_mut(transaction);
         let now = UnixNanoseconds::now();
 
-        let insert_r = sqlx::query!(
+        let query_result_r = sqlx::query!(
             r#"INSERT INTO path_states (
                 row_inserted_at,
                 row_updated_at,
@@ -581,8 +581,15 @@ impl DatahostStorage for DatahostStorageSQLite {
                 .sha256sum
                 .value,
         )
-        .fetch_one(sqlite_transaction)
+        .execute(sqlite_transaction)
         .await;
+
+        log::trace!(
+            "DatahostStorageSQLite::insert_path_state; query_result_r: {:?}",
+            query_result_r
+        );
+
+        query_result_r?;
 
         // TODO: Handle collision -- not sure which error code is right.
         // match insert_r {
@@ -590,7 +597,6 @@ impl DatahostStorage for DatahostStorageSQLite {
         //     Err(sqlx::Error::)
 
         // }
-        insert_r?;
 
         Ok(())
     }
@@ -602,7 +608,7 @@ impl DatahostStorage for DatahostStorageSQLite {
         let sqlite_transaction = sqlite_transaction_mut(transaction);
         let now = UnixNanoseconds::now();
 
-        sqlx::query!(
+        let query_result_r = sqlx::query!(
             r#"UPDATE path_states
             SET row_updated_at = $1,
                 current_state_plum_head_seal = $2
@@ -615,10 +621,16 @@ impl DatahostStorage for DatahostStorageSQLite {
                 .value,
             path_state.path.value
         )
-        .fetch_one(sqlite_transaction)
-        .await?;
+        .execute(sqlite_transaction)
+        .await;
 
-        Ok(())
+        match query_result_r {
+            Ok(_) => Ok(()),
+            Err(sqlx::Error::RowNotFound) => {
+                Err(DatahostStorageError::PathNotFound(path_state.path.clone()))
+            }
+            Err(e) => Err(e.into()),
+        }
     }
     async fn delete_path_state(
         &self,
@@ -639,10 +651,14 @@ impl DatahostStorage for DatahostStorageSQLite {
         // .fetch_one(sqlite_transaction)
         // .await?;
 
-        sqlx::query!(r#"DELETE FROM path_states WHERE path = $1"#, path.value,)
-            .fetch_one(sqlite_transaction)
-            .await?;
+        let query_result_r = sqlx::query!(r#"DELETE FROM path_states WHERE path = $1"#, path.value)
+            .execute(sqlite_transaction)
+            .await;
 
-        Ok(())
+        match query_result_r {
+            Ok(_) => Ok(()),
+            Err(sqlx::Error::RowNotFound) => Err(DatahostStorageError::PathNotFound(path.clone())),
+            Err(e) => Err(e.into()),
+        }
     }
 }

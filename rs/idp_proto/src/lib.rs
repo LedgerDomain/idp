@@ -2,6 +2,7 @@ mod content_type;
 mod content_typeable;
 mod generated;
 mod nonce;
+mod path;
 mod plum_body_builder;
 mod plum_body_seal;
 mod plum_builder;
@@ -29,6 +30,7 @@ pub use crate::{
         PullRequest, PullResponse, PushRequest, PushResponse, Seal, Sha256Sum, UnixNanoseconds,
     },
     nonce::{},
+    path::{},
     plum_body_builder::PlumBodyBuilder,
     plum_body_seal::{},
     plum_builder::PlumBuilder,

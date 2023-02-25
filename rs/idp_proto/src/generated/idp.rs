@@ -321,7 +321,7 @@ pub struct Path {
 pub struct PathState {
     #[prost(message, required, tag = "1")]
     pub path: Path,
-    /// TODO: Consider including the "updated at" timestamp
+    /// TODO: Consider including the "updated at" and "deleted at" timestamps; also ownership/permissions when the time comes
     #[prost(message, required, tag = "2")]
     pub current_state_plum_head_seal: PlumHeadSeal,
 }

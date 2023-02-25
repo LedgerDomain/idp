@@ -1,11 +1,11 @@
 use crate::{
-    BranchNode, DatahostStorage, DatahostStorageError, DatahostStorageTransaction, DirNode,
-    FragmentQueryResult, FragmentQueryable,
+    BranchError, BranchNode, DatahostStorage, DatahostStorageError, DatahostStorageTransaction,
+    DirNode, FragmentQueryResult, FragmentQueryable, PathStateError,
 };
 use anyhow::Result;
 use idp_proto::{
-    Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelationFlags,
-    PlumRelations, PlumRelationsSeal,
+    BranchSetHeadRequest, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
+    PlumRelationFlags, PlumRelations, PlumRelationsSeal,
 };
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -25,6 +25,12 @@ impl Datahost {
         }
     }
 
+    pub async fn begin_transaction(
+        &self,
+    ) -> Result<Box<dyn DatahostStorageTransaction>, DatahostStorageError> {
+        self.datahost_storage_b.begin_transaction().await
+    }
+
     //
     // Data methods
     //
@@ -32,142 +38,204 @@ impl Datahost {
     pub async fn has_plum_head(
         &self,
         plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<bool, DatahostStorageError> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let has_plum_head = self
             .datahost_storage_b
-            .has_plum_head(transaction_b.as_mut(), plum_head_seal)
+            .has_plum_head(tx.as_mut(), plum_head_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(has_plum_head)
     }
     pub async fn has_plum_relations(
         &self,
         plum_relations_seal: &PlumRelationsSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<bool, DatahostStorageError> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let has_plum_relations = self
             .datahost_storage_b
-            .has_plum_relations(transaction_b.as_mut(), plum_relations_seal)
+            .has_plum_relations(tx.as_mut(), plum_relations_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(has_plum_relations)
     }
     pub async fn has_plum_body(
         &self,
         plum_body_seal: &PlumBodySeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<bool, DatahostStorageError> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let has_plum_body = self
             .datahost_storage_b
-            .has_plum_body(transaction_b.as_mut(), plum_body_seal)
+            .has_plum_body(tx.as_mut(), plum_body_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(has_plum_body)
     }
     pub async fn has_plum(
         &self,
         plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<bool, DatahostStorageError> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let has_plum = self
             .datahost_storage_b
-            .has_plum(transaction_b.as_mut(), plum_head_seal)
+            .has_plum(tx.as_mut(), plum_head_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(has_plum)
     }
-    pub async fn store_plum_head(&self, plum_head: &PlumHead) -> Result<PlumHeadSeal> {
+    pub async fn store_plum_head(
+        &self,
+        plum_head: &PlumHead,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PlumHeadSeal> {
         log::trace!(
             "Datahost::store_plum_head; PlumHeadSeal is {}",
             PlumHeadSeal::from(plum_head)
         );
 
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_head_seal = self
             .datahost_storage_b
-            .store_plum_head(transaction_b.as_mut(), plum_head)
+            .store_plum_head(tx.as_mut(), plum_head)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_head_seal)
     }
 
     pub async fn store_plum_relations(
         &self,
         plum_relations: &PlumRelations,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<PlumRelationsSeal> {
         log::trace!(
             "Datahost::store_plum_relations; PlumRelationsSeal is {}",
             PlumRelationsSeal::from(plum_relations)
         );
 
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_relations_seal = self
             .datahost_storage_b
-            .store_plum_relations(transaction_b.as_mut(), plum_relations)
+            .store_plum_relations(tx.as_mut(), plum_relations)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_relations_seal)
     }
 
-    pub async fn store_plum_body(&self, plum_body: &PlumBody) -> Result<PlumBodySeal> {
+    pub async fn store_plum_body(
+        &self,
+        plum_body: &PlumBody,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PlumBodySeal> {
         log::trace!(
             "Datahost::store_plum_body; PlumBodySeal is {}",
             PlumBodySeal::from(plum_body)
         );
 
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_body_seal = self
             .datahost_storage_b
-            .store_plum_body(transaction_b.as_mut(), plum_body)
+            .store_plum_body(tx.as_mut(), plum_body)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_body_seal)
     }
 
-    pub async fn store_plum(&self, plum: &Plum) -> Result<PlumHeadSeal> {
+    pub async fn store_plum(
+        &self,
+        plum: &Plum,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PlumHeadSeal> {
         log::debug!(
             "Datahost::store_plum; plum's PlumHeadSeal is {}",
             PlumHeadSeal::from(&plum.plum_head),
         );
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_head_seal = self
             .datahost_storage_b
-            .store_plum(transaction_b.as_mut(), plum)
+            .store_plum(tx.as_mut(), plum)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_head_seal)
     }
 
     /// If the specified PlumHead doesn't exist in this Datahost, returns error.
-    pub async fn load_plum_head(&self, plum_head_seal: &PlumHeadSeal) -> Result<PlumHead> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+    pub async fn load_plum_head(
+        &self,
+        plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PlumHead> {
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_head = self
             .datahost_storage_b
-            .load_plum_head(transaction_b.as_mut(), plum_head_seal)
+            .load_plum_head(tx.as_mut(), plum_head_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_head)
     }
 
     /// If either of the PlumHead or PlumBody for the specified Plum doesn't exist in this Datahost,
     /// returns None.
-    pub async fn load_option_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Option<Plum>> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+    pub async fn load_option_plum(
+        &self,
+        plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<Option<Plum>> {
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum_o = self
             .datahost_storage_b
-            .load_option_plum(transaction_b.as_mut(), plum_head_seal)
+            .load_option_plum(tx.as_mut(), plum_head_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_o)
     }
-    pub async fn load_plum(&self, plum_head_seal: &PlumHeadSeal) -> Result<Plum> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+    pub async fn load_plum(
+        &self,
+        plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<Plum> {
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let plum = self
             .datahost_storage_b
-            .load_plum(transaction_b.as_mut(), plum_head_seal)
+            .load_plum(tx.as_mut(), plum_head_seal)
             .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum)
     }
 
@@ -179,17 +247,21 @@ impl Datahost {
         &self,
         plum_head_seal: &PlumHeadSeal,
         mask: PlumRelationFlags,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<HashMap<PlumHeadSeal, PlumRelationFlags>> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let mut plum_relation_flags_m = HashMap::new();
         self.accumulate_relations_recursive_impl(
-            transaction_b.as_mut(),
+            tx.as_mut(),
             plum_head_seal,
             mask,
             &mut plum_relation_flags_m,
         )
         .await?;
-        transaction_b.commit().await?;
+        tx.finish().await?;
         Ok(plum_relation_flags_m)
     }
 
@@ -310,19 +382,36 @@ impl Datahost {
         &self,
         starting_plum_head_seal: &PlumHeadSeal,
         query_str: &str,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<PlumHeadSeal> {
-        let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        let retval = self
+            .fragment_query_internal(starting_plum_head_seal, query_str, tx.as_mut())
+            .await?;
+        tx.finish().await?;
+        Ok(retval)
+    }
 
+    // TODO: Eventually make this return Box<Any> or something
+    pub async fn fragment_query_internal(
+        &self,
+        starting_plum_head_seal: &PlumHeadSeal,
+        query_str: &str,
+        transaction: &mut dyn DatahostStorageTransaction,
+    ) -> Result<PlumHeadSeal> {
         let mut current_plum_head_seal = starting_plum_head_seal.clone();
         let mut current_query_str = query_str;
         loop {
             let plum_head = self
                 .datahost_storage_b
-                .load_plum_head(transaction_b.as_mut(), &current_plum_head_seal)
+                .load_plum_head(transaction, &current_plum_head_seal)
                 .await?;
             let plum_body = self
                 .datahost_storage_b
-                .load_plum_body(transaction_b.as_mut(), &plum_head.plum_body_seal)
+                .load_plum_body(transaction, &plum_head.plum_body_seal)
                 .await?;
             let fragment_query_result =
                 match std::str::from_utf8(plum_body.plum_body_content_type.as_ref()) {
@@ -394,47 +483,22 @@ impl Datahost {
     // Methods for path-based state
     //
 
-    // TODO: Move to somewhere appropriate
-    pub async fn begin_transaction(
-        &self,
-    ) -> std::result::Result<Box<dyn DatahostStorageTransaction>, DatahostStorageError> {
-        self.datahost_storage_b.begin_transaction().await
-    }
     // TODO: This should probably return a DatahostError type instead of DatahostStorageError.
     pub async fn has_path_state(
         &self,
         path: &Path,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> std::result::Result<bool, DatahostStorageError> {
-        // A trick for declaring a locally-scoped transaction if needed.
-        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
-        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
-            None
-        } else {
-            Some(self.begin_transaction().await?)
-        };
-        let transaction = match (
-            transaction_o,
-            locally_scoped_transaction_bo
-                .as_mut()
-                .map(|transaction_b| transaction_b.as_mut()),
-        ) {
-            (Some(transaction), None) => transaction,
-            (None, Some(transaction)) => transaction,
-            _ => {
-                panic!("programmer error: this case should be impossible");
-            }
-        };
-
+        log::trace!("Datahost::has_path_state({:?})", path);
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let retval = self
             .datahost_storage_b
-            .has_path_state(transaction, path)
+            .has_path_state(tx.as_mut(), path)
             .await?;
-
-        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
-            locally_scoped_transaction_b.commit().await?;
-        }
-
+        tx.finish().await?;
         Ok(retval)
     }
     pub async fn load_path_state(
@@ -442,35 +506,16 @@ impl Datahost {
         path: &Path,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<PathState, DatahostStorageError> {
-        // A trick for declaring a locally-scoped transaction if needed.
-        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
-        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
-            None
-        } else {
-            Some(self.begin_transaction().await?)
-        };
-        let transaction = match (
-            transaction_o,
-            locally_scoped_transaction_bo
-                .as_mut()
-                .map(|transaction_b| transaction_b.as_mut()),
-        ) {
-            (Some(transaction), None) => transaction,
-            (None, Some(transaction)) => transaction,
-            _ => {
-                panic!("programmer error: this case should be impossible");
-            }
-        };
-
+        log::trace!("Datahost::load_path_state({:?})", path);
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let retval = self
             .datahost_storage_b
-            .load_path_state(transaction, path)
+            .load_path_state(tx.as_mut(), path)
             .await?;
-
-        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
-            locally_scoped_transaction_b.commit().await?;
-        }
-
+        tx.finish().await?;
         Ok(retval)
     }
     pub async fn insert_path_state(
@@ -478,113 +523,347 @@ impl Datahost {
         path_state: &PathState,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<(), DatahostStorageError> {
-        // A trick for declaring a locally-scoped transaction if needed.
-        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
-        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
-            None
-        } else {
-            Some(self.begin_transaction().await?)
-        };
-        let transaction = match (
-            transaction_o,
-            locally_scoped_transaction_bo
-                .as_mut()
-                .map(|transaction_b| transaction_b.as_mut()),
-        ) {
-            (Some(transaction), None) => transaction,
-            (None, Some(transaction)) => transaction,
-            _ => {
-                panic!("programmer error: this case should be impossible");
-            }
-        };
-
-        let retval = self
-            .datahost_storage_b
-            .insert_path_state(transaction, path_state)
+        log::trace!(
+            "Datahost::insert_path_state({:?} -> {})",
+            path_state.path,
+            path_state.current_state_plum_head_seal
+        );
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        self.datahost_storage_b
+            .insert_path_state(tx.as_mut(), path_state)
             .await?;
-
-        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
-            locally_scoped_transaction_b.commit().await?;
-        }
-
-        Ok(retval)
+        tx.finish().await?;
+        Ok(())
     }
     pub async fn update_path_state(
         &self,
         path_state: &PathState,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<(), DatahostStorageError> {
-        // A trick for declaring a locally-scoped transaction if needed.
-        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
-        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
-            None
-        } else {
-            Some(self.begin_transaction().await?)
-        };
-        let transaction = match (
-            transaction_o,
-            locally_scoped_transaction_bo
-                .as_mut()
-                .map(|transaction_b| transaction_b.as_mut()),
-        ) {
-            (Some(transaction), None) => transaction,
-            (None, Some(transaction)) => transaction,
-            _ => {
-                panic!("programmer error: this case should be impossible");
-            }
-        };
-
-        let retval = self
-            .datahost_storage_b
-            .update_path_state(transaction, path_state)
+        log::trace!(
+            "Datahost::update_path_state({:?} -> {})",
+            path_state.path,
+            path_state.current_state_plum_head_seal
+        );
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        self.datahost_storage_b
+            .update_path_state(tx.as_mut(), path_state)
             .await?;
-
-        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
-            locally_scoped_transaction_b.commit().await?;
-        }
-
-        Ok(retval)
+        tx.finish().await?;
+        Ok(())
     }
     pub async fn delete_path_state(
         &self,
         path: &Path,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
     ) -> Result<(), DatahostStorageError> {
-        // A trick for declaring a locally-scoped transaction if needed.
-        // TODO: Make a private method in Datahost (or DatahostStorage?) for this.
-        let mut locally_scoped_transaction_bo = if transaction_o.is_some() {
-            None
-        } else {
-            Some(self.begin_transaction().await?)
-        };
-        let transaction = match (
-            transaction_o,
-            locally_scoped_transaction_bo
-                .as_mut()
-                .map(|transaction_b| transaction_b.as_mut()),
-        ) {
-            (Some(transaction), None) => transaction,
-            (None, Some(transaction)) => transaction,
-            _ => {
-                panic!("programmer error: this case should be impossible");
-            }
-        };
-
+        log::trace!("Datahost::delete_path_state({:?})", path);
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
         let retval = self
             .datahost_storage_b
-            .delete_path_state(transaction, path)
+            .delete_path_state(tx.as_mut(), path)
             .await?;
-
-        if let Some(locally_scoped_transaction_b) = locally_scoped_transaction_bo {
-            locally_scoped_transaction_b.commit().await?;
-        }
-
+        tx.finish().await?;
         Ok(retval)
     }
+
+    //
+    // Methods for Branch operations
+    //
+
+    pub async fn branch_create(
+        &self,
+        branch_path_state: &PathState,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> std::result::Result<(), BranchError> {
+        log::trace!(
+            "Datahost::branch_create({:?} -> {})",
+            branch_path_state.path,
+            branch_path_state.current_state_plum_head_seal
+        );
+
+        branch_path_state
+            .path
+            .validate()
+            .map_err(|e| PathStateError::InvalidPath {
+                path: branch_path_state.path.clone(),
+                reason: e,
+            })?;
+
+        // TODO: Any authorization checks for creating a branch with the given path
+
+        // let mut transaction_b = self.datahost_storage_b.begin_transaction().await?;
+
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+
+        // Check if the PathState already exists.
+        if self
+            .has_path_state(&branch_path_state.path, Some(tx.as_mut()))
+            .await?
+        {
+            return Err(PathStateError::PathAlreadyExists(branch_path_state.path.clone()).into());
+        }
+
+        // Check that the BranchNode Plum already has already been pushed.
+        if !self
+            .has_plum(
+                &branch_path_state.current_state_plum_head_seal,
+                Some(tx.as_mut()),
+            )
+            .await?
+        {
+            return Err(PathStateError::PlumMustAlreadyExist(
+                branch_path_state.current_state_plum_head_seal.clone(),
+            )
+            .into());
+        }
+        // TODO: Check that req.branch_path_state.current_state_plum_head_seal is dependency-complete.
+
+        // TODO: Move this BranchNode validation stuff into helper function
+
+        // Check that the BranchNode Plum is actually a BranchNode.
+        let branch_node_plum = self
+            .load_plum(
+                &branch_path_state.current_state_plum_head_seal,
+                Some(tx.as_mut()),
+            )
+            .await
+            .map_err(|e| BranchError::InternalError {
+                description: e.to_string(),
+            })?;
+        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+            return Err(BranchError::PlumIsNotABranchNode {
+                plum_head_seal: branch_path_state.current_state_plum_head_seal.clone(),
+                description: "PlumBody content type was not \"idp::BranchNode\"".to_string(),
+            });
+        }
+        // TEMP HACK: Assume always rmp_serde serialization for now.
+        let _branch_node: BranchNode = rmp_serde::from_read(
+            branch_node_plum.plum_body.plum_body_content.as_slice(),
+        )
+        .map_err(|e| BranchError::PlumIsNotABranchNode {
+            plum_head_seal: branch_path_state.current_state_plum_head_seal.clone(),
+            description: format!(
+                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                e
+            ),
+        })?;
+
+        // The BranchNode Plum has been validated.  It can be stored now.
+        self.insert_path_state(&branch_path_state, Some(tx.as_mut()))
+            .await?;
+
+        tx.finish().await?;
+
+        Ok(())
+    }
+    pub async fn branch_delete(
+        &self,
+        branch_path: &Path,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<(), BranchError> {
+        branch_path
+            .validate()
+            .map_err(|e| PathStateError::InvalidPath {
+                path: branch_path.clone(),
+                reason: e,
+            })?;
+
+        // TODO: Any authorization checks for deleting the branch.
+
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        self.delete_path_state(branch_path, Some(tx.as_mut()))
+            .await?;
+        tx.finish().await?;
+        Ok(())
+    }
+    pub async fn branch_get_head(
+        &self,
+        branch_path: &Path,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<PlumHeadSeal, BranchError> {
+        branch_path
+            .validate()
+            .map_err(|e| PathStateError::InvalidPath {
+                path: branch_path.clone(),
+                reason: e,
+            })?;
+
+        // TODO: Any authorization checks for getting the branch head
+
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        // Query storage for the current PlumHeadSeal of the given path
+        let path_state = self.load_path_state(branch_path, Some(tx.as_mut())).await?;
+        tx.finish().await?;
+        Ok(path_state.current_state_plum_head_seal)
+    }
+    pub async fn branch_set_head(
+        &self,
+        // NOTE: This would be split up if/when idp API is separated from GRPC.
+        req: BranchSetHeadRequest,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<(), BranchError> {
+        req.branch_path
+            .validate()
+            .map_err(|e| PathStateError::InvalidPath {
+                path: req.branch_path.clone(),
+                reason: e,
+            })?;
+
+        // Any authorization checks for the given path
+
+        let branch_node_plum_head_seal =
+            match req.value.ok_or_else(|| BranchError::MalformedRequest {
+                description: "req.value is None".to_string(),
+            })? {
+                idp_proto::branch_set_head_request::Value::BranchFastForwardToPlumHeadSeal(
+                    plum_head_seal,
+                ) => plum_head_seal,
+                idp_proto::branch_set_head_request::Value::BranchRewindToPlumHeadSeal(
+                    plum_head_seal,
+                ) => plum_head_seal,
+                idp_proto::branch_set_head_request::Value::BranchForceResetToPlumHeadSeal(
+                    plum_head_seal,
+                ) => plum_head_seal,
+            };
+
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+
+        // Check that the BranchNode Plum already has already been pushed.
+        if !self
+            .has_plum(&branch_node_plum_head_seal, Some(tx.as_mut()))
+            .await?
+        {
+            return Err(BranchError::BranchNodePlumMustAlreadyExist(
+                branch_node_plum_head_seal,
+            ));
+        }
+        // TODO: Check that branch_node_plum_head_seal is dependency-complete.
+
+        // TODO: Move this BranchNode validation stuff into helper function
+
+        // Check that the BranchNode Plum is actually a BranchNode.
+        let branch_node_plum = self
+            .load_plum(&branch_node_plum_head_seal, Some(tx.as_mut()))
+            .await
+            .map_err(|e| BranchError::InternalError {
+                description: e.to_string(),
+            })?;
+        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+            return Err(BranchError::PlumIsNotABranchNode {
+                plum_head_seal: branch_node_plum_head_seal,
+                description: "PlumBody content type was not \"idp::BranchNode\"".to_string(),
+            });
+        }
+        // TEMP HACK: Assume always rmp_serde serialization for now.
+        let _branch_node: BranchNode = rmp_serde::from_read(
+            branch_node_plum.plum_body.plum_body_content.as_slice(),
+        )
+        .map_err(|e| BranchError::PlumIsNotABranchNode {
+            plum_head_seal: branch_node_plum_head_seal.clone(),
+            description: format!(
+                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                e
+            ),
+        })?;
+
+        // The BranchNode Plum has been validated.  Now check the validity of the branch operation.
+        // If it's a fast-forward, check that the history of the specified Plum includes the current branch head.
+        // If it's a rewind, check that the specified Plum is in the history of the current branch head.
+        // If it's a reset, check that there is a common ancestor between the specified Plum and the current branch head (otherwise it's a complete reset with no common history, which is a much stronger operation).
+
+        // TODO: Compute the common ancestor of req, then use that to validate the requested operation.
+
+        // TEMP HACK -- for now, only support reset, and don't bother even validating that there's a common ancestor.
+        self.update_path_state(
+            &PathState {
+                path: req.branch_path,
+                current_state_plum_head_seal: branch_node_plum_head_seal,
+            },
+            Some(tx.as_mut()),
+        )
+        .await?;
+
+        tx.finish().await?;
+
+        Ok(())
+    }
+
+    // async fn compute_closest_common_branch_node_ancestor(&self, )
 }
 
 impl Drop for Datahost {
     fn drop(&mut self) {
         log::info!("Datahost closed");
+    }
+}
+
+/// Wrapper for ensuring properly transactional operations, allowing for a transaction to be passed
+/// in from an outer scope, or generated and used for the inner scope of a function.
+// TODO: This really should be associated with DatahostStorage, not Datahost.
+pub struct EnsuredTransaction<'a> {
+    outer_transaction_o: Option<&'a mut dyn DatahostStorageTransaction>,
+    inner_transaction_bo: Option<Box<dyn DatahostStorageTransaction>>,
+}
+
+impl<'a> EnsuredTransaction<'a> {
+    pub async fn new(
+        outer_transaction_o: Option<&'a mut dyn DatahostStorageTransaction>,
+        begin_transaction: impl std::future::Future<
+            Output = Result<Box<dyn DatahostStorageTransaction>, DatahostStorageError>,
+        >,
+    ) -> Result<EnsuredTransaction<'a>, DatahostStorageError> {
+        let inner_transaction_bo = if outer_transaction_o.is_some() {
+            None
+        } else {
+            Some(begin_transaction.await?)
+        };
+        Ok(Self {
+            outer_transaction_o,
+            inner_transaction_bo,
+        })
+    }
+    // TODO: Figure out if this should be DerefMut or BorrowMut or something
+    pub fn as_mut(&mut self) -> &mut dyn DatahostStorageTransaction {
+        match (
+            &mut self.outer_transaction_o,
+            self.inner_transaction_bo
+                .as_mut()
+                .map(|transaction_b| transaction_b.as_mut()),
+        ) {
+            (Some(transaction), None) => *transaction,
+            (None, Some(transaction)) => transaction,
+            _ => {
+                panic!("programmer error: this case should be impossible");
+            }
+        }
+    }
+    /// If self.inner_transaction_bo.is_some(), then this commits.  Otherwise it does nothing.
+    pub async fn finish(self) -> Result<(), DatahostStorageError> {
+        if let Some(inner_transaction_b) = self.inner_transaction_bo {
+            inner_transaction_b.commit().await?;
+        }
+        Ok(())
     }
 }

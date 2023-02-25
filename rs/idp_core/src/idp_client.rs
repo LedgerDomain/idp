@@ -41,6 +41,7 @@ impl IDPClient {
                 plum_head_seal,
                 idp_proto::PlumRelationFlags::CONTENT_DEPENDENCY
                     | idp_proto::PlumRelationFlags::METADATA_DEPENDENCY,
+                None,
             )
             .await?;
         log::trace!(
@@ -88,7 +89,7 @@ impl IDPClient {
                     datahost_la
                         .read()
                         .await
-                        .load_plum(&accumulated_plum_head_seal)
+                        .load_plum(&accumulated_plum_head_seal, None)
                         .await
                         .expect("TODO: handle this error for realsies"),
                 )),
@@ -144,7 +145,11 @@ impl IDPClient {
             match pull_response.value {
                 Some(idp_proto::pull_response::Value::Plum(plum)) => {
                     // TODO: Check if we actually asked for this Plum.
-                    self.datahost_la.read().await.store_plum(&plum).await?;
+                    self.datahost_la
+                        .read()
+                        .await
+                        .store_plum(&plum, None)
+                        .await?;
                 }
                 Some(idp_proto::pull_response::Value::IDontHaveThisPlum(plum_head_seal)) => {
                     anyhow::bail!(

@@ -405,6 +405,7 @@ async fn test_plum_ref_call() {
                 )
                 .build()
                 .expect("pass"),
+            None,
         )
         .await
         .expect("pass");
@@ -419,6 +420,7 @@ async fn test_plum_ref_call() {
                 .with_plum_body_content(rmp_serde::to_vec(&test_data.exp_function).expect("pass"))
                 .build()
                 .expect("pass"),
+            None,
         )
         .await
         .expect("pass");
@@ -433,6 +435,7 @@ async fn test_plum_ref_call() {
                 .with_plum_body_content(rmp_serde::to_vec(&test_data.cos_function).expect("pass"))
                 .build()
                 .expect("pass"),
+            None,
         )
         .await
         .expect("pass");
@@ -447,6 +450,7 @@ async fn test_plum_ref_call() {
                 .with_plum_body_content(rmp_serde::to_vec(&test_data.sin_function).expect("pass"))
                 .build()
                 .expect("pass"),
+            None,
         )
         .await
         .expect("pass");
