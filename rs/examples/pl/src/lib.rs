@@ -734,10 +734,6 @@ pub enum ASTNode {
     PlumRef(Box<idp_core::PlumRef<ASTNode>>),
 }
 
-// TEMP HACK
-unsafe impl Send for ASTNode {}
-unsafe impl Sync for ASTNode {}
-
 impl Default for ASTNode {
     fn default() -> Self {
         // Arbitrary choice

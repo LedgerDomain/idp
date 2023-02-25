@@ -374,7 +374,6 @@ service IndoorDataPlumbing {
     // rpc Pull (PullRequest) returns (PullResponse) {}
     // rpc Del (DelRequest) returns (DelResponse) {}
 
-    // TEMP HACK
     // TODO: Consider moving these into a separate GRPC service
     rpc BranchCreate (BranchCreateRequest) returns (BranchCreateResponse) {}
     rpc BranchDelete (BranchDeleteRequest) returns (BranchDeleteResponse) {}

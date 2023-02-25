@@ -13,11 +13,6 @@ pub struct Datahost {
     datahost_storage_b: Box<dyn DatahostStorage>,
 }
 
-// TEMP HACK (maybe?)
-unsafe impl Send for Datahost {}
-// TEMP HACK (maybe?)
-unsafe impl Sync for Datahost {}
-
 impl Datahost {
     pub fn open(datahost_storage: impl DatahostStorage + 'static) -> Self {
         Self {

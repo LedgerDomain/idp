@@ -32,10 +32,6 @@ pub struct Datacache {
     cached_value_mla: Arc<RwLock<HashMap<PlumHeadSeal, UntypedValue>>>,
 }
 
-// TEMP HACK -- TODO: Probably can get rid of these, they should be derived automatically
-unsafe impl Send for Datacache {}
-unsafe impl Sync for Datacache {}
-
 impl Datacache {
     /// Create an empty Datacache, connected to the given Datahost.
     pub fn new(datahost_la: Arc<RwLock<Datahost>>) -> Self {

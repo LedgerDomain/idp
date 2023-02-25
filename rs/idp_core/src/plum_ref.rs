@@ -33,12 +33,6 @@ pub struct PlumRef<T: Send + Sync> {
     value_wla: Arc<RwLock<Weak<T>>>,
 }
 
-// TEMP HACK -- TODO: See if these can be automatically derived now
-// NOTE: This Send + Sync bound might be too strict
-unsafe impl<T: Send + Sync> Send for PlumRef<T> {}
-// NOTE: This Send + Sync bound might be too strict
-unsafe impl<T: Send + Sync> Sync for PlumRef<T> {}
-
 // NOTE: This Send + Sync bound might be too strict
 impl<T: Any + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
     pub fn new(plum_uri: PlumURI) -> Self {

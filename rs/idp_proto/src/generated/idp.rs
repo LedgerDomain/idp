@@ -522,7 +522,6 @@ pub mod indoor_data_plumbing_client {
             );
             self.inner.server_streaming(request.into_request(), path, codec).await
         }
-        /// TEMP HACK
         /// TODO: Consider moving these into a separate GRPC service
         pub async fn branch_create(
             &mut self,
@@ -630,7 +629,6 @@ pub mod indoor_data_plumbing_server {
             &self,
             request: tonic::Request<super::PullRequest>,
         ) -> Result<tonic::Response<Self::PullStream>, tonic::Status>;
-        /// TEMP HACK
         /// TODO: Consider moving these into a separate GRPC service
         async fn branch_create(
             &self,
