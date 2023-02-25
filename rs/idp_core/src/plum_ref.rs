@@ -19,9 +19,8 @@ use std::{
 ///     a stateful deserialization routine.  See https://github.com/serde-rs/serde/issues/2212
 ///     and https://docs.rs/serde/latest/serde/de/trait.DeserializeSeed.html
 // TODO: Consider uniquefying the PlumHeadSeal-s (or PlumURI-s) that PlumRef uses.
-// NOTE: This Send + Sync bound might be too strict
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct PlumRef<T: Send + Sync> {
+pub struct PlumRef<T> {
     // TODO: Consider uniquefying this (probably within Datacache) so that it's Arc<PlumURI>, and
     // therefore PlumRef is smaller overall.
     pub plum_uri: PlumURI,
@@ -33,7 +32,7 @@ pub struct PlumRef<T: Send + Sync> {
     value_wla: Arc<RwLock<Weak<T>>>,
 }
 
-// NOTE: This Send + Sync bound might be too strict
+// NOTE: Send + Sync are necessary because PlumRef::get_or_load_value returns Arc<T> which crosses await boundaries.
 impl<T: Any + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
     pub fn new(plum_uri: PlumURI) -> Self {
         Self {
@@ -83,8 +82,7 @@ impl<T: Any + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
     }
 }
 
-// NOTE: This Send + Sync bound might be too strict
-impl<T: Send + Sync> Clone for PlumRef<T> {
+impl<T> Clone for PlumRef<T> {
     fn clone(&self) -> Self {
         PlumRef {
             plum_uri: self.plum_uri.clone(),
@@ -93,8 +91,7 @@ impl<T: Send + Sync> Clone for PlumRef<T> {
     }
 }
 
-// NOTE: This Send + Sync bound might be too strict
-impl<T: Send + Sync> std::fmt::Debug for PlumRef<T> {
+impl<T> std::fmt::Debug for PlumRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("PlumRef")
             .field("plum_uri", &self.plum_uri)
@@ -102,8 +99,7 @@ impl<T: Send + Sync> std::fmt::Debug for PlumRef<T> {
     }
 }
 
-// NOTE: This Send + Sync bound might be too strict
-impl<T: Send + Sync> std::fmt::Display for PlumRef<T> {
+impl<T> std::fmt::Display for PlumRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "PlumRef({})", &self.plum_uri)
     }
