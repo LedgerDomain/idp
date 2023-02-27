@@ -1,11 +1,11 @@
 use crate::{
     BranchError, BranchNode, DatahostStorage, DatahostStorageError, DatahostStorageTransaction,
-    DirNode, FragmentQueryResult, FragmentQueryable, PathStateError,
+    DirNode, FragmentQueryResult, FragmentQueryable, LoadPlumAndDeserializeError, PathStateError,
 };
 use anyhow::Result;
 use idp_proto::{
-    BranchSetHeadRequest, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
-    PlumRelationFlags, PlumRelations, PlumRelationsSeal,
+    BranchSetHeadRequest, ContentTypeable, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead,
+    PlumHeadSeal, PlumRelationFlags, PlumRelations, PlumRelationsSeal,
 };
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -233,6 +233,28 @@ impl Datahost {
         tx.finish().await?;
         Ok(plum)
     }
+    /// Load the specified Plum, check the PlumBody's ContentType against that expected by T,
+    /// and then deserialize the PlumBody content into T.
+    // TODO: Consider having it return the Plum or PlumHead as well, potentially deserializing
+    // any PlumHead metadata into another type.
+    pub async fn load_plum_and_deserialize<T: ContentTypeable + serde::de::DeserializeOwned>(
+        &self,
+        plum_head_seal: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> std::result::Result<T, LoadPlumAndDeserializeError> {
+        let plum = self
+            .load_plum(&plum_head_seal, transaction_o)
+            .await
+            .map_err(|_| LoadPlumAndDeserializeError::FailedToLoadPlum)?;
+
+        if !T::content_type_matches(plum.plum_body.plum_body_content_type.as_slice()) {
+            return Err(LoadPlumAndDeserializeError::ContentTypeMismatch);
+        }
+
+        let value: T = rmp_serde::from_read(plum.plum_body.plum_body_content.as_slice())
+            .map_err(|_| LoadPlumAndDeserializeError::DeserializationError)?;
+        Ok(value)
+    }
 
     //
     // Methods for determining plum_relations between Plums
@@ -429,7 +451,7 @@ impl Datahost {
                         )?
                     }
                     Ok("idp::DirNode") => {
-                        log::trace!("fragment_query; deserializing idp::BranchNode");
+                        log::trace!("fragment_query; deserializing idp::DirNode");
                         // if plum_body.plum_body_content_o.is_none() {
                         //     return Err(anyhow::format_err!(
                         //         "Plum {} had missing plum_body_content",
@@ -725,20 +747,23 @@ impl Datahost {
 
         // Any authorization checks for the given path
 
-        let branch_node_plum_head_seal =
-            match req.value.ok_or_else(|| BranchError::MalformedRequest {
-                description: "req.value is None".to_string(),
-            })? {
-                idp_proto::branch_set_head_request::Value::BranchFastForwardToPlumHeadSeal(
-                    plum_head_seal,
-                ) => plum_head_seal,
-                idp_proto::branch_set_head_request::Value::BranchRewindToPlumHeadSeal(
-                    plum_head_seal,
-                ) => plum_head_seal,
-                idp_proto::branch_set_head_request::Value::BranchForceResetToPlumHeadSeal(
-                    plum_head_seal,
-                ) => plum_head_seal,
-            };
+        let req_value = req.value.ok_or_else(|| BranchError::MalformedRequest {
+            description: "req.value is None".to_string(),
+        })?;
+        let new_branch_head_plum_head_seal = match &req_value {
+            idp_proto::branch_set_head_request::Value::BranchFastForwardTo(plum_head_seal) => {
+                plum_head_seal.clone()
+            }
+            idp_proto::branch_set_head_request::Value::BranchRewindTo(plum_head_seal) => {
+                plum_head_seal.clone()
+            }
+            idp_proto::branch_set_head_request::Value::BranchForkHistoryTo(plum_head_seal) => {
+                plum_head_seal.clone()
+            }
+            idp_proto::branch_set_head_request::Value::BranchTotallyRewriteTo(plum_head_seal) => {
+                plum_head_seal.clone()
+            }
+        };
 
         // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
         let mut tx =
@@ -747,54 +772,102 @@ impl Datahost {
 
         // Check that the BranchNode Plum already has already been pushed.
         if !self
-            .has_plum(&branch_node_plum_head_seal, Some(tx.as_mut()))
+            .has_plum(&new_branch_head_plum_head_seal, Some(tx.as_mut()))
             .await?
         {
             return Err(BranchError::BranchNodePlumMustAlreadyExist(
-                branch_node_plum_head_seal,
+                new_branch_head_plum_head_seal,
             ));
         }
         // TODO: Check that branch_node_plum_head_seal is dependency-complete.
 
+        // Get the current branch PlumHeadSeal.
+        let current_branch_head_plum_head_seal = self
+            .load_path_state(&req.branch_path, Some(tx.as_mut()))
+            .await?
+            .current_state_plum_head_seal;
+
         // TODO: Move this BranchNode validation stuff into helper function
 
         // Check that the BranchNode Plum is actually a BranchNode.
-        let branch_node_plum = self
-            .load_plum(&branch_node_plum_head_seal, Some(tx.as_mut()))
+        // TODO: Can do this via load_plum_and_deserialize
+        let new_branch_head_plum = self
+            .load_plum(&new_branch_head_plum_head_seal, Some(tx.as_mut()))
             .await
             .map_err(|e| BranchError::InternalError {
                 description: e.to_string(),
             })?;
-        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+        if new_branch_head_plum.plum_body.plum_body_content_type.value
+            != "idp::BranchNode".as_bytes()
+        {
             return Err(BranchError::PlumIsNotABranchNode {
-                plum_head_seal: branch_node_plum_head_seal,
+                plum_head_seal: new_branch_head_plum_head_seal,
                 description: "PlumBody content type was not \"idp::BranchNode\"".to_string(),
             });
         }
         // TEMP HACK: Assume always rmp_serde serialization for now.
-        let _branch_node: BranchNode = rmp_serde::from_read(
-            branch_node_plum.plum_body.plum_body_content.as_slice(),
-        )
-        .map_err(|e| BranchError::PlumIsNotABranchNode {
-            plum_head_seal: branch_node_plum_head_seal.clone(),
-            description: format!(
-                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
-                e
-            ),
-        })?;
+        let _new_branch_head: BranchNode =
+            rmp_serde::from_read(new_branch_head_plum.plum_body.plum_body_content.as_slice())
+                .map_err(|e| BranchError::PlumIsNotABranchNode {
+                    plum_head_seal: new_branch_head_plum_head_seal.clone(),
+                    description: format!(
+                        "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                        e
+                    ),
+                })?;
 
         // The BranchNode Plum has been validated.  Now check the validity of the branch operation.
         // If it's a fast-forward, check that the history of the specified Plum includes the current branch head.
         // If it's a rewind, check that the specified Plum is in the history of the current branch head.
-        // If it's a reset, check that there is a common ancestor between the specified Plum and the current branch head (otherwise it's a complete reset with no common history, which is a much stronger operation).
+        // If it's a fork history, check that there is a common ancestor between the specified Plum and the current branch head
+        // If it's a total rewrite, check that there is no common ancestor, since this is a stronger operation.
+        let common_ancestor_o = self
+            .closest_common_branch_node_ancestor(
+                &current_branch_head_plum_head_seal,
+                &new_branch_head_plum_head_seal,
+                Some(tx.as_mut()),
+            )
+            .await?;
+        match req_value {
+            idp_proto::branch_set_head_request::Value::BranchFastForwardTo(_) => {
+                if common_ancestor_o.as_ref() != Some(&current_branch_head_plum_head_seal) {
+                    return Err(BranchError::FastForwardExpectedDescendant {
+                        current_branch_head: current_branch_head_plum_head_seal,
+                        new_branch_head: new_branch_head_plum_head_seal,
+                    });
+                }
+            }
+            idp_proto::branch_set_head_request::Value::BranchRewindTo(_) => {
+                if common_ancestor_o.as_ref() != Some(&new_branch_head_plum_head_seal) {
+                    return Err(BranchError::RewindExpectedAncestor {
+                        current_branch_head: current_branch_head_plum_head_seal,
+                        new_branch_head: new_branch_head_plum_head_seal,
+                    });
+                }
+            }
+            idp_proto::branch_set_head_request::Value::BranchForkHistoryTo(_) => {
+                if common_ancestor_o.is_none() {
+                    return Err(BranchError::ForkHistoryExpectedCommonAncestor {
+                        current_branch_head: current_branch_head_plum_head_seal,
+                        new_branch_head: new_branch_head_plum_head_seal,
+                    });
+                }
+            }
+            idp_proto::branch_set_head_request::Value::BranchTotallyRewriteTo(_) => {
+                if common_ancestor_o.is_some() {
+                    return Err(BranchError::TotalRewriteExpectedNoCommonAncestor {
+                        current_branch_head: current_branch_head_plum_head_seal,
+                        new_branch_head: new_branch_head_plum_head_seal,
+                    });
+                }
+            }
+        }
 
-        // TODO: Compute the common ancestor of req, then use that to validate the requested operation.
-
-        // TEMP HACK -- for now, only support reset, and don't bother even validating that there's a common ancestor.
+        // The operation has been validated, so now go ahead and update the branch PathState.
         self.update_path_state(
             &PathState {
                 path: req.branch_path,
-                current_state_plum_head_seal: branch_node_plum_head_seal,
+                current_state_plum_head_seal: new_branch_head_plum_head_seal,
             },
             Some(tx.as_mut()),
         )
@@ -805,7 +878,96 @@ impl Datahost {
         Ok(())
     }
 
-    // async fn compute_closest_common_branch_node_ancestor(&self, )
+    pub async fn closest_common_branch_node_ancestor(
+        &self,
+        lhs: &PlumHeadSeal,
+        rhs: &PlumHeadSeal,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<Option<PlumHeadSeal>, BranchError> {
+        if lhs == rhs {
+            return Ok(Some(lhs.clone()));
+        }
+
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+
+        // This is not optimal by any means, but who cares for now.
+        let mut lhs_ancestor_s = maplit::hashset! { lhs.clone() };
+        let mut rhs_ancestor_s = maplit::hashset! { rhs.clone() };
+        let mut lhs_current_o = Some(lhs.clone());
+        let mut rhs_current_o = Some(rhs.clone());
+
+        // Somewhat arbitrary upper limit on branch length.  This is to guarantee that this operation
+        // terminates.  Because (for now), PlumHeadSeal-s are hashes of content, it's computationally
+        // infeasible to construct a valid cycle of dependencies.  However, the DB could be improperly
+        // modified outside of this process to have such a cycle, so that condition must still be handled.
+        // This is hardcoded to 2^20 = 1,048,576, which should be more than enough for now.  Potentially
+        // this could be a param in this method.
+        const MAX_ANCESTOR_DEPTH: usize = 1usize << 20;
+        for _ in 0..MAX_ANCESTOR_DEPTH {
+            // Find ancestor for each of current_lhs_o and current_rhs_o, if they're each not None.
+
+            // TODO: Should be able to specify a Datacache for these load and deserialize operations,
+            // and mark these cache entries as "expire soon". Could potentially do this using PlumRef.
+            let lhs_ancestor_o = if let Some(lhs_current) = lhs_current_o {
+                if rhs_ancestor_s.contains(&lhs_current) {
+                    return Ok(Some(lhs_current));
+                }
+                // Load the ancestor.
+                self.load_plum_and_deserialize::<BranchNode>(&lhs_current, Some(tx.as_mut()))
+                    .await
+                    .map_err(|e| BranchError::PlumIsNotABranchNode {
+                        plum_head_seal: lhs_current,
+                        description: e.to_string(),
+                    })?
+                    .ancestor_o
+            } else {
+                None
+            };
+            let rhs_ancestor_o = if let Some(rhs_current) = rhs_current_o {
+                if lhs_ancestor_s.contains(&rhs_current) {
+                    return Ok(Some(rhs_current));
+                }
+                // Load the ancestor.
+                self.load_plum_and_deserialize::<BranchNode>(&rhs_current, Some(tx.as_mut()))
+                    .await
+                    .map_err(|e| BranchError::PlumIsNotABranchNode {
+                        plum_head_seal: rhs_current,
+                        description: e.to_string(),
+                    })?
+                    .ancestor_o
+            } else {
+                None
+            };
+
+            if lhs_ancestor_o.is_none() && rhs_ancestor_o.is_none() {
+                // No more ancestors, and we haven't found one, so there is no common ancestor.
+                return Ok(None);
+            }
+
+            // Update the ancestor sets
+            if let Some(lhs_ancestor) = lhs_ancestor_o.as_ref() {
+                lhs_ancestor_s.insert(lhs_ancestor.clone());
+            }
+            if let Some(rhs_ancestor) = rhs_ancestor_o.as_ref() {
+                rhs_ancestor_s.insert(rhs_ancestor.clone());
+            }
+
+            // Update the cursors.
+            lhs_current_o = lhs_ancestor_o;
+            rhs_current_o = rhs_ancestor_o;
+        }
+
+        // If we exited the loop, that means the MAX_ANCESTOR_DEPTH was reached, which practically means either
+        // - There was a programmer error, or
+        // - The Datahost DB was improperly modified outside of this process to have a cycle.
+        return Err(BranchError::MaxAncestorDepthReached {
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+        });
+    }
 }
 
 impl Drop for Datahost {

@@ -585,7 +585,8 @@ impl DatahostStorage for DatahostStorageSQLite {
         .await;
 
         log::trace!(
-            "DatahostStorageSQLite::insert_path_state; query_result_r: {:?}",
+            "DatahostStorageSQLite::insert_path_state; path_state: {:?}, query_result_r: {:?}",
+            path_state,
             query_result_r
         );
 
@@ -624,8 +625,21 @@ impl DatahostStorage for DatahostStorageSQLite {
         .execute(sqlite_transaction)
         .await;
 
+        log::trace!(
+            "DatahostStorageSQLite::update_path_state; path_state: {:?}, query_result_r: {:?}",
+            path_state,
+            query_result_r
+        );
+
         match query_result_r {
-            Ok(_) => Ok(()),
+            Ok(query_result) => {
+                if query_result.rows_affected() == 0 {
+                    Err(DatahostStorageError::PathNotFound(path_state.path.clone()))
+                } else {
+                    Ok(())
+                }
+            }
+            // NOTE: Not sure if this actually happens, or if it's always handled by above.
             Err(sqlx::Error::RowNotFound) => {
                 Err(DatahostStorageError::PathNotFound(path_state.path.clone()))
             }
@@ -655,8 +669,21 @@ impl DatahostStorage for DatahostStorageSQLite {
             .execute(sqlite_transaction)
             .await;
 
+        log::trace!(
+            "DatahostStorageSQLite::delete_path_state; path: {:?}, query_result_r: {:?}",
+            path,
+            query_result_r
+        );
+
         match query_result_r {
-            Ok(_) => Ok(()),
+            Ok(query_result) => {
+                if query_result.rows_affected() == 0 {
+                    Err(DatahostStorageError::PathNotFound(path.clone()))
+                } else {
+                    Ok(())
+                }
+            }
+            // NOTE: Not sure if this actually happens, or if it's always handled by above.
             Err(sqlx::Error::RowNotFound) => Err(DatahostStorageError::PathNotFound(path.clone())),
             Err(e) => Err(e.into()),
         }

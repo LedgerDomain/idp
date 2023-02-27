@@ -1,7 +1,7 @@
 use async_lock::RwLock;
 use idp_core::{
-    BranchNode, Datacache, Datahost, DirNode, FragmentQueryResult, FragmentQueryable, PlumRef,
-    PlumURI, PlumURILocal,
+    BranchNode, BranchNodeBuilder, Datacache, Datahost, DirNode, FragmentQueryResult,
+    FragmentQueryable, PlumRef, PlumURI, PlumURILocal,
 };
 use idp_datahost_storage_sqlite::DatahostStorageSQLite;
 use idp_proto::{
@@ -300,6 +300,7 @@ async fn test_datahost_branch_node() {
 
     let branch_node_0 = BranchNode {
         ancestor_o: None,
+        height: 0,
         metadata: metadata_0_plum_head_seal.clone(),
         content_o: None,
         posi_diff_o: None,
@@ -317,6 +318,10 @@ async fn test_datahost_branch_node() {
 
     let branch_node_1 = BranchNode {
         ancestor_o: Some(branch_node_0_plum_head_seal.clone()),
+        height: branch_node_0
+            .height
+            .checked_add(1)
+            .expect("height overflow"),
         metadata: metadata_1_plum_head_seal.clone(),
         content_o: Some(content_1_plum_head_seal.clone()),
         posi_diff_o: None,
@@ -334,6 +339,10 @@ async fn test_datahost_branch_node() {
 
     let branch_node_2 = BranchNode {
         ancestor_o: Some(branch_node_1_plum_head_seal.clone()),
+        height: branch_node_1
+            .height
+            .checked_add(1)
+            .expect("height overflow"),
         metadata: metadata_2_plum_head_seal.clone(),
         content_o: Some(content_2_plum_head_seal.clone()),
         posi_diff_o: None,
@@ -1197,14 +1206,19 @@ async fn test_path_state() {
     assert!(!datahost.has_path_state(&path, None).await.expect("pass"));
 }
 
-/// This does not store the Plum in a Datahost.
-fn build_random_branch_node_and_plum_with_ancestor(
-    ancestor_o: Option<&PlumHeadSeal>,
-) -> (BranchNode, Plum) {
+async fn build_and_store_random_branch_node_and_plum_with_ancestor(
+    ancestor_o: Option<&Plum>,
+    datahost: &Datahost,
+) -> (BranchNode, Plum, PlumHeadSeal) {
     let metadata_plum = PlumBuilder::new()
         .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
         .with_plum_body_content(format!("BranchNode metadata {}", Uuid::new_v4()).into_bytes())
         .build()
+        .expect("pass");
+
+    let metadata_plum_head_seal = datahost
+        .store_plum(&metadata_plum, None)
+        .await
         .expect("pass");
 
     let content_plum = PlumBuilder::new()
@@ -1213,20 +1227,42 @@ fn build_random_branch_node_and_plum_with_ancestor(
         .build()
         .expect("pass");
 
-    let branch_node = BranchNode {
-        ancestor_o: ancestor_o.cloned(),
-        metadata: PlumHeadSeal::from(&metadata_plum.plum_head),
-        content_o: Some(PlumHeadSeal::from(&content_plum.plum_head)),
-        posi_diff_o: None,
-        nega_diff_o: None,
+    let content_plum_head_seal = datahost
+        .store_plum(&content_plum, None)
+        .await
+        .expect("pass");
+
+    let branch_node = {
+        let mut branch_node_builder = BranchNodeBuilder::new();
+        branch_node_builder = if let Some(ancestor) = ancestor_o {
+            branch_node_builder.with_ancestor(ancestor).expect("pass")
+        } else {
+            branch_node_builder
+        };
+        branch_node_builder
+            .with_metadata(metadata_plum_head_seal)
+            .with_content(content_plum_head_seal)
+            .build()
+            .expect("pass")
     };
+
     let branch_node_plum = PlumBuilder::new()
         .with_relational_typed_content_from(&branch_node)
         .expect("pass")
         .build()
         .expect("pass");
 
-    (branch_node, branch_node_plum)
+    let branch_node_plum_head_seal = datahost
+        .store_plum(&branch_node_plum, None)
+        .await
+        .expect("pass");
+
+    assert_eq!(
+        branch_node_plum_head_seal,
+        PlumHeadSeal::from(&branch_node_plum.plum_head)
+    );
+
+    (branch_node, branch_node_plum, branch_node_plum_head_seal)
 }
 
 #[tokio::test]
@@ -1234,11 +1270,438 @@ fn build_random_branch_node_and_plum_with_ancestor(
 async fn test_branch() {
     let datahost = datahost_from_env_var().await;
 
-    let path = Path::from(format!("branchypath-{}", Uuid::new_v4()));
+    let (_branch_node_0, branch_node_0_plum, branch_node_0_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(None, &datahost).await;
+    let (_branch_node_1, branch_node_1_plum, branch_node_1_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_0_plum),
+            &datahost,
+        )
+        .await;
 
-    let (_branch_node_0, branch_node_0_plum) =
-        build_random_branch_node_and_plum_with_ancestor(None);
-    let branch_node_0_plum_head_seal = PlumHeadSeal::from(&branch_node_0_plum.plum_head);
+    // Make a fork here into branches a and b.
+
+    let (_branch_node_a2, branch_node_a2_plum, branch_node_a2_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_1_plum),
+            &datahost,
+        )
+        .await;
+    let (_branch_node_a3, branch_node_a3_plum, branch_node_a3_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_a2_plum),
+            &datahost,
+        )
+        .await;
+    let (_branch_node_a4, _branch_node_a4_plum, branch_node_a4_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_a3_plum),
+            &datahost,
+        )
+        .await;
+
+    let (_branch_node_b2, branch_node_b2_plum, branch_node_b2_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_1_plum),
+            &datahost,
+        )
+        .await;
+    let (_branch_node_b3, branch_node_b3_plum, branch_node_b3_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_b2_plum),
+            &datahost,
+        )
+        .await;
+    let (_branch_node_b4, _branch_node_b4_plum, branch_node_b4_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&branch_node_b3_plum),
+            &datahost,
+        )
+        .await;
+
+    // Create a totally unrelated branch as well, to test closest common ancestor.
+    let (_other_branch_node_0, other_branch_node_0_plum, other_branch_node_0_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(None, &datahost).await;
+    let (_other_branch_node_1, other_branch_node_1_plum, other_branch_node_1_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&other_branch_node_0_plum),
+            &datahost,
+        )
+        .await;
+    let (_other_branch_node_2, _other_branch_node_2_plum, other_branch_node_2_plum_head_seal) =
+        build_and_store_random_branch_node_and_plum_with_ancestor(
+            Some(&other_branch_node_1_plum),
+            &datahost,
+        )
+        .await;
+
+    // Test computation of closest common ancestor.
+    {
+        struct ClosestCommonAncestorTestCase<'a> {
+            lhs: &'a PlumHeadSeal,
+            rhs: &'a PlumHeadSeal,
+            expect_o: Option<&'a PlumHeadSeal>,
+        }
+
+        for closest_common_ancestor_test_case in &[
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_0_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_1_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a2_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a3_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a4_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: Some(&branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_0_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_1_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a2_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a3_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a4_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_1_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a2_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_a2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a3_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_a2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a4_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_a2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_a2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a3_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: Some(&branch_node_a3_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a4_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: Some(&branch_node_a3_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_a3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_a4_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: Some(&branch_node_a4_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: Some(&branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_a4_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b2_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: Some(&branch_node_b2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: Some(&branch_node_b2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: Some(&branch_node_b2_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_b2_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b3_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: Some(&branch_node_b3_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: Some(&branch_node_b3_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &branch_node_b4_plum_head_seal,
+                rhs: &branch_node_b4_plum_head_seal,
+                expect_o: Some(&branch_node_b4_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &branch_node_b3_plum_head_seal,
+                expect_o: None,
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_0_plum_head_seal,
+                rhs: &other_branch_node_0_plum_head_seal,
+                expect_o: Some(&other_branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &other_branch_node_0_plum_head_seal,
+                expect_o: Some(&other_branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &other_branch_node_0_plum_head_seal,
+                expect_o: Some(&other_branch_node_0_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_1_plum_head_seal,
+                rhs: &other_branch_node_1_plum_head_seal,
+                expect_o: Some(&other_branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &other_branch_node_1_plum_head_seal,
+                expect_o: Some(&other_branch_node_1_plum_head_seal),
+            },
+            ClosestCommonAncestorTestCase {
+                lhs: &other_branch_node_2_plum_head_seal,
+                rhs: &other_branch_node_2_plum_head_seal,
+                expect_o: Some(&other_branch_node_2_plum_head_seal),
+            },
+        ] {
+            assert_eq!(
+                datahost
+                    .closest_common_branch_node_ancestor(
+                        closest_common_ancestor_test_case.lhs,
+                        closest_common_ancestor_test_case.rhs,
+                        None
+                    )
+                    .await
+                    .expect("pass"),
+                closest_common_ancestor_test_case.expect_o.cloned(),
+            );
+            // Also test lhs <-> rhs, since it should be a symmetric relationship.
+            assert_eq!(
+                datahost
+                    .closest_common_branch_node_ancestor(
+                        closest_common_ancestor_test_case.rhs,
+                        closest_common_ancestor_test_case.lhs,
+                        None
+                    )
+                    .await
+                    .expect("pass"),
+                closest_common_ancestor_test_case.expect_o.cloned(),
+            );
+        }
+    }
+
+    let path = Path::from(format!("branchypath-{}", Uuid::new_v4()));
 
     assert!(!datahost.has_path_state(&path, None).await.expect("pass"));
     datahost
@@ -1247,16 +1710,25 @@ async fn test_branch() {
         .expect_err("fail");
 
     // Verify that attempting to create a Branch without the BranchNode Plum causes an error.
-    datahost
-        .branch_create(
-            &PathState {
-                path: path.clone(),
-                current_state_plum_head_seal: PlumHeadSeal::from(&branch_node_0_plum.plum_head),
-            },
-            None,
-        )
-        .await
-        .expect_err("fail");
+    {
+        // Create a Plum and don't store it, just use its PlumHeadSeal.
+        let rando_plum = PlumBuilder::new()
+            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
+            .with_plum_body_content(format!("rando plum {}", Uuid::new_v4()).into_bytes())
+            .build()
+            .expect("pass");
+
+        datahost
+            .branch_create(
+                &PathState {
+                    path: path.clone(),
+                    current_state_plum_head_seal: PlumHeadSeal::from(&rando_plum.plum_head),
+                },
+                None,
+            )
+            .await
+            .expect_err("fail");
+    }
 
     // Store the Plum, and try to create the branch again.
     let branch_node_0_plum_head_seal_ = datahost
@@ -1283,74 +1755,14 @@ async fn test_branch() {
         branch_node_0_plum_head_seal
     );
 
-    // Create some more branch nodes.
-
-    let (_branch_node_1, branch_node_1_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_0_plum.plum_head)),
-    );
-
-    // Make a fork here into branches a and b.
-
-    let (_branch_node_a2, branch_node_a2_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_1_plum.plum_head)),
-    );
-    let (_branch_node_a3, branch_node_a3_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_a2_plum.plum_head)),
-    );
-    let (_branch_node_a4, branch_node_a4_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_a3_plum.plum_head)),
-    );
-
-    let (_branch_node_b2, branch_node_b2_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_1_plum.plum_head)),
-    );
-    let (_branch_node_b3, branch_node_b3_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_b2_plum.plum_head)),
-    );
-    let (_branch_node_b4, branch_node_b4_plum) = build_random_branch_node_and_plum_with_ancestor(
-        Some(&PlumHeadSeal::from(&branch_node_b3_plum.plum_head)),
-    );
-
-    // Store branch nodes.
-
-    let branch_node_1_plum_head_seal = datahost
-        .store_plum(&branch_node_1_plum, None)
-        .await
-        .expect("pass");
-
-    for branch_node_plum in [
-        &branch_node_a2_plum,
-        &branch_node_a3_plum,
-        &branch_node_b2_plum,
-        &branch_node_b3_plum,
-    ]
-    .into_iter()
-    {
-        datahost
-            .store_plum(branch_node_plum, None)
-            .await
-            .expect("pass");
-    }
-
-    let branch_node_a4_plum_head_seal = datahost
-        .store_plum(&branch_node_a4_plum, None)
-        .await
-        .expect("pass");
-    let branch_node_b4_plum_head_seal = datahost
-        .store_plum(&branch_node_b4_plum, None)
-        .await
-        .expect("pass");
-
     // Now set the branch head to one of the forks -- fast forward.
     datahost
         .branch_set_head(
             BranchSetHeadRequest {
                 branch_path: path.clone(),
-                value: Some(
-                    branch_set_head_request::Value::BranchFastForwardToPlumHeadSeal(
-                        branch_node_a4_plum_head_seal.clone(),
-                    ),
-                ),
+                value: Some(branch_set_head_request::Value::BranchFastForwardTo(
+                    branch_node_a4_plum_head_seal.clone(),
+                )),
             },
             None,
         )
@@ -1361,12 +1773,50 @@ async fn test_branch() {
         branch_node_a4_plum_head_seal
     );
 
+    // Verify that fast-forward to an ancestor fails.
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchFastForwardTo(
+                    branch_node_1_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        branch_node_a4_plum_head_seal
+    );
+
+    // Verify that fast-forward to a no-common-ancestor node fails.
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchFastForwardTo(
+                    other_branch_node_0_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        branch_node_a4_plum_head_seal
+    );
+
     // Now set the branch head back to the common ancestor -- rewind.
     datahost
         .branch_set_head(
             BranchSetHeadRequest {
                 branch_path: path.clone(),
-                value: Some(branch_set_head_request::Value::BranchRewindToPlumHeadSeal(
+                value: Some(branch_set_head_request::Value::BranchRewindTo(
                     branch_node_1_plum_head_seal.clone(),
                 )),
             },
@@ -1379,16 +1829,52 @@ async fn test_branch() {
         branch_node_1_plum_head_seal
     );
 
+    // Verify that rewind to a descendant fails.
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchRewindTo(
+                    branch_node_a4_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        branch_node_1_plum_head_seal
+    );
+
+    // Verify that rewind to a no-common-ancestor node fails.
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchRewindTo(
+                    other_branch_node_2_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        branch_node_1_plum_head_seal
+    );
+
     // Now set the branch head to the other of the forks -- fast forward.
     datahost
         .branch_set_head(
             BranchSetHeadRequest {
                 branch_path: path.clone(),
-                value: Some(
-                    branch_set_head_request::Value::BranchFastForwardToPlumHeadSeal(
-                        branch_node_b4_plum_head_seal.clone(),
-                    ),
-                ),
+                value: Some(branch_set_head_request::Value::BranchFastForwardTo(
+                    branch_node_b4_plum_head_seal.clone(),
+                )),
             },
             None,
         )
@@ -1404,11 +1890,9 @@ async fn test_branch() {
         .branch_set_head(
             BranchSetHeadRequest {
                 branch_path: path.clone(),
-                value: Some(
-                    branch_set_head_request::Value::BranchForceResetToPlumHeadSeal(
-                        branch_node_a4_plum_head_seal.clone(),
-                    ),
-                ),
+                value: Some(branch_set_head_request::Value::BranchForkHistoryTo(
+                    branch_node_a4_plum_head_seal.clone(),
+                )),
             },
             None,
         )
@@ -1419,15 +1903,105 @@ async fn test_branch() {
         branch_node_a4_plum_head_seal
     );
 
-    // TODO: test the case where there's no common ancestor (this would be where someone tries to change the branch
-    // to one with no shared history at all, which should be a different operation entirely; similar to git filter)
+    // Verify that fork-history to a no-common-ancestor node fails
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchForkHistoryTo(
+                    other_branch_node_2_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        branch_node_a4_plum_head_seal
+    );
 
-    // TODO: More negative tests, e.g. trying to set the branch head to a non-BranchNode.
+    // Test the case where there's no common ancestor (this would be where someone tries to change the branch
+    // to one with no shared history at all, which should be a different operation entirely; similar to git filter)
+    // Now set the branch head to the first of the forks again -- reset
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchTotallyRewriteTo(
+                    other_branch_node_2_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect("pass");
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        other_branch_node_2_plum_head_seal
+    );
+
+    // Verify that total-rewrite to a common-ancestor node fails
+    datahost
+        .branch_set_head(
+            BranchSetHeadRequest {
+                branch_path: path.clone(),
+                value: Some(branch_set_head_request::Value::BranchTotallyRewriteTo(
+                    other_branch_node_1_plum_head_seal.clone(),
+                )),
+            },
+            None,
+        )
+        .await
+        .expect_err("fail");
+    // Verify that the branch head didn't change.
+    assert_eq!(
+        datahost.branch_get_head(&path, None).await.expect("pass"),
+        other_branch_node_2_plum_head_seal
+    );
+
+    // Verify that attempting to set the branch head to a non-BranchNode fails.
+    {
+        let non_branch_node_plum = PlumBuilder::new()
+            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
+            .with_plum_body_content(
+                format!("a mad hippo is a glad hippo; {}", Uuid::new_v4()).into_bytes(),
+            )
+            .build()
+            .expect("pass");
+        let non_branch_node_plum_head_seal = datahost
+            .store_plum(&non_branch_node_plum, None)
+            .await
+            .expect("pass");
+        datahost
+            .branch_set_head(
+                BranchSetHeadRequest {
+                    branch_path: path.clone(),
+                    value: Some(branch_set_head_request::Value::BranchFastForwardTo(
+                        non_branch_node_plum_head_seal.clone(),
+                    )),
+                },
+                None,
+            )
+            .await
+            .expect_err("fail");
+        // TODO: Could test other branch_set_head_request::Value variants, but this is probably fine.
+    }
 
     // Now delete the branch
     datahost.branch_delete(&path, None).await.expect("pass");
     datahost
         .branch_get_head(&path, None)
+        .await
+        .expect_err("fail");
+
+    // Verify that deleting a non-existent branch fails.
+    datahost
+        .branch_delete(
+            &Path::from(format!("nonexistent-branch-{}", Uuid::new_v4())),
+            None,
+        )
         .await
         .expect_err("fail");
 }

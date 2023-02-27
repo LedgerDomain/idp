@@ -354,9 +354,10 @@ message BranchGetHeadResponse {
 message BranchSetHeadRequest {
     required Path branch_path = 1;
     oneof value {
-        PlumHeadSeal branch_fast_forward_to_plum_head_seal = 2;
-        PlumHeadSeal branch_rewind_to_plum_head_seal = 3;
-        PlumHeadSeal branch_force_reset_to_plum_head_seal = 4;
+        PlumHeadSeal branch_fast_forward_to = 2;
+        PlumHeadSeal branch_rewind_to = 3;
+        PlumHeadSeal branch_fork_history_to = 4;
+        PlumHeadSeal branch_totally_rewrite_to = 5;
     }
 }
 

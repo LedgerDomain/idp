@@ -16,6 +16,9 @@ impl ContentTypeable for DummyTypedBody {
     fn content_type() -> ContentType {
         ContentType::from("idp_proto::tests::DummyTypedBody".as_bytes().to_vec())
     }
+    fn content_type_matches(bytes: &[u8]) -> bool {
+        return bytes == "idp_proto::tests::DummyTypedBody".as_bytes();
+    }
 }
 
 impl PlumRelational for DummyTypedBody {

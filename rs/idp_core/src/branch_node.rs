@@ -5,22 +5,65 @@ use std::collections::HashMap;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct BranchNode {
-    /// This is the direct ancestor of this BranchNode.  It must refer to a BranchNode itself.
+    /// This is the direct ancestor of this BranchNode.  It must refer to a BranchNode Plum whose
+    /// height is less than that of this BranchNode.
     pub ancestor_o: Option<PlumHeadSeal>,
-    /// This could have any type, but should probably adhere to some general metadata schema.
+    /// The height gives a useful way to rule out certain causal orders when comparing BranchNode-s.
+    /// The height of a BranchNode must be greater than the max of the heights of this node's ancestor(s).
+    /// By convention, if there are no ancestors, the height is defined to be 0.  Note that this is
+    /// only required to be a local property of the BranchNode DAG, not a global property.
+    pub height: u64,
+    /// The Plum this refers to could have any type, but should probably adhere to some general metadata schema.
     pub metadata: PlumHeadSeal,
-    /// This is the actual content of this BranchNode.  TODO: Should there be a delta attribute separate from content?
+    /// This is the actual content Plum of this BranchNode.
+    // TODO: Should this not be non-optional? The argument for optional is that the actual state of the
+    // branch can be tracked separately, using the posi- and nega-diffs.  Maybe there can be a separate
+    // version of BranchNode that has these semantics.
     pub content_o: Option<PlumHeadSeal>,
     /// This specifies the diff from the previous state of this branch to this state.
     pub posi_diff_o: Option<PlumHeadSeal>,
     /// This specifies the diff from this state of this branch to the previous state.
     pub nega_diff_o: Option<PlumHeadSeal>,
-    // TODO: merge nodes
+    // TODO: merge nodes (or generally an arbitrary number of ancestors)
 }
+
+// impl BranchNode {
+//     // TODO: This could be generalizable to ContentTypeable + serde::DeserializeOwned
+//     pub fn from_plum(plum: &Plum) -> std::result::Result<Self, BranchError> {
+//         // let plum_body_content_type_str =
+//         //     std::str::from_utf8(lhs_current_plum.plum_body.plum_body_content_type.as_slice())
+//         //         .map_err(|e| BranchNode::InternalError {
+//         //             description: format!(
+//         //         "BranchNode ancestor {} PlumBody had a malformed plum_body_content_type; {}",
+//         //         lhs_current, e
+//         //     ),
+//         //         })?;
+//         if !Self::content_type_matches(plum.plum_body.plum_body_content_type.as_slice()) {
+//             return Err(BranchError::PlumIsNotABranchNode {
+//                 plum_head_seal: lhs_current,
+//                 description: "its plum_body_content_type was not \"idp::BranchNode\"".to_string(),
+//             });
+//         }
+//         let branch_node: BranchNode = rmp_serde::from_read(
+//             lhs_current_plum.plum_body.plum_body_content.as_slice(),
+//         )
+//         .map_err(|e| BranchError::PlumIsNotABranchNode {
+//             plum_head_seal: lhs_current,
+//             description: format!(
+//                 "its plum_body_content failed to deserialize into BranchNode; {}",
+//                 e
+//             ),
+//         })?;
+//         Ok(branch_node)
+//     }
+// }
 
 impl ContentTypeable for BranchNode {
     fn content_type() -> ContentType {
         ContentType::from("idp::BranchNode".as_bytes().to_vec())
+    }
+    fn content_type_matches(bytes: &[u8]) -> bool {
+        return bytes == "idp::BranchNode".as_bytes();
     }
 }
 

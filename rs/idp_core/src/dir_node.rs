@@ -13,6 +13,9 @@ impl ContentTypeable for DirNode {
     fn content_type() -> ContentType {
         ContentType::from("idp::DirNode".as_bytes().to_vec())
     }
+    fn content_type_matches(bytes: &[u8]) -> bool {
+        return bytes == "idp::DirNode".as_bytes();
+    }
 }
 
 impl idp_proto::PlumRelational for DirNode {

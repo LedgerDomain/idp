@@ -1,18 +1,18 @@
-#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContentType {
     #[prost(bytes = "vec", required, tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
-#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Id {
     #[prost(string, required, tag = "1")]
     pub value: ::prost::alloc::string::String,
 }
-#[derive(serde::Deserialize, derive_more::From, serde::Serialize)]
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Nonce {
@@ -55,6 +55,7 @@ pub struct Sha256Sum {
 /// Storing nanoseconds in an int64 gives 292.27 years range around the Unix epoch, 1970-01-01 UTC.
 #[derive(
     Copy,
+    derive_more::Deref,
     serde::Deserialize,
     derive_more::From,
     derive_more::Into,
@@ -361,7 +362,7 @@ pub struct BranchGetHeadResponse {
 pub struct BranchSetHeadRequest {
     #[prost(message, required, tag = "1")]
     pub branch_path: Path,
-    #[prost(oneof = "branch_set_head_request::Value", tags = "2, 3, 4")]
+    #[prost(oneof = "branch_set_head_request::Value", tags = "2, 3, 4, 5")]
     pub value: ::core::option::Option<branch_set_head_request::Value>,
 }
 /// Nested message and enum types in `BranchSetHeadRequest`.
@@ -370,11 +371,13 @@ pub mod branch_set_head_request {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "2")]
-        BranchFastForwardToPlumHeadSeal(super::PlumHeadSeal),
+        BranchFastForwardTo(super::PlumHeadSeal),
         #[prost(message, tag = "3")]
-        BranchRewindToPlumHeadSeal(super::PlumHeadSeal),
+        BranchRewindTo(super::PlumHeadSeal),
         #[prost(message, tag = "4")]
-        BranchForceResetToPlumHeadSeal(super::PlumHeadSeal),
+        BranchForkHistoryTo(super::PlumHeadSeal),
+        #[prost(message, tag = "5")]
+        BranchTotallyRewriteTo(super::PlumHeadSeal),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

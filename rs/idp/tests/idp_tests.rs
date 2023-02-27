@@ -116,6 +116,7 @@ impl TestData {
 
         let branch_node_0 = BranchNode {
             ancestor_o: None,
+            height: 0,
             metadata: metadata_0_plum_head_seal.clone(),
             content_o: None,
             posi_diff_o: None,
@@ -133,6 +134,7 @@ impl TestData {
 
         let branch_node_1 = BranchNode {
             ancestor_o: Some(branch_node_0_plum_head_seal.clone()),
+            height: branch_node_0.height.checked_add(1).expect("height overflow"),
             metadata: metadata_1_plum_head_seal.clone(),
             content_o: Some(content_1_plum_head_seal.clone()),
             posi_diff_o: None,
@@ -150,6 +152,7 @@ impl TestData {
 
         let branch_node_2 = BranchNode {
             ancestor_o: Some(branch_node_1_plum_head_seal.clone()),
+            height: branch_node_1.height.checked_add(1).expect("height overflow"),
             metadata: metadata_2_plum_head_seal.clone(),
             content_o: Some(content_2_plum_head_seal.clone()),
             posi_diff_o: None,
