@@ -36,6 +36,10 @@ The tests run against a local SQLite database named `idp_core_tests.db`.  For fu
     -   Dumb implementations would simply assume that dependency trees can't be incomplete
         from below (meaning if a Plum is present all its dependencies are present).
     -   Correct implementations would do dependency completeness tracking.
+-   Each PathState should have a "governor" which indicates the specific service process that's used
+    to interact with that PathState.  E.g. "Branch" for branch operations.  In general, a service
+    process would effectively offer a specific API at that path.  Ideally, there would be an API
+    discovery request that a client could make to figure out what's at that endpoint.
 
 ## To-don'ts (I.e. Done)
 
