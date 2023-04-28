@@ -1,7 +1,8 @@
 use crate::{sqlite_transaction_mut, DatahostStorageSQLiteTransaction};
 use idp_core::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
-    ContentType, Id, Nonce, Path, PathState, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
+    Content, ContentClass, ContentEncoding, ContentFormat, ContentMetadata, Nonce, Path, PathState,
+    PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumMetadata, PlumMetadataSeal,
     PlumRelationFlags, PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum,
     UnixNanoseconds,
 };
@@ -58,6 +59,21 @@ impl DatahostStorage for DatahostStorageSQLite {
         let value = sqlx::query!(
             "SELECT EXISTS(SELECT 1 FROM plum_heads WHERE plum_head_seal = $1) AS value",
             plum_head_seal.value.sha256sum.value
+        )
+        .fetch_one(sqlite_transaction)
+        .await?
+        .value;
+        Ok(value != 0)
+    }
+    async fn has_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata_seal: &PlumMetadataSeal,
+    ) -> Result<bool, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        let value = sqlx::query!(
+            "SELECT EXISTS(SELECT 1 FROM plum_metadatas WHERE plum_metadata_seal = $1) AS value",
+            plum_metadata_seal.value.sha256sum.value
         )
         .fetch_one(sqlite_transaction)
         .await?
@@ -128,15 +144,6 @@ impl DatahostStorage for DatahostStorageSQLite {
             .plum_head_nonce_o
             .as_ref()
             .map(|plum_head_nonce| &plum_head_nonce.value);
-        let plum_relations_seal_o = plum_head
-            .plum_relations_seal_o
-            .as_ref()
-            .map(|plum_relations_seal| &plum_relations_seal.value.sha256sum.value);
-        let owner_id_o = plum_head
-            .owner_id_o
-            .as_ref()
-            .map(|owner_id| &owner_id.value);
-        let created_at_o = plum_head.created_at_o.map(|created_at| created_at.value);
         // Ignore collision.  The PlumHeadSeal being identical should guarantee that the plum_heads row is
         // identical except for the plum_heads_rowid and row_inserted_at.  However, it might be good to add
         // a check upon collision that the row is actually identical.
@@ -145,12 +152,10 @@ impl DatahostStorage for DatahostStorageSQLite {
                 row_inserted_at,
                 plum_head_seal,
                 plum_head_nonce_o,
-                plum_relations_seal_o,
-                plum_body_seal,
-                owner_id_o,
-                created_at_o,
-                metadata_o
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                plum_metadata_seal,
+                plum_relations_seal,
+                plum_body_seal
+            ) VALUES ($1, $2, $3, $4, $5, $6)
             -- ON CONFLICT(plum_head_seal) DO NOTHING
             RETURNING plum_heads_rowid
             --;
@@ -159,17 +164,151 @@ impl DatahostStorage for DatahostStorageSQLite {
             now.value,
             plum_head_seal.value.sha256sum.value,
             plum_head_nonce_o,
-            plum_relations_seal_o,
+            plum_head.plum_metadata_seal.value.sha256sum.value,
+            plum_head.plum_relations_seal.value.sha256sum.value,
             plum_head.plum_body_seal.value.sha256sum.value,
-            owner_id_o,
-            created_at_o,
-            plum_head.metadata_o,
         )
         .fetch_one(sqlite_transaction)
         .await?
         .plum_heads_rowid;
 
         Ok(plum_head_seal)
+    }
+    async fn store_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata: &PlumMetadata,
+    ) -> Result<PlumMetadataSeal, DatahostStorageError> {
+        let plum_metadata_seal = PlumMetadataSeal::from(plum_metadata);
+        log::debug!(
+            "store_plum_metadata; storing plum_metadata with seal: {}",
+            plum_metadata_seal
+        );
+
+        // TEMP HACK
+        if self
+            .has_plum_metadata(&mut *transaction, &plum_metadata_seal)
+            .await?
+        {
+            // Can early out in this case
+            log::debug!(
+                "store_plum_metadata; already had plum_metadata with seal: {}",
+                plum_metadata_seal
+            );
+            return Ok(plum_metadata_seal);
+        }
+
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+
+        let now = UnixNanoseconds::now();
+
+        // Due to https://github.com/launchbadge/sqlx/issues/1430 it seems that these temps are unavoidable.
+        let plum_metadata_nonce_o = plum_metadata
+            .plum_metadata_nonce_o
+            .as_ref()
+            .map(|plum_metadata_nonce| &plum_metadata_nonce.value);
+
+        let plum_created_at_o = plum_metadata
+            .plum_created_at_o
+            .map(|created_at| created_at.value);
+
+        let plum_body_content_length_o = if let Some(plum_body_content_metadata) =
+            plum_metadata.plum_body_content_metadata_o.as_ref()
+        {
+            // SQLite doesn't support u64, so we have to check for overflow.
+            if plum_body_content_metadata.content_length > (i64::MAX as u64) {
+                panic!("plum_body_content_length too large (exceeds max of i64) in PlumMetadata");
+            }
+            Some(plum_body_content_metadata.content_length as i64)
+        } else {
+            None
+        };
+        let plum_body_content_class_o = plum_metadata
+            .plum_body_content_metadata_o
+            .as_ref()
+            .map(|x| x.content_class.as_str());
+        let plum_body_content_format_o = plum_metadata
+            .plum_body_content_metadata_o
+            .as_ref()
+            .map(|x| x.content_format.as_str());
+        let plum_body_content_encoding_o = plum_metadata
+            .plum_body_content_metadata_o
+            .as_ref()
+            .map(|x| x.content_encoding.as_str());
+
+        let additional_content_length_o = if let Some(additional_content) =
+            plum_metadata.additional_content_o.as_ref()
+        {
+            // SQLite doesn't support u64, so we have to check for overflow.
+            if additional_content.content_metadata.content_length > (i64::MAX as u64) {
+                panic!(
+                        "content_length too large (exceeds max of i64) in PlumMetadata additional_content"
+                    );
+            }
+            Some(additional_content.content_metadata.content_length as i64)
+        } else {
+            None
+        };
+        let additional_content_class_o = plum_metadata
+            .additional_content_o
+            .as_ref()
+            .map(|x| x.content_metadata.content_class.as_str());
+        let additional_content_format_o = plum_metadata
+            .additional_content_o
+            .as_ref()
+            .map(|x| x.content_metadata.content_format.as_str());
+        let additional_content_encoding_o = plum_metadata
+            .additional_content_o
+            .as_ref()
+            .map(|x| x.content_metadata.content_encoding.as_str());
+        let additional_content_byte_vo = plum_metadata
+            .additional_content_o
+            .as_ref()
+            .map(|x| x.content_byte_v.as_slice());
+
+        // Ignore collision.  The PlumMetadataSeal being identical should guarantee that the plum_metadatas row is
+        // identical except for the plum_metadatas_rowid and row_inserted_at.  However, it might be good to add
+        // a check upon collision that the row is actually identical.
+        let _plum_metadatas_rowid = sqlx::query!(
+            r#"INSERT INTO plum_metadatas (
+                row_inserted_at,
+                plum_metadata_seal,
+                plum_metadata_nonce_o,
+                plum_created_at_o,
+                plum_body_content_length_o,
+                plum_body_content_class_o,
+                plum_body_content_format_o,
+                plum_body_content_encoding_o,
+                additional_content_length_o,
+                additional_content_class_o,
+                additional_content_format_o,
+                additional_content_encoding_o,
+                additional_content_byte_vo
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            -- ON CONFLICT(plum_metadata_seal) DO NOTHING
+            RETURNING plum_metadatas_rowid
+            --;
+            -- NOTE: This doesn't work
+            --SELECT last_insert_rowid() AS plum_metadatas_rowid"#,
+            now.value,
+            plum_metadata_seal.value.sha256sum.value,
+            plum_metadata_nonce_o,
+            plum_created_at_o,
+            plum_body_content_length_o,
+            plum_body_content_class_o,
+            plum_body_content_format_o,
+            plum_body_content_encoding_o,
+            additional_content_length_o,
+            additional_content_class_o,
+            additional_content_format_o,
+            additional_content_encoding_o,
+            additional_content_byte_vo,
+        )
+        .fetch_one(sqlite_transaction)
+        .await?
+        .plum_metadatas_rowid;
+
+        Ok(plum_metadata_seal)
     }
     async fn store_plum_relations(
         &self,
@@ -314,10 +453,29 @@ impl DatahostStorage for DatahostStorageSQLite {
             .plum_body_nonce_o
             .as_ref()
             .map(|plum_body_nonce| &plum_body_nonce.value);
-        if plum_body.plum_body_content_length > (i64::MAX as u64) {
-            panic!("PlumBody length exceeds the maximum {} (this is not practically possible; this probably means there's a bug)", i64::MAX);
-        }
-        let plum_body_content_length = plum_body.plum_body_content_length as i64;
+        // SQLite doesn't support u64, so we have to check for overflow.
+        let plum_body_content_length =
+            if plum_body.plum_body_content.content_metadata.content_length > (i64::MAX as u64) {
+                panic!("plum_body_content_length too large (exceeds max of i64) in PlumMetadata");
+            } else {
+                plum_body.plum_body_content.content_metadata.content_length as i64
+            };
+        let plum_body_content_class = plum_body
+            .plum_body_content
+            .content_metadata
+            .content_class
+            .as_str();
+        let plum_body_content_format = plum_body
+            .plum_body_content
+            .content_metadata
+            .content_format
+            .as_str();
+        let plum_body_content_encoding = plum_body
+            .plum_body_content
+            .content_metadata
+            .content_encoding
+            .as_str();
+
         // Ignore collision.  The PlumBodySeal being identical should guarantee that the plum_bodies row is
         // identical except for the plum_bodies_rowid and row_inserted_at.  However, it might be good to add
         // a check upon collision that the row is actually identical.
@@ -327,9 +485,11 @@ impl DatahostStorage for DatahostStorageSQLite {
                 plum_body_seal,
                 plum_body_nonce_o,
                 plum_body_content_length,
-                plum_body_content_type,
-                plum_body_content
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+                plum_body_content_class,
+                plum_body_content_format,
+                plum_body_content_encoding,
+                plum_body_content_byte_v
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             --ON CONFLICT(plum_body_seal) DO NOTHING
             RETURNING plum_bodies_rowid
             --;
@@ -338,8 +498,10 @@ impl DatahostStorage for DatahostStorageSQLite {
             plum_body_seal.value.sha256sum.value,
             plum_body_nonce_o,
             plum_body_content_length,
-            plum_body.plum_body_content_type.value,
-            plum_body.plum_body_content,
+            plum_body_content_class,
+            plum_body_content_format,
+            plum_body_content_encoding,
+            plum_body.plum_body_content.content_byte_v,
         )
         .fetch_one(sqlite_transaction)
         .await?
@@ -358,11 +520,9 @@ impl DatahostStorage for DatahostStorageSQLite {
         let plum_heads_row_r = sqlx::query!(
             r#"SELECT
                 plum_head_nonce_o,
-                plum_relations_seal_o,
-                plum_body_seal,
-                owner_id_o,
-                created_at_o,
-                metadata_o
+                plum_metadata_seal,
+                plum_relations_seal,
+                plum_body_seal
             FROM plum_heads
             WHERE plum_head_seal = $1"#,
             plum_head_seal.value.sha256sum.value
@@ -374,19 +534,138 @@ impl DatahostStorage for DatahostStorageSQLite {
             Ok(plum_heads_row) => Ok(Some({
                 PlumHead {
                     plum_head_nonce_o: plum_heads_row.plum_head_nonce_o.map(Nonce::from),
-                    plum_relations_seal_o: plum_heads_row
-                        .plum_relations_seal_o
-                        .map(Sha256Sum::from)
-                        .map(Seal::from)
-                        .map(PlumRelationsSeal::from),
+                    plum_metadata_seal: PlumMetadataSeal::from(Seal::from(Sha256Sum::from(
+                        plum_heads_row.plum_metadata_seal,
+                    ))),
+                    plum_relations_seal: PlumRelationsSeal::from(Seal::from(Sha256Sum::from(
+                        plum_heads_row.plum_relations_seal,
+                    ))),
                     plum_body_seal: PlumBodySeal::from(Seal::from(Sha256Sum::from(
                         plum_heads_row.plum_body_seal,
                     ))),
-                    owner_id_o: plum_heads_row.owner_id_o.map(Id::from),
-                    created_at_o: plum_heads_row.created_at_o.map(UnixNanoseconds::from),
-                    metadata_o: plum_heads_row.metadata_o,
                 }
             })),
+            Err(sqlx::Error::RowNotFound) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+    async fn load_option_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata_seal: &PlumMetadataSeal,
+    ) -> Result<Option<PlumMetadata>, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+
+        let plum_metadatas_row_r = sqlx::query!(
+            r#"SELECT
+                plum_metadata_nonce_o,
+                plum_created_at_o,
+                plum_body_content_length_o,
+                plum_body_content_class_o,
+                plum_body_content_format_o,
+                plum_body_content_encoding_o,
+                additional_content_length_o,
+                additional_content_class_o,
+                additional_content_format_o,
+                additional_content_encoding_o,
+                additional_content_byte_vo
+            FROM plum_metadatas
+            WHERE plum_metadata_seal = $1"#,
+            plum_metadata_seal.value.sha256sum.value
+        )
+        .fetch_one(sqlite_transaction)
+        .await;
+
+        match plum_metadatas_row_r {
+            Ok(plum_metadatas_row) => {
+                // The plum_metadatas table has constraints where plum_body_content_length_o,
+                // plum_body_content_class_o, plum_body_content_format_o, and plum_body_content_encoding_o
+                // must all be NULL or all be non-NULL.
+                let plum_body_content_metadata_o = match (
+                    plum_metadatas_row.plum_body_content_length_o,
+                    plum_metadatas_row.plum_body_content_class_o,
+                    plum_metadatas_row.plum_body_content_format_o,
+                    plum_metadatas_row.plum_body_content_encoding_o,
+                ) {
+                    (
+                        Some(content_length),
+                        Some(content_class),
+                        Some(content_format),
+                        Some(content_encoding),
+                    ) => {
+                        if content_length < 0 {
+                            return Err(DatahostStorageError::InvalidValueInDB {
+                                table_name: "plum_metadatas",
+                                column_name: "plum_body_content_length_o",
+                                reason: "column value was negative".to_string(),
+                            });
+                        }
+                        Some(ContentMetadata {
+                            content_length: content_length as u64,
+                            content_class: ContentClass::from(content_class.to_string()),
+                            content_format: ContentFormat::from(content_format.to_string()),
+                            content_encoding: ContentEncoding::from(content_encoding.to_string()),
+                        })
+                    }
+                    (None, None, None, None) => None,
+                    _ => {
+                        // Not sure if panic is the right way to go, but use it for now, so errors are detected early in development.
+                        panic!("programmer error: DB constraint failure in plum_body_content_* columns of plum_metadatas table");
+                    }
+                };
+
+                // The plum_metadatas table has constraints where additional_content_length_o,
+                // additional_content_class_o, additional_content_format_o, additional_content_encoding_o,
+                // and additional_content_byte_vo must all be NULL or all be non-NULL.
+                let additional_content_o = match (
+                    plum_metadatas_row.additional_content_length_o,
+                    plum_metadatas_row.additional_content_class_o,
+                    plum_metadatas_row.additional_content_format_o,
+                    plum_metadatas_row.additional_content_encoding_o,
+                    plum_metadatas_row.additional_content_byte_vo,
+                ) {
+                    (
+                        Some(content_length),
+                        Some(content_class),
+                        Some(content_format),
+                        Some(content_encoding),
+                        Some(content_byte_v),
+                    ) => {
+                        if content_length < 0 {
+                            return Err(DatahostStorageError::InvalidValueInDB {
+                                table_name: "plum_metadatas",
+                                column_name: "additional_content_length_o",
+                                reason: "column value was negative".to_string(),
+                            });
+                        }
+                        Some(Content {
+                            content_metadata: ContentMetadata {
+                                content_length: content_length as u64,
+                                content_class: ContentClass::from(content_class.to_string()),
+                                content_format: ContentFormat::from(content_format.to_string()),
+                                content_encoding: ContentEncoding::from(
+                                    content_encoding.to_string(),
+                                ),
+                            },
+                            content_byte_v,
+                        })
+                    }
+                    (None, None, None, None, None) => None,
+                    _ => {
+                        // Not sure if panic is the right way to go, but use it for now, so errors are detected early in development.
+                        panic!("programmer error: DB constraint failure in additional_content_* columns of plum_metadatas table");
+                    }
+                };
+
+                Ok(Some(PlumMetadata {
+                    plum_metadata_nonce_o: plum_metadatas_row
+                        .plum_metadata_nonce_o
+                        .map(Nonce::from),
+                    plum_created_at_o: plum_metadatas_row.plum_created_at_o.map(|x| x.into()),
+                    plum_body_content_metadata_o,
+                    additional_content_o,
+                }))
+            }
             Err(sqlx::Error::RowNotFound) => Ok(None),
             Err(e) => Err(e.into()),
         }
@@ -478,8 +757,10 @@ impl DatahostStorage for DatahostStorageSQLite {
             r#"SELECT
                 plum_body_nonce_o,
                 plum_body_content_length,
-                plum_body_content_type,
-                plum_body_content
+                plum_body_content_class,
+                plum_body_content_format,
+                plum_body_content_encoding,
+                plum_body_content_byte_v
             FROM plum_bodies
             WHERE plum_body_seal = $1"#,
             plum_body_seal.value.sha256sum.value
@@ -496,12 +777,19 @@ impl DatahostStorage for DatahostStorageSQLite {
                         reason: "column value was negative".to_string(),
                     });
                 }
-                let record_plum_body_content_length = record.plum_body_content_length as u64;
                 Ok(Some(PlumBody {
                     plum_body_nonce_o: record.plum_body_nonce_o.map(Nonce::from),
-                    plum_body_content_length: record_plum_body_content_length,
-                    plum_body_content_type: ContentType::from(record.plum_body_content_type),
-                    plum_body_content: record.plum_body_content,
+                    plum_body_content: Content {
+                        content_metadata: ContentMetadata {
+                            content_length: record.plum_body_content_length as u64,
+                            content_class: ContentClass::from(record.plum_body_content_class),
+                            content_format: ContentFormat::from(record.plum_body_content_format),
+                            content_encoding: ContentEncoding::from(
+                                record.plum_body_content_encoding,
+                            ),
+                        },
+                        content_byte_v: record.plum_body_content_byte_v,
+                    },
                 }))
             }
             Err(sqlx::Error::RowNotFound) => Ok(None),

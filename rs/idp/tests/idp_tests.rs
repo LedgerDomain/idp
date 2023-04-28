@@ -5,9 +5,10 @@ use idp::{
         PlumRef, PlumURI, PlumURIRemote,
     },
     datahost_storage_sqlite::DatahostStorageSQLite,
-    proto::{ContentType, Plum, PlumBuilder, PlumHeadSeal, PlumRelationFlags},
+    proto::{Plum, PlumBuilder, PlumHeadSeal, PlumRelationFlags},
     server::IDPServer,
 };
+use idp_proto::{ContentEncoding, ContentFormat};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -44,44 +45,52 @@ impl TestData {
         let content_2 = format!("HIPPOS are cool, {}", Uuid::new_v4());
 
         let content_1_plum = PlumBuilder::new()
-            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
-            .with_plum_body_content(content_1.as_bytes().to_vec())
+            .with_plum_relations_and_plum_body_content_from(
+                &content_1,
+                ContentFormat::charset_us_ascii(),
+                ContentEncoding::none(),
+            )
+            .expect("pass")
             .build()
             .expect("pass");
         let content_2_plum = PlumBuilder::new()
-            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
-            .with_plum_body_content(content_2.as_bytes().to_vec())
+            .with_plum_relations_and_plum_body_content_from(
+                &content_2,
+                ContentFormat::charset_us_ascii(),
+                ContentEncoding::none(),
+            )
+            .expect("pass")
             .build()
             .expect("pass");
 
         let metadata_0_plum = PlumBuilder::new()
-            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
-            .with_plum_body_content(
-                format!("Branch root, {}", Uuid::new_v4())
-                    .as_bytes()
-                    .to_vec(),
+            .with_plum_relations_and_plum_body_content_from(
+                &format!("Branch root, {}", Uuid::new_v4()),
+                ContentFormat::charset_us_ascii(),
+                ContentEncoding::none(),
             )
+            .expect("pass")
             .build()
             .expect("pass");
         let metadata_1_plum = PlumBuilder::new()
-            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
-            .with_plum_body_content(
-                format!("Initial statement, {}", Uuid::new_v4())
-                    .as_bytes()
-                    .to_vec(),
+            .with_plum_relations_and_plum_body_content_from(
+                &format!("Initial statement, {}", Uuid::new_v4()),
+                ContentFormat::charset_us_ascii(),
+                ContentEncoding::none(),
             )
+            .expect("pass")
             .build()
             .expect("pass");
         let metadata_2_plum = PlumBuilder::new()
-            .with_plum_body_content_type(ContentType::from("text/plain".as_bytes().to_vec()))
-            .with_plum_body_content(
-                format!(
+            .with_plum_relations_and_plum_body_content_from(
+                &format!(
                     "Revised statement authored by the HIPPO lobby, {}",
                     Uuid::new_v4()
-                )
-                .as_bytes()
-                .to_vec(),
+                ),
+                ContentFormat::charset_us_ascii(),
+                ContentEncoding::none(),
             )
+            .expect("pass")
             .build()
             .expect("pass");
 
@@ -123,7 +132,11 @@ impl TestData {
             nega_diff_o: None,
         };
         let branch_node_0_plum = PlumBuilder::new()
-            .with_relational_typed_content_from(&branch_node_0)
+            .with_plum_relations_and_plum_body_content_from(
+                &branch_node_0,
+                ContentFormat::json(),
+                ContentEncoding::none(),
+            )
             .expect("pass")
             .build()
             .expect("pass");
@@ -134,14 +147,21 @@ impl TestData {
 
         let branch_node_1 = BranchNode {
             ancestor_o: Some(branch_node_0_plum_head_seal.clone()),
-            height: branch_node_0.height.checked_add(1).expect("height overflow"),
+            height: branch_node_0
+                .height
+                .checked_add(1)
+                .expect("height overflow"),
             metadata: metadata_1_plum_head_seal.clone(),
             content_o: Some(content_1_plum_head_seal.clone()),
             posi_diff_o: None,
             nega_diff_o: None,
         };
         let branch_node_1_plum = PlumBuilder::new()
-            .with_relational_typed_content_from(&branch_node_1)
+            .with_plum_relations_and_plum_body_content_from(
+                &branch_node_1,
+                ContentFormat::json(),
+                ContentEncoding::none(),
+            )
             .expect("pass")
             .build()
             .expect("pass");
@@ -152,14 +172,21 @@ impl TestData {
 
         let branch_node_2 = BranchNode {
             ancestor_o: Some(branch_node_1_plum_head_seal.clone()),
-            height: branch_node_1.height.checked_add(1).expect("height overflow"),
+            height: branch_node_1
+                .height
+                .checked_add(1)
+                .expect("height overflow"),
             metadata: metadata_2_plum_head_seal.clone(),
             content_o: Some(content_2_plum_head_seal.clone()),
             posi_diff_o: None,
             nega_diff_o: None,
         };
         let branch_node_2_plum = PlumBuilder::new()
-            .with_relational_typed_content_from(&branch_node_2)
+            .with_plum_relations_and_plum_body_content_from(
+                &branch_node_2,
+                ContentFormat::json(),
+                ContentEncoding::none(),
+            )
             .expect("pass")
             .build()
             .expect("pass");

@@ -1,4 +1,6 @@
-use idp_proto::{Path, PlumBodySeal, PlumHeadSeal, PlumRelationsSeal, PlumVerifyError};
+use idp_proto::{
+    Path, PlumBodySeal, PlumHeadSeal, PlumMetadataSeal, PlumRelationsSeal, PlumVerifyError,
+};
 
 #[derive(Debug, derive_more::From, thiserror::Error)]
 pub enum DatahostStorageError {
@@ -16,12 +18,14 @@ pub enum DatahostStorageError {
     PathNotFound(Path),
     #[error("PlumHead {0} not found")]
     PlumHeadNotFound(PlumHeadSeal),
+    #[error("PlumMetadata {0} not found")]
+    PlumMetadataNotFound(PlumMetadataSeal),
     #[error("PlumRelations {0} not found")]
     PlumRelationsNotFound(PlumRelationsSeal),
     #[error("PlumBody {0} not found")]
     PlumBodyNotFound(PlumBodySeal),
     #[error(transparent)]
-    PlumHeadVerifyError(PlumVerifyError),
+    PlumVerifyError(PlumVerifyError),
     #[cfg(feature = "sqlx-error")]
     #[error(transparent)]
     SqlxError(sqlx::Error),
@@ -37,9 +41,10 @@ impl From<DatahostStorageError> for tonic::Status {
             // DatahostStorageError::PathAlreadyExists(_) => tonic::Code::AlreadyExists,
             DatahostStorageError::PathNotFound(_) => tonic::Code::NotFound,
             DatahostStorageError::PlumHeadNotFound(_) => tonic::Code::NotFound,
+            DatahostStorageError::PlumMetadataNotFound(_) => tonic::Code::NotFound,
             DatahostStorageError::PlumRelationsNotFound(_) => tonic::Code::NotFound,
             DatahostStorageError::PlumBodyNotFound(_) => tonic::Code::NotFound,
-            DatahostStorageError::PlumHeadVerifyError(_) => tonic::Code::InvalidArgument,
+            DatahostStorageError::PlumVerifyError(_) => tonic::Code::InvalidArgument,
             #[cfg(feature = "sqlx-error")]
             DatahostStorageError::SqlxError(_) => tonic::Code::Internal,
         };

@@ -1,16 +1,69 @@
+/// This represents the semantic type of the content, independent from how it's formatted or encoded.
+/// For example, "text/plain", "text/html", "image", "audio", "application/x.idp.DirNode", etc.
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContentClass {
+    #[prost(string, required, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+}
+/// This represents the format of the content, (partially) independent from its semantic type.
+/// For example, "charset=us-ascii" or "charset=utf-8" for a ContentClass of "text/plain",
+/// or "png" or "jpeg" for a ContentClass of "image", or "msgpack" or "json" for a ContentClass
+/// of "application/x.idp.DirNode".
+#[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContentFormat {
+    #[prost(string, required, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+}
+/// This is not meant to be a primary data type in IDP, but is secondary to ContentClass and ContentFormat,
+/// but is present in order to provide compatibility with HTTP and web browsers.
+/// Reference: <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type>
 #[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContentType {
-    #[prost(bytes = "vec", required, tag = "1")]
-    pub value: ::prost::alloc::vec::Vec<u8>,
+    #[prost(string, required, tag = "1")]
+    pub value: ::prost::alloc::string::String,
 }
+/// This represents the sequence of (additional) encodings applied to the serialized content to
+/// produce its final form, represented as a comma-separated sequence of individual encodings.
+/// They are ordered in the order they are to be applied to the serialized content.  An empty string
+/// means that no additional encodings are to be applied and is equivalent to "identity".  Some examples
+/// of individual encodings are "gzip", "bzip2", "deflate", "identity", "base64", "base64url", etc.
+/// Reference: <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding>
 #[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Id {
+pub struct ContentEncoding {
     #[prost(string, required, tag = "1")]
     pub value: ::prost::alloc::string::String,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContentMetadata {
+    #[prost(uint64, required, tag = "1")]
+    pub content_length: u64,
+    #[prost(message, required, tag = "2")]
+    pub content_class: ContentClass,
+    #[prost(message, required, tag = "3")]
+    pub content_format: ContentFormat,
+    #[prost(message, required, tag = "4")]
+    pub content_encoding: ContentEncoding,
+}
+/// A block of bytes with specified length and content type.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Content {
+    #[prost(message, required, tag = "1")]
+    pub content_metadata: ContentMetadata,
+    /// TODO: Maybe make this capable of addressing a path in a filesystem?
+    #[prost(bytes = "vec", required, tag = "2")]
+    pub content_byte_v: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(derive_more::Deref, serde::Deserialize, derive_more::From, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -32,7 +85,7 @@ pub struct Nonce {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Seal {
-    /// TEMP HACK -- it should support more seal types
+    /// TEMP HACK -- it should support more seal types, e.g. HMAC.
     #[prost(message, required, tag = "1")]
     pub sha256sum: Sha256Sum,
 }
@@ -95,6 +148,22 @@ pub struct PlumHeadSeal {
 )]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumMetadataSeal {
+    #[prost(message, required, tag = "1")]
+    pub value: Seal,
+}
+#[derive(
+    derive_more::Deref,
+    serde::Deserialize,
+    Eq,
+    derive_more::From,
+    Hash,
+    Ord,
+    PartialOrd,
+    serde::Serialize
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlumRelationsSeal {
     #[prost(message, required, tag = "1")]
     pub value: Seal,
@@ -113,25 +182,37 @@ pub struct PlumHead {
     /// or otherwise for data that has no need for the protection the nonce provides.
     #[prost(message, optional, tag = "1")]
     pub plum_head_nonce_o: ::core::option::Option<Nonce>,
-    /// Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es).
-    /// This would be left as None e.g. in storing "a plain file", or otherwise for data that doesn't have any
-    /// formal plum_relations.
-    #[prost(message, optional, tag = "2")]
-    pub plum_relations_seal_o: ::core::option::Option<PlumRelationsSeal>,
-    /// PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
+    /// PlumMetadataSeal uniquely identifies a PlumMetadata (for authentication of PlumMetadata).  If it's
+    /// desired to not store metadata, than this would be set to the seal of the canonical "null" PlumMetadata
+    /// which contains all default/null values.
+    #[prost(message, required, tag = "2")]
+    pub plum_metadata_seal: PlumMetadataSeal,
+    /// PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations).  If it's
+    /// desired to not store relations, than this would be set to the seal of the canonical "null" PlumRelations
+    /// which contains all default/null values.
     #[prost(message, required, tag = "3")]
+    pub plum_relations_seal: PlumRelationsSeal,
+    /// PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
+    #[prost(message, required, tag = "4")]
     pub plum_body_seal: PlumBodySeal,
-    /// Optional owner DID.  This would be left as None e.g. in storing "a plain file", or otherwise for data that
-    /// has no need for a formal owner.
-    #[prost(message, optional, tag = "4")]
-    pub owner_id_o: ::core::option::Option<Id>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PlumMetadata {
+    /// Optional nonce for preventing dictionary attacks.  This would be left as None e.g. in storing "a plain file"
+    /// or otherwise for data that has no need for the protection the nonce provides.
+    #[prost(message, optional, tag = "1")]
+    pub plum_metadata_nonce_o: ::core::option::Option<Nonce>,
     /// Optional Plum creation timestamp.
-    #[prost(message, optional, tag = "5")]
-    pub created_at_o: ::core::option::Option<UnixNanoseconds>,
-    /// Optional, unstructured metadata.  This would be left as None e.g. in storing "a plain file", or otherwise
-    /// for data that has no need for metadata.
-    #[prost(bytes = "vec", optional, tag = "6")]
-    pub metadata_o: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+    #[prost(message, optional, tag = "2")]
+    pub plum_created_at_o: ::core::option::Option<UnixNanoseconds>,
+    /// Optional PlumBody content metadata, which, if present, must match the corresponding values in the PlumBody itself.
+    /// Validation of a Plum must include checking this value against that of the PlumBody.
+    #[prost(message, optional, tag = "3")]
+    pub plum_body_content_metadata_o: ::core::option::Option<ContentMetadata>,
+    /// Optional, additional content for the plum metadata.
+    #[prost(message, optional, tag = "4")]
+    pub additional_content_o: ::core::option::Option<Content>,
 }
 /// A set of Relations, encoded as bitflags.
 #[derive(Copy, serde::Deserialize, serde::Serialize)]
@@ -173,15 +254,9 @@ pub struct PlumBody {
     /// Optional nonce can be used to prevent dictionary attacks.
     #[prost(message, optional, tag = "1")]
     pub plum_body_nonce_o: ::core::option::Option<Nonce>,
-    /// Number of bytes in the Plum body itself.
-    #[prost(uint64, required, tag = "2")]
-    pub plum_body_content_length: u64,
-    /// Content type for the Plum body.
-    #[prost(message, required, tag = "3")]
-    pub plum_body_content_type: ContentType,
-    /// Content of the plum itself.  The content type of the bytes is given in the PlumHead.
-    #[prost(bytes = "vec", required, tag = "4")]
-    pub plum_body_content: ::prost::alloc::vec::Vec<u8>,
+    /// The content of the Plum body itself.
+    #[prost(message, required, tag = "2")]
+    pub plum_body_content: Content,
 }
 /// This represents a single data entry; it's a head (metadata), plum_relations, and a body (file content).
 /// Yes, a stupid name, and I hate cute names in software, but it is distinct, and it's a noun.
@@ -191,9 +266,11 @@ pub struct PlumBody {
 pub struct Plum {
     #[prost(message, required, tag = "1")]
     pub plum_head: PlumHead,
-    #[prost(message, optional, tag = "2")]
-    pub plum_relations_o: ::core::option::Option<PlumRelations>,
+    #[prost(message, required, tag = "2")]
+    pub plum_metadata: PlumMetadata,
     #[prost(message, required, tag = "3")]
+    pub plum_relations: PlumRelations,
+    #[prost(message, required, tag = "4")]
     pub plum_body: PlumBody,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

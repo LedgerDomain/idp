@@ -1,6 +1,7 @@
 use crate::{Datacache, PlumURI};
 use anyhow::Result;
 use async_lock::RwLock;
+use idp_proto::Contentifiable;
 use std::{
     any::Any,
     sync::{Arc, Weak},
@@ -33,7 +34,7 @@ pub struct PlumRef<T> {
 }
 
 // NOTE: Send + Sync are necessary because PlumRef::get_or_load_value returns Arc<T> which crosses await boundaries.
-impl<T: Any + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
+impl<T: Any + Contentifiable + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
     pub fn new(plum_uri: PlumURI) -> Self {
         Self {
             plum_uri,
@@ -102,5 +103,23 @@ impl<T> std::fmt::Debug for PlumRef<T> {
 impl<T> std::fmt::Display for PlumRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "PlumRef({})", &self.plum_uri)
+    }
+}
+
+impl<T: idp_proto::PlumRelational> idp_proto::PlumRelational for PlumRef<T> {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut std::collections::HashMap<
+            idp_proto::PlumHeadSeal,
+            idp_proto::PlumRelationFlags,
+        >,
+    ) {
+        // We have direct access to the PlumHeadSeal, so we can add it to the map directly.
+        // TODO: Should this be a different type of relation than CONTENT_DEPENDENCY?  Maybe
+        // PLUM_REF_DEPENDENCY is a worthy distinct relation type.
+        plum_relation_flags_m.insert(
+            self.plum_uri.get_plum_head_seal().clone(),
+            idp_proto::PlumRelationFlags::CONTENT_DEPENDENCY,
+        );
     }
 }

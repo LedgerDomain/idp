@@ -8,6 +8,10 @@ edition = "2021"
 
 [features]
 client = ["idp_core/client"]
+encoding-deflate = ["idp_core/encoding-deflate", "idp_proto/encoding-deflate"]
+encoding-gzip = ["idp_core/encoding-gzip", "idp_proto/encoding-gzip"]
+format-json = ["idp_core/format-json", "idp_proto/format-json"]
+format-msgpack = ["idp_core/format-msgpack", "idp_proto/format-msgpack"]
 server = ["dep:idp_server"]
 sqlite = ["dep:idp_datahost_storage_sqlite"]
 
@@ -19,7 +23,8 @@ idp_proto = { path = "../idp_proto" }
 idp_server = { path = "../idp_server", optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.69"
+# Always use this -- it gives much more useful backtraces when tests fail.
+anyhow = { version = "1", features = ["backtrace"] }
 async-lock = "2.6.0"
 env_logger = "0.8.4"
 idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }

@@ -1,7 +1,7 @@
-use crate::Nonce;
+use crate::{Hashable, Nonce};
 
-impl AsRef<[u8]> for Nonce {
-    fn as_ref(&self) -> &[u8] {
-        self.value.as_ref()
+impl Hashable for Nonce {
+    fn update_hasher(&self, hasher: &mut sha2::Sha256) {
+        self.value.update_hasher(hasher);
     }
 }

@@ -1,7 +1,7 @@
 use crate::{Datahost, PlumURI};
 use anyhow::Result;
 use async_lock::RwLock;
-use idp_proto::PlumHeadSeal;
+use idp_proto::{ContentClassifiable, Contentifiable, PlumHeadSeal};
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 type UntypedValueGuts = dyn Any + Send + Sync;
@@ -48,7 +48,13 @@ impl Datacache {
     /// it will simply return the cached Arc<T>, thereby eliminating duplication.
     pub async fn get_or_load_value<T>(&self, plum_uri: &PlumURI) -> Result<Arc<T>>
     where
-        T: Any + serde::de::DeserializeOwned + Send + Sized + Sync,
+        T: Any
+            + ContentClassifiable
+            + Contentifiable
+            + serde::de::DeserializeOwned
+            + Send
+            + Sized
+            + Sync,
     {
         if let Some(cached_value) = self
             .cached_value_mla
@@ -112,14 +118,13 @@ impl Datacache {
         };
 
         // Now attempt to deserialize the Plum body content into the requested type.
-        // NOTE/TODO: This is assuming all plum bodies are serialized via rmp_serde, which will
-        // not be the case forever.
         log::trace!(
             "Datacache::get_or_load_value({})\n\tloaded plum: {:?}",
             plum_uri,
             plum,
         );
-        let value: T = rmp_serde::from_read(plum.plum_body.plum_body_content.as_slice())?;
+        let value: T =
+            idp_proto::decode_and_deserialize_from_content(&plum.plum_body.plum_body_content)?;
         log::trace!(
             "Datacache::get_or_load_value({})\n\tdeserialized to typed_content",
             plum_uri,

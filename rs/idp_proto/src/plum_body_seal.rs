@@ -1,10 +1,4 @@
-use crate::{PlumBody, PlumBodySeal, Seal, Sha256Sum};
-
-impl AsRef<[u8]> for PlumBodySeal {
-    fn as_ref(&self) -> &[u8] {
-        self.value.as_ref()
-    }
-}
+use crate::{Hashable, PlumBody, PlumBodySeal, Seal, Sha256Sum};
 
 impl std::fmt::Display for PlumBodySeal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -19,22 +13,14 @@ impl From<&PlumBody> for PlumBodySeal {
         // For now, a seal is only the Sha256Sum, but it could be other stuff later.
         let mut hasher = sha2::Sha256::new();
 
-        // NOTE: The specific order and form of this hashing must NOT be changed!
-
-        if let Some(plum_body_nonce) = &plum_body.plum_body_nonce_o {
-            hasher.update(b"\x01");
-            hasher.update(&plum_body_nonce.value);
-        } else {
-            hasher.update(b"\x00");
-        }
-
-        // to_le_bytes gives little-endian representation.
-        hasher.update(plum_body.plum_body_content_length.to_le_bytes());
-
-        hasher.update(&plum_body.plum_body_content_type.value);
-
-        hasher.update(&plum_body.plum_body_content);
+        plum_body.update_hasher(&mut hasher);
 
         PlumBodySeal::from(Seal::from(Sha256Sum::from(hasher.finalize().to_vec())))
+    }
+}
+
+impl Hashable for PlumBodySeal {
+    fn update_hasher(&self, hasher: &mut sha2::Sha256) {
+        self.value.update_hasher(hasher);
     }
 }

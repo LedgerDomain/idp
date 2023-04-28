@@ -11,11 +11,24 @@ anyhow = "1.0.69"
 async-lock = "2.6.0"
 async-trait = "0.1.64"
 derive_more = "0.99.17"
-idp_core = { path = "../../idp_core" }
+idp_core = { path = "../../idp_core", features = [
+    "format-json",
+    "format-msgpack",
+] }
+idp_proto = { path = "../../idp_proto", features = [
+    "format-json",
+    "format-msgpack",
+] }
 log = "0.4.14"
+# TEMP HACK until this is handled internally in idp_proto or idp_core
+rmp-serde = "0.15.5"
 serde = { version = "1.0.126", features = ["derive"] }
+# TEMP HACK until this is handled internally in idp_proto or idp_core
+serde_json = "1.0.96"
 
 [dev-dependencies]
+# Always use this -- it gives much more useful backtraces when tests fail.
+anyhow = { version = "1", features = ["backtrace"] }
 ctor = "0.1.21"
 env_logger = "0.8.4"
 idp_datahost_storage_sqlite = { path = "../../idp_datahost_storage_sqlite" }

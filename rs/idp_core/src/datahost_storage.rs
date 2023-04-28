@@ -1,7 +1,7 @@
 use crate::{DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
-    Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumRelations,
-    PlumRelationsSeal,
+    Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumMetadata,
+    PlumMetadataSeal, PlumRelations, PlumRelationsSeal,
 };
 
 #[async_trait::async_trait]
@@ -16,6 +16,11 @@ pub trait DatahostStorage: Send + Sync {
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
         plum_head_seal: &PlumHeadSeal,
+    ) -> Result<bool, DatahostStorageError>;
+    async fn has_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata_seal: &PlumMetadataSeal,
     ) -> Result<bool, DatahostStorageError>;
     async fn has_plum_relations(
         &self,
@@ -39,14 +44,21 @@ pub trait DatahostStorage: Send + Sync {
             return Ok(false);
         }
         let plum_head = plum_head_o.unwrap();
-        if let Some(plum_relations_seal) = plum_head.plum_relations_seal_o.as_ref() {
-            if !self
-                .has_plum_relations(transaction, plum_relations_seal)
-                .await?
-            {
-                return Ok(false);
-            }
+
+        if !self
+            .has_plum_metadata(transaction, &plum_head.plum_metadata_seal)
+            .await?
+        {
+            return Ok(false);
         }
+
+        if !self
+            .has_plum_relations(transaction, &plum_head.plum_relations_seal)
+            .await?
+        {
+            return Ok(false);
+        }
+
         if !self
             .has_plum_body(transaction, &plum_head.plum_body_seal)
             .await?
@@ -62,6 +74,11 @@ pub trait DatahostStorage: Send + Sync {
         transaction: &mut dyn DatahostStorageTransaction,
         plum_head: &PlumHead,
     ) -> Result<PlumHeadSeal, DatahostStorageError>;
+    async fn store_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata: &PlumMetadata,
+    ) -> Result<PlumMetadataSeal, DatahostStorageError>;
     async fn store_plum_relations(
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
@@ -78,22 +95,17 @@ pub trait DatahostStorage: Send + Sync {
         transaction: &mut dyn DatahostStorageTransaction,
         plum: &Plum,
     ) -> Result<PlumHeadSeal, DatahostStorageError> {
-        let computed_plum_relations_seal_o =
-            if let Some(plum_relations) = plum.plum_relations_o.as_ref() {
-                Some(
-                    self.store_plum_relations(transaction, plum_relations)
-                        .await?,
-                )
-            } else {
-                None
-            };
-        plum.plum_head
-            .verify_plum_relations_seal_o(computed_plum_relations_seal_o.as_ref())?;
+        // Verify the Plum before storing anything.
+        plum.verify()?;
 
-        let computed_plum_body_seal = self.store_plum_body(transaction, &plum.plum_body).await?;
-        plum.plum_head
-            .verify_plum_body_seal(&computed_plum_body_seal)?;
+        // Now store its components.  Note that this computes the seals redundantly, which is not ideal, but is fine for now.
+        self.store_plum_metadata(transaction, &plum.plum_metadata)
+            .await?;
+        self.store_plum_relations(transaction, &plum.plum_relations)
+            .await?;
+        self.store_plum_body(transaction, &plum.plum_body).await?;
 
+        // Storing the plum head last ensures that the plum is fully stored before we commit to it.
         let plum_head_seal = self.store_plum_head(transaction, &plum.plum_head).await?;
 
         Ok(plum_head_seal)
@@ -104,6 +116,11 @@ pub trait DatahostStorage: Send + Sync {
         transaction: &mut dyn DatahostStorageTransaction,
         plum_head_seal: &PlumHeadSeal,
     ) -> Result<Option<PlumHead>, DatahostStorageError>;
+    async fn load_option_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata_seal: &PlumMetadataSeal,
+    ) -> Result<Option<PlumMetadata>, DatahostStorageError>;
     async fn load_option_plum_relations(
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
@@ -123,6 +140,15 @@ pub trait DatahostStorage: Send + Sync {
             .await?
             .ok_or_else(|| DatahostStorageError::PlumHeadNotFound(plum_head_seal.clone()))
     }
+    async fn load_plum_metadata(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+        plum_metadata_seal: &PlumMetadataSeal,
+    ) -> Result<PlumMetadata, DatahostStorageError> {
+        self.load_option_plum_metadata(transaction, plum_metadata_seal)
+            .await?
+            .ok_or_else(|| DatahostStorageError::PlumMetadataNotFound(plum_metadata_seal.clone()))
+    }
     async fn load_plum_relations(
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
@@ -141,8 +167,8 @@ pub trait DatahostStorage: Send + Sync {
             .await?
             .ok_or_else(|| DatahostStorageError::PlumBodyNotFound(plum_body_seal.clone()))
     }
-    /// If any of the expected components (PlumHead, PlumBody, or optional PlumRelations) are missing, then this returns
-    /// None.  Otherwise returns Some(plum), where plum is the Plum with those components.
+    /// If any of the expected components (PlumHead, PlumMetadata, PlumRelations, or PlumBody) are missing,
+    /// then this returns None.  Otherwise returns Some(plum), where plum is the Plum with those components.
     async fn load_option_plum(
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
@@ -156,24 +182,21 @@ pub trait DatahostStorage: Send + Sync {
         }
         let plum_head = plum_head_o.unwrap();
 
-        let plum_relations_o = match &plum_head.plum_relations_seal_o {
-            Some(plum_relations_seal) => {
-                let plum_relations = self
-                    .load_plum_relations(transaction, plum_relations_seal)
-                    .await?;
-                Some(plum_relations)
-            }
-            None => None,
-        };
-        // Sanity check -- should be true by the verification upon store operation, but it's possible that the DB is corrupted.
-        plum_head
-            .verify_plum_relations_seal_o(
-                plum_relations_o
-                    .as_ref()
-                    .map(PlumRelationsSeal::from)
-                    .as_ref(),
-            )
-            .expect("programmer error or corrupted DB; PlumRelationsSeal did not verify");
+        let plum_metadata_o = self
+            .load_option_plum_metadata(transaction, &plum_head.plum_metadata_seal)
+            .await?;
+        if plum_metadata_o.is_none() {
+            return Ok(None);
+        }
+        let plum_metadata = plum_metadata_o.unwrap();
+
+        let plum_relations_o = self
+            .load_option_plum_relations(transaction, &plum_head.plum_relations_seal)
+            .await?;
+        if plum_relations_o.is_none() {
+            return Ok(None);
+        }
+        let plum_relations = plum_relations_o.unwrap();
 
         let plum_body_o = self
             .load_option_plum_body(transaction, &plum_head.plum_body_seal)
@@ -182,16 +205,18 @@ pub trait DatahostStorage: Send + Sync {
             return Ok(None);
         }
         let plum_body = plum_body_o.unwrap();
-        // Sanity check -- should be true by the verification upon store operation, but it's possible that the DB is corrupted.
-        plum_head
-            .verify_plum_body_seal(&PlumBodySeal::from(&plum_body))
-            .expect("programmer error or corrupted DB; PlumRelationsSeal did not verify");
 
-        Ok(Some(Plum {
+        // Construct the Plum and verify it before returning.  Even though only verified Plums have been stored
+        // in the DB, this verification process could fail if the DB has been altered by an external process.
+        let plum = Plum {
             plum_head,
-            plum_relations_o,
+            plum_metadata,
+            plum_relations,
             plum_body,
-        }))
+        };
+        plum.verify()?;
+
+        Ok(Some(plum))
     }
     async fn load_plum(
         &self,
@@ -199,39 +224,27 @@ pub trait DatahostStorage: Send + Sync {
         plum_head_seal: &PlumHeadSeal,
     ) -> Result<Plum, DatahostStorageError> {
         let plum_head = self.load_plum_head(transaction, plum_head_seal).await?;
-
-        let plum_relations_o = match &plum_head.plum_relations_seal_o {
-            Some(plum_relations_seal) => {
-                let plum_relations = self
-                    .load_plum_relations(transaction, plum_relations_seal)
-                    .await?;
-                Some(plum_relations)
-            }
-            None => None,
-        };
-        // Sanity check -- should be true by the verification upon store operation, but it's possible that the DB is corrupted.
-        plum_head
-            .verify_plum_relations_seal_o(
-                plum_relations_o
-                    .as_ref()
-                    .map(PlumRelationsSeal::from)
-                    .as_ref(),
-            )
-            .expect("programmer error or corrupted DB; PlumRelationsSeal did not verify");
-
+        let plum_metadata = self
+            .load_plum_metadata(transaction, &plum_head.plum_metadata_seal)
+            .await?;
+        let plum_relations = self
+            .load_plum_relations(transaction, &plum_head.plum_relations_seal)
+            .await?;
         let plum_body = self
             .load_plum_body(transaction, &plum_head.plum_body_seal)
             .await?;
-        // Sanity check -- should be true by the verification upon store operation, but it's possible that the DB is corrupted.
-        plum_head
-            .verify_plum_body_seal(&PlumBodySeal::from(&plum_body))
-            .expect("programmer error or corrupted DB; PlumRelationsSeal did not verify");
 
-        Ok(Plum {
+        // Construct the Plum and verify it before returning.  Even though only verified Plums have been stored
+        // in the DB, this verification process could fail if the DB has been altered by an external process.
+        let plum = Plum {
             plum_head,
-            plum_relations_o,
+            plum_metadata,
+            plum_relations,
             plum_body,
-        })
+        };
+        plum.verify()?;
+
+        Ok(plum)
     }
 
     async fn has_path_state(

@@ -1,6 +1,6 @@
 use crate::{FragmentQueryResult, FragmentQueryable};
 use anyhow::Result;
-use idp_proto::{ContentType, ContentTypeable, PlumHeadSeal, PlumRelationFlags};
+use idp_proto::{ContentClassifiable, Contentifiable, PlumHeadSeal, PlumRelationFlags};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -9,12 +9,32 @@ pub struct DirNode {
     pub entry_m: BTreeMap<String, PlumHeadSeal>,
 }
 
-impl ContentTypeable for DirNode {
-    fn content_type() -> ContentType {
-        ContentType::from("idp::DirNode".as_bytes().to_vec())
+impl ContentClassifiable for DirNode {
+    fn content_class_str() -> &'static str {
+        "application/x.idp.DirNode"
     }
-    fn content_type_matches(bytes: &[u8]) -> bool {
-        return bytes == "idp::DirNode".as_bytes();
+    fn derive_content_class_str(&self) -> &'static str {
+        Self::content_class_str()
+    }
+}
+
+impl Contentifiable for DirNode {
+    fn serialize(
+        &self,
+        content_format: &idp_proto::ContentFormat,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        match content_format.as_str() {
+            #[cfg(feature = "format-json")]
+            "json" => Ok(serde_json::to_writer(writer, self)?),
+            #[cfg(feature = "format-msgpack")]
+            "msgpack" => Ok(rmp_serde::encode::write(writer, self)?),
+            _ => {
+                let _ = writer;
+                // NOTE: If you hit this, you may have just forgotten to enable one of the format-* features.
+                anyhow::bail!("Unsupported ContentFormat: {:?}", content_format);
+            }
+        }
     }
 }
 

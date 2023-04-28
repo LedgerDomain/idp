@@ -1,6 +1,6 @@
 # Design Notes
 
-2023.02.13
+## 2023.02.13
 -   Need to rethink how sealed PlumHead-s, PlumRelations-es, and PlumBody-s are stored.  Apparently protobuf isn't necessarily deterministic in its serialization (https://gist.github.com/kchristidis/39c8b310fd9da43d515c4394c3cd9510), so it's not possible to reconstruct a protobuf-serialized PlumHead, PlumRelations, or PlumBody and guarantee that it produced the same bytes, and therefore the seal (hash of the sealed value) can't be verified. Possible solutions:
     1.  Store the sealed value directly, in whatever serialization format it's in.  Then there's no issue of re-serializing it in order to verify the seal.
         -   Benefits
@@ -72,7 +72,7 @@
             SHA256,
         }
 
-2023.02.15
+## 2023.02.15
 -   Noticed that plum_relations_nonce_o is not being stored in the DB, and so it's not possible to form a PlumRelations from the content of the DB.  The way to fix this is:
     -   Have two tables for relations data:
         -   plum_relations
@@ -100,7 +100,7 @@
         -   Create a `[Datahost?]Storage` trait in the idp_core crate.
         -   Create a (sub)crate called `idp_storage_sqlite` (or `idp_datahost_storage_sqlite`?) which implements the trait using sqlx with a SQLite backend.
 
-2023.02.16
+## 2023.02.16
 -   Should the body length and content type go in PlumHead or PlumBody?
     -   In PlumHead
         -   Benefits
@@ -124,9 +124,9 @@
     Another approach could be to separate out the metadata entirely, i.e. create a PlumMetadata type containing:
     -   plum_metadata_nonce_o
     -   author_id_o (should this be called plum_author_id_o?)
-    -   created_at_o (should this be called plum_created_at_o?)
-    -   plum_body_content_length
-    -   plum_body_content_type
+        -   If this field is to represent a cryptographic identity, then it should probably come with a signature, so that authorship is actually verifiable, and not forgeable.  What would the signature be over?  It couldn't be the PlumMetadata or the PlumHead (since that would create an infeasible cyclic definition), so the only thing(s) remaining would be the PlumRelations and PlumBody.  One option would be to have the signature be in the PlumHead itself, so that the signature could be over the PlumMetadataSeal, PlumRelationsSeal, and PlumBodySeal.  On the other hand, maybe authorship should be a higher-order concept, and related to the plum via a plum representing an authorship claim.
+    -   plum_body_content_length (potentially redundant with PlumBody)
+    -   plum_body_content_type (potentially redundant with PlumBody)
     -   Optional, additional metadata of some form, which is either:
         -   Option 1
             -   additional_metadata_content_length (could be required but defaults to 0)
@@ -141,12 +141,13 @@
     -   plum_relations_seal_o (should this be required, where it can simply refer to an empty relations?)
     -   plum_body_seal
 
-2023.02.22
+## 2023.02.22
 -   Datahost metadata notes
     -   There should be a table in the datahost DB containing a single row where metadata for the Datahost is stored, e.g.
         -   Some unique identifier (e.g. a UUID V4)
-        -   Name?
+        -   Name (of datahost)?
         -   Creation timestamp
+        -   Creator/owner/root user?
 -   "Broken dependency" tracking
 
     The idea is that precise tracking of complete dependency graphs should be done, so that incomplete dependency graphs and their missing pieces can be identified efficiently.  The PlumBody isn't actually necessary for this computation, since the PlumRelations is a separate piece of data that can go along with the PlumHead.  Thus dependency info is a kind of metadata not requiring knowledge of the PlumBody.
@@ -199,3 +200,39 @@
         -   The "endpoint" also has an update operation which simply checks that the update is well-formed and has all the necessary signatures.  This well-formedness and verification of necessary signatures functions as authorization.
         -   Ideally the document update and verification logic is generic, not DID-specific.  This would involve some sort of generic "strong, versioned document" abstraction which is simply used to store DID documents.  Similarly, revocation could be handled this way without any logic specific to revocation.
 
+## 2023.04.25
+
+Notes on content type and content encoding
+-   Want to define standards-compliant content type for custom IDP data types, e.g. `DirNode` and `BranchNode`
+-   Want to define standards-compliant content encoding values for data used in IDP, e.g. `msgpack` or whatever.  Or does this "first-level" encoding (i.e. not the later compression layer) go as part of the content type?
+-   Content type (reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types)
+
+        type/subtype;parameter=value
+
+    Examples:
+    -   text/plain
+    -   text/plain;charset=us-ascii
+    -   text/plain;charset=utf-8
+    -   text/html
+    -   image/png
+    -   image/jpeg
+    -   application/octet-stream
+    -   application/jwt
+    -   application/pdf
+
+    Content type is actually a conflation of the semantic type (i.e. what the data is/means) and its serialization format (how it's represented as a byte stream).  Thus the content type should imply the serialization format.
+
+    Content encoding represents additional layers of encoding (typically compression, though base64-encoding is a commonly used encoding that actually inflates the data).
+
+    After a convo with ChatGPT 4, I think the following would be appropriate; `x.` is still allowed (it's different than the deprecated `x-` prefix), and indicates "experimental":
+    -   application/x.idp.BranchNode+msgpack
+    -   application/x.idp.BranchNode+json
+    -   application/x.idp.BranchNode+proto2
+    -   application/x.idp.DirNode+msgpack
+    -   application/x.idp.DirNode+json
+    -   application/x.idp.DirNode+proto2
+
+    The plus sign is used to distinguish the semantic type from the serialization format.
+
+References:
+-   https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types

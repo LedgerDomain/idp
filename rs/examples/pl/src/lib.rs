@@ -118,6 +118,34 @@ impl Executable for Statement {
     }
 }
 
+impl idp_proto::PlumRelational for Statement {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        match self {
+            Statement::Definition(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            Statement::Assignment(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            Statement::AddAssignment(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            Statement::SubAssignment(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            Statement::MulAssignment(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            Statement::DivAssignment(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Definition {
     pub symbol_id: String,
@@ -129,6 +157,17 @@ impl Executable for Definition {
     async fn exec(&self, rt: &mut Runtime) -> Result<()> {
         let value = self.expr.eval(rt).await?;
         rt.define(self.symbol_id.clone(), value)
+    }
+}
+
+impl idp_proto::PlumRelational for Definition {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr.
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -158,6 +197,17 @@ impl Executable for Assignment {
     }
 }
 
+impl idp_proto::PlumRelational for Assignment {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! assign {
     ($symbol_id: ident, $expr: expr $(,)?) => {
@@ -181,6 +231,17 @@ impl Executable for AddAssignment {
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
         *symbol_value_la.write().await += value;
         Ok(())
+    }
+}
+
+impl idp_proto::PlumRelational for AddAssignment {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -210,6 +271,17 @@ impl Executable for SubAssignment {
     }
 }
 
+impl idp_proto::PlumRelational for SubAssignment {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! sub_assign {
     ($symbol_id: ident, $expr: expr $(,)?) => {
@@ -236,6 +308,17 @@ impl Executable for MulAssignment {
     }
 }
 
+impl idp_proto::PlumRelational for MulAssignment {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! mul_assign {
     ($symbol_id: ident, $expr: expr $(,)?) => {
@@ -259,6 +342,17 @@ impl Executable for DivAssignment {
         let symbol_value_la = rt.dereference(self.symbol_id.as_str())?;
         *symbol_value_la.write().await /= value;
         Ok(())
+    }
+}
+
+impl idp_proto::PlumRelational for DivAssignment {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to expr
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -309,6 +403,20 @@ impl Block {
 impl Expr for Block {
     async fn eval(&self, rt: &mut Runtime) -> Result<ConcreteValue> {
         self.eval_impl(rt, true).await
+    }
+}
+
+impl idp_proto::PlumRelational for Block {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to all children.
+        for statement in self.statement_v.iter() {
+            statement.accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        }
+        self.expr
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -462,6 +570,17 @@ impl Expr for Function {
     }
 }
 
+impl idp_proto::PlumRelational for Function {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to body
+        self.body
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! function {
     (($($argument_name_v:ident),*) -> $body:expr) => {
@@ -496,6 +615,20 @@ impl Expr for Call {
         }
         let retval = function.body.eval(stack_guard.rt).await?;
         Ok(retval)
+    }
+}
+
+impl idp_proto::PlumRelational for Call {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to all children.
+        self.function
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        for argument_expr in self.argument_expr_v.iter() {
+            argument_expr.accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        }
     }
 }
 
@@ -536,6 +669,15 @@ impl Expr for Float64 {
     }
 }
 
+impl idp_proto::PlumRelational for Float64 {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        _plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // No relations to add.
+    }
+}
+
 #[macro_export]
 macro_rules! float64 {
     ($x: expr) => {
@@ -563,6 +705,15 @@ impl Expr for SymbolicRef {
     }
 }
 
+impl idp_proto::PlumRelational for SymbolicRef {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        _plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // No relations to add.
+    }
+}
+
 #[macro_export]
 macro_rules! symbolic_ref {
     ($symbol_id: ident) => {
@@ -585,6 +736,17 @@ impl Expr for Neg {
     }
 }
 
+impl idp_proto::PlumRelational for Neg {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operand.
+        self.operand
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! neg {
     ($x: expr) => {
@@ -604,6 +766,19 @@ impl Expr for Add {
         let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs + rhs)))
+    }
+}
+
+impl idp_proto::PlumRelational for Add {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operands.
+        self.lhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        self.rhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -632,6 +807,19 @@ impl Expr for Sub {
     }
 }
 
+impl idp_proto::PlumRelational for Sub {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operands.
+        self.lhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        self.rhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! sub {
     ($lhs: expr, $rhs: expr $(,)?) => {
@@ -654,6 +842,19 @@ impl Expr for Mul {
         let lhs = self.lhs.eval(rt).await?.as_float64()?.as_f64();
         let rhs = self.rhs.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(lhs * rhs)))
+    }
+}
+
+impl idp_proto::PlumRelational for Mul {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operands.
+        self.lhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        self.rhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -682,6 +883,19 @@ impl Expr for Div {
     }
 }
 
+impl idp_proto::PlumRelational for Div {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operands.
+        self.lhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        self.rhs
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+    }
+}
+
 #[macro_export]
 macro_rules! div {
     ($lhs: expr, $rhs: expr $(,)?) => {
@@ -704,6 +918,19 @@ impl Expr for Pow {
         let base = self.base.eval(rt).await?.as_float64()?.as_f64();
         let exponent = self.exponent.eval(rt).await?.as_float64()?.as_f64();
         Ok(ConcreteValue::Float64(Float64(base.powf(exponent))))
+    }
+}
+
+impl idp_proto::PlumRelational for Pow {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        // Pass through to operands.
+        self.base
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
+        self.exponent
+            .accumulate_plum_relations_nonrecursive(plum_relation_flags_m);
     }
 }
 
@@ -734,13 +961,6 @@ pub enum ASTNode {
     PlumRef(Box<idp_core::PlumRef<ASTNode>>),
 }
 
-impl Default for ASTNode {
-    fn default() -> Self {
-        // Arbitrary choice
-        ASTNode::Float64(Float64(0.0))
-    }
-}
-
 impl ASTNode {
     pub fn into_block(self) -> Result<Block> {
         match self {
@@ -749,6 +969,43 @@ impl ASTNode {
                 anyhow::bail!("expected Block");
             }
         }
+    }
+}
+
+impl idp_proto::ContentClassifiable for ASTNode {
+    fn content_class_str() -> &'static str {
+        "application/x.idp.example.pl.ASTNode"
+    }
+    fn derive_content_class_str(&self) -> &'static str {
+        Self::content_class_str()
+    }
+}
+
+impl idp_proto::Contentifiable for ASTNode {
+    fn serialize(
+        &self,
+        content_format: &idp_proto::ContentFormat,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        match content_format.as_str() {
+            "json" => {
+                serde_json::to_writer(writer, self)?;
+            }
+            "msgpack" => {
+                rmp_serde::encode::write(writer, self)?;
+            }
+            _ => {
+                anyhow::bail!("Unsupported ContentFormat: {:?}", content_format);
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Default for ASTNode {
+    fn default() -> Self {
+        // Arbitrary choice
+        ASTNode::Float64(Float64(0.0))
     }
 }
 
@@ -819,5 +1076,29 @@ impl std::ops::Div for ASTNode {
             lhs: self,
             rhs: other,
         }))
+    }
+}
+
+impl idp_proto::PlumRelational for ASTNode {
+    fn accumulate_plum_relations_nonrecursive(
+        &self,
+        plum_relation_flags_m: &mut HashMap<idp_proto::PlumHeadSeal, idp_proto::PlumRelationFlags>,
+    ) {
+        match self {
+            ASTNode::Float64(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Block(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::SymbolicRef(x) => {
+                x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m)
+            }
+            ASTNode::Neg(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Add(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Sub(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Mul(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Div(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Pow(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Function(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::Call(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+            ASTNode::PlumRef(x) => x.accumulate_plum_relations_nonrecursive(plum_relation_flags_m),
+        }
     }
 }

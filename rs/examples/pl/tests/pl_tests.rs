@@ -1,4 +1,5 @@
 use async_lock::RwLock;
+use idp_proto::{ContentEncoding, ContentFormat};
 use pl::{
     add_assign, block, call, define, float64, function, mul, mul_assign, plum_ref, sub, sub_assign,
     symbolic_ref, ASTNode, Expr, Runtime,
@@ -397,12 +398,12 @@ async fn test_plum_ref_call() {
         .await
         .store_plum(
             &idp_proto::PlumBuilder::new()
-                .with_plum_body_content_type(idp_proto::ContentType::from(
-                    "pl/function".as_bytes().to_vec(),
-                ))
-                .with_plum_body_content(
-                    rmp_serde::to_vec(&test_data.norm_squared_function).expect("pass"),
+                .with_plum_relations_and_plum_body_content_from(
+                    &test_data.norm_squared_function,
+                    ContentFormat::msgpack(),
+                    ContentEncoding::none(),
                 )
+                .expect("pass")
                 .build()
                 .expect("pass"),
             None,
@@ -414,10 +415,12 @@ async fn test_plum_ref_call() {
         .await
         .store_plum(
             &idp_proto::PlumBuilder::new()
-                .with_plum_body_content_type(idp_proto::ContentType::from(
-                    "pl/function".as_bytes().to_vec(),
-                ))
-                .with_plum_body_content(rmp_serde::to_vec(&test_data.exp_function).expect("pass"))
+                .with_plum_relations_and_plum_body_content_from(
+                    &test_data.exp_function,
+                    ContentFormat::msgpack(),
+                    ContentEncoding::none(),
+                )
+                .expect("pass")
                 .build()
                 .expect("pass"),
             None,
@@ -429,10 +432,12 @@ async fn test_plum_ref_call() {
         .await
         .store_plum(
             &idp_proto::PlumBuilder::new()
-                .with_plum_body_content_type(idp_proto::ContentType::from(
-                    "pl/function".as_bytes().to_vec(),
-                ))
-                .with_plum_body_content(rmp_serde::to_vec(&test_data.cos_function).expect("pass"))
+                .with_plum_relations_and_plum_body_content_from(
+                    &test_data.cos_function,
+                    ContentFormat::msgpack(),
+                    ContentEncoding::none(),
+                )
+                .expect("pass")
                 .build()
                 .expect("pass"),
             None,
@@ -444,10 +449,12 @@ async fn test_plum_ref_call() {
         .await
         .store_plum(
             &idp_proto::PlumBuilder::new()
-                .with_plum_body_content_type(idp_proto::ContentType::from(
-                    "pl/function".as_bytes().to_vec(),
-                ))
-                .with_plum_body_content(rmp_serde::to_vec(&test_data.sin_function).expect("pass"))
+                .with_plum_relations_and_plum_body_content_from(
+                    &test_data.sin_function,
+                    ContentFormat::msgpack(),
+                    ContentEncoding::none(),
+                )
+                .expect("pass")
                 .build()
                 .expect("pass"),
             None,

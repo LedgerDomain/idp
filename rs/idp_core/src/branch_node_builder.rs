@@ -35,13 +35,9 @@ impl BranchNodeBuilder {
     /// Specifies the ancestor Plum for this BranchNode.  The ancestor must itself be a BranchNode.
     pub fn with_ancestor(mut self, ancestor_plum: &Plum) -> Result<Self> {
         // Deserialize the PlumBody into BranchNode, so that we can extract its height and determine its PlumHeadSeal.
-        // TEMP HACK -- assume rmp_serde for now.
-        use idp_proto::ContentTypeable;
-        anyhow::ensure!(BranchNode::content_type_matches(
-            ancestor_plum.plum_body.plum_body_content_type.as_slice()
-        ));
-        let ancestor_branch_node: BranchNode =
-            rmp_serde::from_read(ancestor_plum.plum_body.plum_body_content.as_slice())?;
+        let ancestor_branch_node: BranchNode = idp_proto::decode_and_deserialize_from_content(
+            &ancestor_plum.plum_body.plum_body_content,
+        )?;
         self.ancestor_o = Some(PlumHeadSeal::from(&ancestor_plum.plum_head));
         self.height = ancestor_branch_node.height + 1;
         Ok(self)

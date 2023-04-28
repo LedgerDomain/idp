@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use idp_proto::{
-    BranchSetHeadRequest, ContentTypeable, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead,
+    BranchSetHeadRequest, Contentifiable, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead,
     PlumHeadSeal, PlumRelationFlags, PlumRelations, PlumRelationsSeal,
 };
 use std::{collections::HashMap, convert::TryFrom};
@@ -237,7 +237,9 @@ impl Datahost {
     /// and then deserialize the PlumBody content into T.
     // TODO: Consider having it return the Plum or PlumHead as well, potentially deserializing
     // any PlumHead metadata into another type.
-    pub async fn load_plum_and_deserialize<T: ContentTypeable + serde::de::DeserializeOwned>(
+    pub async fn load_plum_and_decode_and_deserialize<
+        T: Contentifiable + serde::de::DeserializeOwned,
+    >(
         &self,
         plum_head_seal: &PlumHeadSeal,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
@@ -246,14 +248,8 @@ impl Datahost {
             .load_plum(&plum_head_seal, transaction_o)
             .await
             .map_err(|_| LoadPlumAndDeserializeError::FailedToLoadPlum)?;
-
-        if !T::content_type_matches(plum.plum_body.plum_body_content_type.as_slice()) {
-            return Err(LoadPlumAndDeserializeError::ContentTypeMismatch);
-        }
-
-        let value: T = rmp_serde::from_read(plum.plum_body.plum_body_content.as_slice())
-            .map_err(|_| LoadPlumAndDeserializeError::DeserializationError)?;
-        Ok(value)
+        idp_proto::decode_and_deserialize_from_content(&plum.plum_body.plum_body_content)
+            .map_err(|_| LoadPlumAndDeserializeError::DeserializationError)
     }
 
     //
@@ -314,14 +310,9 @@ impl Datahost {
                     .datahost_storage_b
                     .load_plum_head(&mut *transaction, plum_head_seal)
                     .await?;
-                if plum_head.plum_relations_seal_o.is_none() {
-                    // No relations, so there's nothing to traverse to.
-                    return Ok(());
-                }
-                let plum_relations_seal = plum_head.plum_relations_seal_o.unwrap();
                 let plum_relations = self
                     .datahost_storage_b
-                    .load_plum_relations(&mut *transaction, &plum_relations_seal)
+                    .load_plum_relations(&mut *transaction, &plum_head.plum_relations_seal)
                     .await?;
 
                 for plum_relation_flags_mapping in plum_relations.plum_relation_flags_mapping_v {
@@ -430,52 +421,41 @@ impl Datahost {
                 .datahost_storage_b
                 .load_plum_body(transaction, &plum_head.plum_body_seal)
                 .await?;
-            let fragment_query_result =
-                match std::str::from_utf8(plum_body.plum_body_content_type.as_ref()) {
-                    // TODO: Replace this with a callback registry pattern
-                    Ok("idp::BranchNode") => {
-                        log::trace!("fragment_query; deserializing idp::BranchNode");
-                        // if plum_body.plum_body_content_o.is_none() {
-                        //     return Err(anyhow::format_err!(
-                        //         "Plum {} had missing plum_body_content",
-                        //         current_plum_head_seal
-                        //     ));
-                        // }
-                        // Deserialize plum_body_content and call fragment_query_single_segment.
-                        // let plum_body_content = plum_body.plum_body_content_o.unwrap();
-                        let branch_node: BranchNode =
-                            rmp_serde::from_read_ref(&plum_body.plum_body_content)?;
-                        branch_node.fragment_query_single_segment(
-                            &current_plum_head_seal,
-                            current_query_str,
-                        )?
-                    }
-                    Ok("idp::DirNode") => {
-                        log::trace!("fragment_query; deserializing idp::DirNode");
-                        // if plum_body.plum_body_content_o.is_none() {
-                        //     return Err(anyhow::format_err!(
-                        //         "Plum {} had missing plum_body_content",
-                        //         current_plum_head_seal
-                        //     ));
-                        // }
-                        // Deserialize plum_body_content and call fragment_query_single_segment.
-                        // let plum_body_content = plum_body.plum_body_content_o.unwrap();
-                        let dir_node: DirNode =
-                            rmp_serde::from_read_ref(&plum_body.plum_body_content)?;
-                        dir_node.fragment_query_single_segment(
-                            &current_plum_head_seal,
-                            current_query_str,
-                        )?
-                    }
-                    _ => {
-                        // This data type is considered FragmentQueryable-opaque, so produce an error.
-                        // Later, this should just return the plum_body_content.  But for now, for simplicity,
-                        // the fragment query returns PlumHeadSeal.
-                        return Err(anyhow::format_err!(
+            use idp_proto::ContentClassifiable;
+            let fragment_query_result = match plum_body
+                .plum_body_content
+                .content_metadata
+                .content_class
+                .as_str()
+            {
+                // TODO: Replace this with a callback registry pattern
+                s if s == BranchNode::content_class_str() => {
+                    log::trace!("fragment_query; deserializing idp::BranchNode");
+                    // Deserialize plum_body_content and call fragment_query_single_segment.
+                    let branch_node: BranchNode = idp_proto::decode_and_deserialize_from_content(
+                        &plum_body.plum_body_content,
+                    )?;
+                    branch_node
+                        .fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
+                }
+                s if s == DirNode::content_class_str() => {
+                    log::trace!("fragment_query; deserializing idp::DirNode");
+                    // Deserialize plum_body_content and call fragment_query_single_segment.
+                    let dir_node: DirNode = idp_proto::decode_and_deserialize_from_content(
+                        &plum_body.plum_body_content,
+                    )?;
+                    dir_node
+                        .fragment_query_single_segment(&current_plum_head_seal, current_query_str)?
+                }
+                _ => {
+                    // This data type is considered FragmentQueryable-opaque, so produce an error.
+                    // Later, this should just return the plum_body_content.  But for now, for simplicity,
+                    // the fragment query returns PlumHeadSeal.
+                    return Err(anyhow::anyhow!(
                         "not yet supported; This data type is considered FragmentQueryable-opaque"
                     ));
-                    }
-                };
+                }
+            };
             match fragment_query_result {
                 FragmentQueryResult::Value(plum_head_seal) => {
                     // We reached the end of the query, so return.
@@ -660,15 +640,25 @@ impl Datahost {
             .map_err(|e| BranchError::InternalError {
                 description: e.to_string(),
             })?;
-        if branch_node_plum.plum_body.plum_body_content_type.value != "idp::BranchNode".as_bytes() {
+        // NOTE: This particular check is actually done by idp_proto::decode_and_deserialize_from_content,
+        // but we do it here in order to return a BranchError.  This could be improved if
+        // idp_proto::decode_and_deserialize_from_content had its own formal error type with details.
+        use idp_proto::ContentClassifiable;
+        if branch_node_plum
+            .plum_body
+            .plum_body_content
+            .content_metadata
+            .content_class
+            .as_str()
+            != BranchNode::content_class_str()
+        {
             return Err(BranchError::PlumIsNotABranchNode {
                 plum_head_seal: branch_path_state.current_state_plum_head_seal.clone(),
                 description: "PlumBody content type was not \"idp::BranchNode\"".to_string(),
             });
         }
-        // TEMP HACK: Assume always rmp_serde serialization for now.
-        let _branch_node: BranchNode = rmp_serde::from_read(
-            branch_node_plum.plum_body.plum_body_content.as_slice(),
+        let _branch_node: BranchNode = idp_proto::decode_and_deserialize_from_content(
+            &branch_node_plum.plum_body.plum_body_content,
         )
         .map_err(|e| BranchError::PlumIsNotABranchNode {
             plum_head_seal: branch_path_state.current_state_plum_head_seal.clone(),
@@ -790,15 +780,24 @@ impl Datahost {
         // TODO: Move this BranchNode validation stuff into helper function
 
         // Check that the BranchNode Plum is actually a BranchNode.
-        // TODO: Can do this via load_plum_and_deserialize
+        // TODO: Can do this via load_plum_and_decode_and_deserialize
         let new_branch_head_plum = self
             .load_plum(&new_branch_head_plum_head_seal, Some(tx.as_mut()))
             .await
             .map_err(|e| BranchError::InternalError {
                 description: e.to_string(),
             })?;
-        if new_branch_head_plum.plum_body.plum_body_content_type.value
-            != "idp::BranchNode".as_bytes()
+        // NOTE: This particular check is actually done by idp_proto::decode_and_deserialize_from_content,
+        // but we do it here in order to return a BranchError.  This could be improved if
+        // idp_proto::decode_and_deserialize_from_content had its own formal error type with details.
+        use idp_proto::ContentClassifiable;
+        if new_branch_head_plum
+            .plum_body
+            .plum_body_content
+            .content_metadata
+            .content_class
+            .as_str()
+            != BranchNode::content_class_str()
         {
             return Err(BranchError::PlumIsNotABranchNode {
                 plum_head_seal: new_branch_head_plum_head_seal,
@@ -806,15 +805,16 @@ impl Datahost {
             });
         }
         // TEMP HACK: Assume always rmp_serde serialization for now.
-        let _new_branch_head: BranchNode =
-            rmp_serde::from_read(new_branch_head_plum.plum_body.plum_body_content.as_slice())
-                .map_err(|e| BranchError::PlumIsNotABranchNode {
-                    plum_head_seal: new_branch_head_plum_head_seal.clone(),
-                    description: format!(
-                        "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
-                        e
-                    ),
-                })?;
+        let _new_branch_head: BranchNode = idp_proto::decode_and_deserialize_from_content(
+            &new_branch_head_plum.plum_body.plum_body_content,
+        )
+        .map_err(|e| BranchError::PlumIsNotABranchNode {
+            plum_head_seal: new_branch_head_plum_head_seal.clone(),
+            description: format!(
+                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                e
+            ),
+        })?;
 
         // The BranchNode Plum has been validated.  Now check the validity of the branch operation.
         // If it's a fast-forward, check that the history of the specified Plum includes the current branch head.
@@ -916,13 +916,16 @@ impl Datahost {
                     return Ok(Some(lhs_current));
                 }
                 // Load the ancestor.
-                self.load_plum_and_deserialize::<BranchNode>(&lhs_current, Some(tx.as_mut()))
-                    .await
-                    .map_err(|e| BranchError::PlumIsNotABranchNode {
-                        plum_head_seal: lhs_current,
-                        description: e.to_string(),
-                    })?
-                    .ancestor_o
+                self.load_plum_and_decode_and_deserialize::<BranchNode>(
+                    &lhs_current,
+                    Some(tx.as_mut()),
+                )
+                .await
+                .map_err(|e| BranchError::PlumIsNotABranchNode {
+                    plum_head_seal: lhs_current,
+                    description: e.to_string(),
+                })?
+                .ancestor_o
             } else {
                 None
             };
@@ -931,13 +934,16 @@ impl Datahost {
                     return Ok(Some(rhs_current));
                 }
                 // Load the ancestor.
-                self.load_plum_and_deserialize::<BranchNode>(&rhs_current, Some(tx.as_mut()))
-                    .await
-                    .map_err(|e| BranchError::PlumIsNotABranchNode {
-                        plum_head_seal: rhs_current,
-                        description: e.to_string(),
-                    })?
-                    .ancestor_o
+                self.load_plum_and_decode_and_deserialize::<BranchNode>(
+                    &rhs_current,
+                    Some(tx.as_mut()),
+                )
+                .await
+                .map_err(|e| BranchError::PlumIsNotABranchNode {
+                    plum_head_seal: rhs_current,
+                    description: e.to_string(),
+                })?
+                .ancestor_o
             } else {
                 None
             };

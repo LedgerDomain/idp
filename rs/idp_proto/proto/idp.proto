@@ -2,18 +2,53 @@ syntax = "proto2"; // Used so `required` is available.
 
 package idp;
 
-// import public "idp_common.proto";
-
 //
 // Helper types
 //
 
-message ContentType {
-    required bytes value = 1;
+// This represents the semantic type of the content, independent from how it's formatted or encoded.
+// For example, "text/plain", "text/html", "image", "audio", "application/x.idp.DirNode", etc.
+message ContentClass {
+    required string value = 1;
 }
 
-message Id {
+// This represents the format of the content, (partially) independent from its semantic type.
+// For example, "charset=us-ascii" or "charset=utf-8" for a ContentClass of "text/plain",
+// or "png" or "jpeg" for a ContentClass of "image", or "msgpack" or "json" for a ContentClass
+// of "application/x.idp.DirNode".
+message ContentFormat {
     required string value = 1;
+}
+
+// This is not meant to be a primary data type in IDP, but is secondary to ContentClass and ContentFormat,
+// but is present in order to provide compatibility with HTTP and web browsers.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
+message ContentType {
+    required string value = 1;
+}
+
+// This represents the sequence of (additional) encodings applied to the serialized content to
+// produce its final form, represented as a comma-separated sequence of individual encodings.
+// They are ordered in the order they are to be applied to the serialized content.  An empty string
+// means that no additional encodings are to be applied and is equivalent to "identity".  Some examples
+// of individual encodings are "gzip", "bzip2", "deflate", "identity", "base64", "base64url", etc.
+// Reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
+message ContentEncoding {
+    required string value = 1;
+}
+
+message ContentMetadata {
+    required uint64 content_length = 1;
+    required ContentClass content_class = 2;
+    required ContentFormat content_format = 3;
+    required ContentEncoding content_encoding = 4;
+}
+
+// A block of bytes with specified length and content type.
+message Content {
+    required ContentMetadata content_metadata = 1;
+    // TODO: Maybe make this capable of addressing a path in a filesystem?
+    required bytes content_byte_v = 2;
 }
 
 message Nonce {
@@ -28,7 +63,7 @@ message Nonce {
 // }
 
 message Seal {
-    // TEMP HACK -- it should support more seal types
+    // TEMP HACK -- it should support more seal types, e.g. HMAC.
     required Sha256Sum sha256sum = 1;
 }
 
@@ -49,6 +84,10 @@ message PlumHeadSeal {
     required Seal value = 1;
 }
 
+message PlumMetadataSeal {
+    required Seal value = 1;
+}
+
 message PlumRelationsSeal {
     required Seal value = 1;
 }
@@ -61,20 +100,29 @@ message PlumHead {
     // Optional nonce for preventing dictionary attacks.  This would be left as None e.g. in storing "a plain file"
     // or otherwise for data that has no need for the protection the nonce provides.
     optional Nonce plum_head_nonce_o = 1;
-    // Optional PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations-es).
-    // This would be left as None e.g. in storing "a plain file", or otherwise for data that doesn't have any
-    // formal plum_relations.
-    optional PlumRelationsSeal plum_relations_seal_o = 2;
+    // PlumMetadataSeal uniquely identifies a PlumMetadata (for authentication of PlumMetadata).  If it's
+    // desired to not store metadata, than this would be set to the seal of the canonical "null" PlumMetadata
+    // which contains all default/null values.
+    required PlumMetadataSeal plum_metadata_seal = 2;
+    // PlumRelationsSeal uniquely identifies a PlumRelations (for authentication of PlumRelations).  If it's
+    // desired to not store relations, than this would be set to the seal of the canonical "null" PlumRelations
+    // which contains all default/null values.
+    required PlumRelationsSeal plum_relations_seal = 3;
     // PlumBodySeal uniquely identifies a PlumBody (for authentication and lookup into the DB/store of PlumBody-s)
-    required PlumBodySeal plum_body_seal = 3;
-    // Optional owner DID.  This would be left as None e.g. in storing "a plain file", or otherwise for data that
-    // has no need for a formal owner.
-    optional Id owner_id_o = 4;
+    required PlumBodySeal plum_body_seal = 4;
+}
+
+message PlumMetadata {
+    // Optional nonce for preventing dictionary attacks.  This would be left as None e.g. in storing "a plain file"
+    // or otherwise for data that has no need for the protection the nonce provides.
+    optional Nonce plum_metadata_nonce_o = 1;
     // Optional Plum creation timestamp.
-    optional UnixNanoseconds created_at_o = 5;
-    // Optional, unstructured metadata.  This would be left as None e.g. in storing "a plain file", or otherwise
-    // for data that has no need for metadata.
-    optional bytes metadata_o = 6;
+    optional UnixNanoseconds plum_created_at_o = 2;
+    // Optional PlumBody content metadata, which, if present, must match the corresponding values in the PlumBody itself.
+    // Validation of a Plum must include checking this value against that of the PlumBody.
+    optional ContentMetadata plum_body_content_metadata_o = 3;
+    // Optional, additional content for the plum metadata.
+    optional Content additional_content_o = 4;
 }
 
 // This defines what plum_relations are possible from one Plum to another.
@@ -108,12 +156,8 @@ message PlumRelations {
 message PlumBody {
     // Optional nonce can be used to prevent dictionary attacks.
     optional Nonce plum_body_nonce_o = 1;
-    // Number of bytes in the Plum body itself.
-    required uint64 plum_body_content_length = 2;
-    // Content type for the Plum body.
-    required ContentType plum_body_content_type = 3;
-    // Content of the plum itself.  The content type of the bytes is given in the PlumHead.
-    required bytes plum_body_content = 4;
+    // The content of the Plum body itself.
+    required Content plum_body_content = 2;
 }
 
 // This represents a single data entry; it's a head (metadata), plum_relations, and a body (file content).
@@ -121,8 +165,9 @@ message PlumBody {
 // And at least it doesn't end with "ly".
 message Plum {
     required PlumHead plum_head = 1;
-    optional PlumRelations plum_relations_o = 2;
-    required PlumBody plum_body = 3;
+    required PlumMetadata plum_metadata = 2;
+    required PlumRelations plum_relations = 3;
+    required PlumBody plum_body = 4;
 }
 
 //

@@ -1,4 +1,10 @@
 [workspace]
+# NOTE: This is necessary in order for features in [dev-dependencies] on crates that
+# also show up in [dependencies] to not be enabled in ordinary non-test builds.
+# References:
+# - https://github.com/rust-lang/cargo/issues/10719
+# - https://github.com/rust-lang/rust/issues/90148
+resolver = "2"
 members = [
     "examples/pl",
     "idp",

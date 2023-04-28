@@ -8,6 +8,10 @@ edition = "2021"
 
 [features]
 client = ["dep:tonic"]
+encoding-deflate = ["dep:libflate"]
+encoding-gzip = ["dep:libflate"]
+format-json = ["dep:serde_json"]
+format-msgpack = ["dep:rmp-serde"]
 server = ["dep:tonic"]
 
 [dependencies]
@@ -15,11 +19,14 @@ anyhow = "1.0.69"
 bitflags = "1.3.2"
 chrono = { version = "0.4.19", features = ["serde"] }
 derive_more = "0.99.17"
+libflate = { version = "1.3.0", optional = true }
+log = "0.4.14"
 num-derive = "0.3"
 num-traits = "0.2"
 prost = "0.11.0"
-rmp-serde = "0.15.5"
+rmp-serde = { version = "0.15.5", optional = true }
 serde = { version = "1.0.126", features = ["derive"] }
+serde_json = { version = "1.0.96", optional = true }
 sha2 = "0.9.5"
 thiserror = "1.0.38"
 tonic = { version = "0.8.3", features = ["tls"], optional = true }
@@ -29,6 +36,11 @@ tonic = { version = "0.8.3", features = ["tls"], optional = true }
 tonic-build = { version = "0.8.3", features = ["prost"] }
 
 [dev-dependencies]
+# Always use this -- it gives much more useful backtraces when tests fail.
+anyhow = { version = "1", features = ["backtrace"] }
+ctor = "0.1.21"
 env_logger = "0.8.4"
+libflate = "1.3.0"
 log = "0.4.14"
+serde_json = "1.0.96"
 uuid = { version = "0.8.2", features = ["v4"] }
