@@ -5,7 +5,7 @@ mod content_encoding;
 mod content_format;
 mod content_metadata;
 mod content_type;
-mod contentifiable;
+mod deserializable;
 mod generated;
 mod hashable;
 mod nonce;
@@ -28,13 +28,14 @@ mod plum_relations_builder;
 mod plum_relations_seal;
 mod plum_verify_error;
 mod seal;
+mod serializable;
 mod sha256sum;
 mod unix_nanoseconds;
 
 pub use crate::{
     content_classifiable::ContentClassifiable,
-    contentifiable::{
-        decode_and_deserialize_from_content, serialize_and_encode_to_content, Contentifiable,
+    deserializable::{
+        decode_and_deserialize_from_content, deserialize_using_serde_format, Deserializable,
     },
     generated::idp::{
         branch_set_head_request, pull_request, pull_response, push_request, push_response,
@@ -56,6 +57,7 @@ pub use crate::{
     plum_relational::PlumRelational,
     plum_relations_builder::PlumRelationsBuilder,
     plum_verify_error::PlumVerifyError,
+    serializable::{serialize_and_encode_to_content, serialize_using_serde_format, Serializable},
 };
 
 #[cfg(feature = "client")]

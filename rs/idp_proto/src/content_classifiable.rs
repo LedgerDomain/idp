@@ -1,3 +1,5 @@
+use crate::ContentClass;
+
 /// This trait allows a type to have an associated ContentClass.
 // TODO: Some types that impl this might have an implied ContentFormat as well (e.g. String -> charset=utf-8)
 pub trait ContentClassifiable {
@@ -11,6 +13,10 @@ pub trait ContentClassifiable {
     /// Helper method which should return the same thing as content_class_str(), but can be called
     /// on an instance of this type (e.g. via a trait object).
     fn derive_content_class_str(&self) -> &'static str;
+    /// Convenience method for returning the ContentClass (by value).
+    fn content_class(&self) -> ContentClass {
+        ContentClass::from(self.derive_content_class_str().to_string())
+    }
 }
 
 /// Impl of ContentClassifiable for common type String.

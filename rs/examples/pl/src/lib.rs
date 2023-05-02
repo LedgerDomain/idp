@@ -981,24 +981,22 @@ impl idp_proto::ContentClassifiable for ASTNode {
     }
 }
 
-impl idp_proto::Contentifiable for ASTNode {
+impl idp_proto::Deserializable for ASTNode {
+    fn deserialize_using_format(
+        content_format: &idp_proto::ContentFormat,
+        reader: &mut dyn std::io::Read,
+    ) -> Result<Self> {
+        idp_proto::deserialize_using_serde_format(content_format, reader)
+    }
+}
+
+impl idp_proto::Serializable for ASTNode {
     fn serialize_using_format(
         &self,
         content_format: &idp_proto::ContentFormat,
         writer: &mut dyn std::io::Write,
     ) -> Result<()> {
-        match content_format.as_str() {
-            "json" => {
-                serde_json::to_writer(writer, self)?;
-            }
-            "msgpack" => {
-                rmp_serde::encode::write(writer, self)?;
-            }
-            _ => {
-                anyhow::bail!("Unsupported ContentFormat: {:?}", content_format);
-            }
-        }
-        Ok(())
+        idp_proto::serialize_using_serde_format(self, content_format, writer)
     }
 }
 

@@ -1,8 +1,6 @@
 use crate::{FragmentQueryResult, FragmentQueryable};
 use anyhow::Result;
-use idp_proto::{
-    ContentClassifiable, Contentifiable, PlumHeadSeal, PlumRelationFlags, PlumRelational,
-};
+use idp_proto::{PlumHeadSeal, PlumRelationFlags};
 use std::collections::HashMap;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -29,38 +27,7 @@ pub struct BranchNode {
     // TODO: merge nodes (or generally an arbitrary number of ancestors)
 }
 
-// impl BranchNode {
-//     // TODO: This could be generalizable to ContentTypeable + serde::DeserializeOwned
-//     pub fn from_plum(plum: &Plum) -> std::result::Result<Self, BranchError> {
-//         // let plum_body_content_type_str =
-//         //     std::str::from_utf8(lhs_current_plum.plum_body.plum_body_content_type.as_slice())
-//         //         .map_err(|e| BranchNode::InternalError {
-//         //             description: format!(
-//         //         "BranchNode ancestor {} PlumBody had a malformed plum_body_content_type; {}",
-//         //         lhs_current, e
-//         //     ),
-//         //         })?;
-//         if !Self::content_type_matches(plum.plum_body.plum_body_content_type.as_slice()) {
-//             return Err(BranchError::PlumIsNotABranchNode {
-//                 plum_head_seal: lhs_current,
-//                 description: "its plum_body_content_type was not \"idp::BranchNode\"".to_string(),
-//             });
-//         }
-//         let branch_node: BranchNode = rmp_serde::from_read(
-//             lhs_current_plum.plum_body.plum_body_content.as_slice(),
-//         )
-//         .map_err(|e| BranchError::PlumIsNotABranchNode {
-//             plum_head_seal: lhs_current,
-//             description: format!(
-//                 "its plum_body_content failed to deserialize into BranchNode; {}",
-//                 e
-//             ),
-//         })?;
-//         Ok(branch_node)
-//     }
-// }
-
-impl ContentClassifiable for BranchNode {
+impl idp_proto::ContentClassifiable for BranchNode {
     fn content_class_str() -> &'static str {
         "application/x.idp.BranchNode"
     }
@@ -69,27 +36,26 @@ impl ContentClassifiable for BranchNode {
     }
 }
 
-impl Contentifiable for BranchNode {
+impl idp_proto::Deserializable for BranchNode {
+    fn deserialize_using_format(
+        content_format: &idp_proto::ContentFormat,
+        reader: &mut dyn std::io::Read,
+    ) -> Result<Self> {
+        idp_proto::deserialize_using_serde_format(content_format, reader)
+    }
+}
+
+impl idp_proto::Serializable for BranchNode {
     fn serialize_using_format(
         &self,
         content_format: &idp_proto::ContentFormat,
         writer: &mut dyn std::io::Write,
     ) -> Result<()> {
-        match content_format.as_str() {
-            #[cfg(feature = "format-json")]
-            "json" => Ok(serde_json::to_writer(writer, self)?),
-            #[cfg(feature = "format-msgpack")]
-            "msgpack" => Ok(rmp_serde::encode::write(writer, self)?),
-            _ => {
-                let _ = writer;
-                // NOTE: If you hit this, you may have just forgotten to enable one of the format-* features.
-                anyhow::bail!("Unsupported ContentFormat: {:?}", content_format);
-            }
-        }
+        idp_proto::serialize_using_serde_format(self, content_format, writer)
     }
 }
 
-impl PlumRelational for BranchNode {
+impl idp_proto::PlumRelational for BranchNode {
     fn accumulate_plum_relations_nonrecursive(
         &self,
         plum_relation_flags_m: &mut HashMap<PlumHeadSeal, PlumRelationFlags>,

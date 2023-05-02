@@ -4,8 +4,8 @@ use crate::{
 };
 use anyhow::Result;
 use idp_proto::{
-    BranchSetHeadRequest, Contentifiable, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead,
-    PlumHeadSeal, PlumRelationFlags, PlumRelations, PlumRelationsSeal,
+    BranchSetHeadRequest, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
+    PlumRelationFlags, PlumRelations, PlumRelationsSeal,
 };
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -237,9 +237,7 @@ impl Datahost {
     /// and then deserialize the PlumBody content into T.
     // TODO: Consider having it return the Plum or PlumHead as well, potentially deserializing
     // any PlumHead metadata into another type.
-    pub async fn load_plum_and_decode_and_deserialize<
-        T: Contentifiable + serde::de::DeserializeOwned,
-    >(
+    pub async fn load_plum_and_decode_and_deserialize<T: idp_proto::Deserializable>(
         &self,
         plum_head_seal: &PlumHeadSeal,
         transaction_o: Option<&mut dyn DatahostStorageTransaction>,
@@ -663,7 +661,7 @@ impl Datahost {
         .map_err(|e| BranchError::PlumIsNotABranchNode {
             plum_head_seal: branch_path_state.current_state_plum_head_seal.clone(),
             description: format!(
-                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                "PlumBody content failed to decode and deserialize into BranchNode; {}",
                 e
             ),
         })?;
@@ -804,14 +802,13 @@ impl Datahost {
                 description: "PlumBody content type was not \"idp::BranchNode\"".to_string(),
             });
         }
-        // TEMP HACK: Assume always rmp_serde serialization for now.
         let _new_branch_head: BranchNode = idp_proto::decode_and_deserialize_from_content(
             &new_branch_head_plum.plum_body.plum_body_content,
         )
         .map_err(|e| BranchError::PlumIsNotABranchNode {
             plum_head_seal: new_branch_head_plum_head_seal.clone(),
             description: format!(
-                "PlumBody content failed to deserialize via rmp_serde into BranchNode; {}",
+                "PlumBody content failed to decode and deserialize into BranchNode; {}",
                 e
             ),
         })?;

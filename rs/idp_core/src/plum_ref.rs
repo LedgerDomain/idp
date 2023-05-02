@@ -1,7 +1,6 @@
 use crate::{Datacache, PlumURI};
 use anyhow::Result;
 use async_lock::RwLock;
-use idp_proto::Contentifiable;
 use std::{
     any::Any,
     sync::{Arc, Weak},
@@ -34,7 +33,7 @@ pub struct PlumRef<T> {
 }
 
 // NOTE: Send + Sync are necessary because PlumRef::get_or_load_value returns Arc<T> which crosses await boundaries.
-impl<T: Any + Contentifiable + serde::de::DeserializeOwned + Send + Sync> PlumRef<T> {
+impl<T: Any + idp_proto::Deserializable + Send + Sync> PlumRef<T> {
     pub fn new(plum_uri: PlumURI) -> Self {
         Self {
             plum_uri,

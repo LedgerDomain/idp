@@ -1,7 +1,7 @@
 use crate::{
-    serialize_and_encode_to_content, Content, ContentEncoding, ContentFormat, Contentifiable,
-    Nonce, Plum, PlumBody, PlumBodySeal, PlumHead, PlumMetadata, PlumMetadataSeal, PlumRelational,
-    PlumRelationsBuilder, PlumRelationsSeal, UnixNanoseconds,
+    serialize_and_encode_to_content, Content, ContentEncoding, ContentFormat, Nonce, Plum,
+    PlumBody, PlumBodySeal, PlumHead, PlumMetadata, PlumMetadataSeal, PlumRelational,
+    PlumRelationsBuilder, PlumRelationsSeal, Serializable, UnixNanoseconds,
 };
 use anyhow::Result;
 
@@ -138,7 +138,7 @@ impl PlumBuilder {
         content_encoding: ContentEncoding,
     ) -> Result<Self>
     where
-        T: PlumRelational + Contentifiable,
+        T: PlumRelational + Serializable,
     {
         self.with_plum_relations_from(value)?
             .with_plum_body_content_from(value, content_format, content_encoding)
@@ -167,7 +167,7 @@ impl PlumBuilder {
         mut content_encoding: ContentEncoding,
     ) -> Result<Self>
     where
-        T: Contentifiable,
+        T: Serializable,
     {
         content_encoding.normalize();
         Ok(self.with_plum_body_content(serialize_and_encode_to_content(

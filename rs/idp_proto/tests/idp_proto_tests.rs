@@ -1,11 +1,7 @@
-// TEMP HACK
-#![allow(unused)]
-
 use idp_proto::{
-    serialize_and_encode_to_content, Content, ContentClass, ContentClassifiable, ContentEncoding,
-    ContentFormat, ContentMetadata, ContentType, Contentifiable, Nonce, Plum, PlumBodySeal,
-    PlumBuilder, PlumHeadSeal, PlumMetadata, PlumRelationFlags, PlumRelationFlagsMapping,
-    PlumRelational, PlumRelationsBuilder, UnixNanoseconds,
+    Content, ContentClass, ContentClassifiable, ContentEncoding, ContentFormat, ContentMetadata,
+    Nonce, Plum, PlumBodySeal, PlumBuilder, PlumHeadSeal, PlumRelationFlags, PlumRelationsBuilder,
+    UnixNanoseconds,
 };
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -31,7 +27,7 @@ pub struct DummyData {
     pub dependency: PlumHeadSeal,
 }
 
-impl ContentClassifiable for DummyData {
+impl idp_proto::ContentClassifiable for DummyData {
     fn content_class_str() -> &'static str {
         "application/x.idp.tests.DummyTypedBody"
     }
@@ -40,31 +36,26 @@ impl ContentClassifiable for DummyData {
     }
 }
 
-impl Contentifiable for DummyData {
+impl idp_proto::Deserializable for DummyData {
+    fn deserialize_using_format(
+        content_format: &ContentFormat,
+        reader: &mut dyn std::io::Read,
+    ) -> anyhow::Result<Self> {
+        idp_proto::deserialize_using_serde_format(content_format, reader)
+    }
+}
+
+impl idp_proto::Serializable for DummyData {
     fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
     ) -> anyhow::Result<()> {
-        match content_format.as_str() {
-            // NOTE: There would be a cfg feature gate on this if this code were moved into the idp_proto crate.
-            "json" => {
-                serde_json::to_writer(writer, self)?;
-            }
-            // NOTE: There would be a cfg feature gate on this if this code were moved into the idp_proto crate.
-            "msgpack" => {
-                rmp_serde::encode::write(writer, self)?;
-            }
-            _ => {
-                // NOTE: If you hit this, you may have just forgotten to enable one of the format-* features.
-                anyhow::bail!("Unsupported ContentFormat: {:?}", content_format);
-            }
-        }
-        Ok(())
+        idp_proto::serialize_using_serde_format(self, content_format, writer)
     }
 }
 
-impl PlumRelational for DummyData {
+impl idp_proto::PlumRelational for DummyData {
     fn accumulate_plum_relations_nonrecursive(
         &self,
         plum_relation_flags_m: &mut HashMap<PlumHeadSeal, PlumRelationFlags>,
@@ -221,9 +212,12 @@ fn test_contentifiable_3() {
         let s = "this is us-ascii\nthingy\tblah";
         let content_format = ContentFormat::charset_us_ascii();
         let content_encoding = ContentEncoding::none();
-        let content =
-            serialize_and_encode_to_content(&s, content_format.clone(), content_encoding.clone())
-                .expect("pass");
+        let content = idp_proto::serialize_and_encode_to_content(
+            &s,
+            content_format.clone(),
+            content_encoding.clone(),
+        )
+        .expect("pass");
         log::debug!("&str content: {:?}", content);
         log::debug!("    has {:?}", content.content_metadata.content_type());
         assert_eq!(content.content_metadata.content_length, s.len() as u64);
@@ -236,9 +230,12 @@ fn test_contentifiable_3() {
         let s = "this is also us-ascii\nthingy\tblah".to_string();
         let content_format = ContentFormat::charset_us_ascii();
         let content_encoding = ContentEncoding::none();
-        let content =
-            serialize_and_encode_to_content(&s, content_format.clone(), content_encoding.clone())
-                .expect("pass");
+        let content = idp_proto::serialize_and_encode_to_content(
+            &s,
+            content_format.clone(),
+            content_encoding.clone(),
+        )
+        .expect("pass");
         log::debug!("String content: {:?}", content);
         log::debug!("    has {:?}", content.content_metadata.content_type());
         assert_eq!(content.content_metadata.content_length, s.len() as u64);
@@ -251,9 +248,12 @@ fn test_contentifiable_3() {
         let s = "this is utf-8\n日本語\tblah";
         let content_format = ContentFormat::charset_utf_8();
         let content_encoding = ContentEncoding::none();
-        let content =
-            serialize_and_encode_to_content(&s, content_format.clone(), content_encoding.clone())
-                .expect("pass");
+        let content = idp_proto::serialize_and_encode_to_content(
+            &s,
+            content_format.clone(),
+            content_encoding.clone(),
+        )
+        .expect("pass");
         log::debug!("&str content: {:?}", content);
         log::debug!("    has {:?}", content.content_metadata.content_type());
         assert_eq!(content.content_metadata.content_length, s.len() as u64);
@@ -266,9 +266,12 @@ fn test_contentifiable_3() {
         let s = "this is also utf-8\n日本語\tblah".to_string();
         let content_format = ContentFormat::charset_utf_8();
         let content_encoding = ContentEncoding::none();
-        let content =
-            serialize_and_encode_to_content(&s, content_format.clone(), content_encoding.clone())
-                .expect("pass");
+        let content = idp_proto::serialize_and_encode_to_content(
+            &s,
+            content_format.clone(),
+            content_encoding.clone(),
+        )
+        .expect("pass");
         log::debug!("String content: {:?}", content);
         log::debug!("    has {:?}", content.content_metadata.content_type());
         assert_eq!(content.content_metadata.content_length, s.len() as u64);
@@ -323,21 +326,21 @@ fn test_plum_relations_builder() {
     );
 }
 
-fn random_made_up_plum_head_seal() -> PlumHeadSeal {
-    PlumHeadSeal {
-        value: idp_proto::Seal {
-            sha256sum: idp_proto::Sha256Sum {
-                value: Uuid::new_v4().as_bytes().to_vec(),
-            },
-        },
-    }
-}
+// fn random_made_up_plum_head_seal() -> PlumHeadSeal {
+//     PlumHeadSeal {
+//         value: idp_proto::Seal {
+//             sha256sum: idp_proto::Sha256Sum {
+//                 value: Uuid::new_v4().as_bytes().to_vec(),
+//             },
+//         },
+//     }
+// }
 
-fn random_nonce() -> Nonce {
-    Nonce {
-        value: Uuid::new_v4().as_bytes().to_vec(),
-    }
-}
+// fn random_nonce() -> Nonce {
+//     Nonce {
+//         value: Uuid::new_v4().as_bytes().to_vec(),
+//     }
+// }
 
 #[derive(Debug)]
 struct TestPlumBuilderOptions {

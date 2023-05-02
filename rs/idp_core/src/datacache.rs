@@ -1,7 +1,7 @@
 use crate::{Datahost, PlumURI};
 use anyhow::Result;
 use async_lock::RwLock;
-use idp_proto::{ContentClassifiable, Contentifiable, PlumHeadSeal};
+use idp_proto::PlumHeadSeal;
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 type UntypedValueGuts = dyn Any + Send + Sync;
@@ -48,13 +48,7 @@ impl Datacache {
     /// it will simply return the cached Arc<T>, thereby eliminating duplication.
     pub async fn get_or_load_value<T>(&self, plum_uri: &PlumURI) -> Result<Arc<T>>
     where
-        T: Any
-            + ContentClassifiable
-            + Contentifiable
-            + serde::de::DeserializeOwned
-            + Send
-            + Sized
-            + Sync,
+        T: Any + idp_proto::Deserializable + Send + Sized + Sync,
     {
         if let Some(cached_value) = self
             .cached_value_mla
