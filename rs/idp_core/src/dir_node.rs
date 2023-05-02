@@ -16,6 +16,12 @@ impl idp_proto::ContentClassifiable for DirNode {
     fn derive_content_class_str(&self) -> &'static str {
         Self::content_class_str()
     }
+    fn default_content_format(&self) -> Option<idp_proto::ContentFormat> {
+        None
+    }
+    fn validate_content_format(&self, content_format: &idp_proto::ContentFormat) -> Result<()> {
+        idp_proto::validate_is_serde_format(content_format)
+    }
 }
 
 impl idp_proto::Deserializable for DirNode {

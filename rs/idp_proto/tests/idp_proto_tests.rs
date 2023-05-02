@@ -34,6 +34,12 @@ impl idp_proto::ContentClassifiable for DummyData {
     fn derive_content_class_str(&self) -> &'static str {
         Self::content_class_str()
     }
+    fn default_content_format(&self) -> Option<ContentFormat> {
+        None
+    }
+    fn validate_content_format(&self, content_format: &ContentFormat) -> anyhow::Result<()> {
+        idp_proto::validate_is_serde_format(content_format)
+    }
 }
 
 impl idp_proto::Deserializable for DummyData {
@@ -116,7 +122,7 @@ fn test_contentifiable_1() {
     {
         let content = idp_proto::serialize_and_encode_to_content(
             &dummy_data,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             content_encoding.clone(),
         )
         .expect("pass");
@@ -184,7 +190,7 @@ fn test_contentifiable_2() {
         ] {
             let content = idp_proto::serialize_and_encode_to_content(
                 &dummy_data,
-                content_format.clone(),
+                Some(&content_format),
                 content_encoding.clone(),
             )
             .expect("pass");
@@ -214,7 +220,7 @@ fn test_contentifiable_3() {
         let content_encoding = ContentEncoding::none();
         let content = idp_proto::serialize_and_encode_to_content(
             &s,
-            content_format.clone(),
+            Some(&content_format),
             content_encoding.clone(),
         )
         .expect("pass");
@@ -232,7 +238,7 @@ fn test_contentifiable_3() {
         let content_encoding = ContentEncoding::none();
         let content = idp_proto::serialize_and_encode_to_content(
             &s,
-            content_format.clone(),
+            Some(&content_format),
             content_encoding.clone(),
         )
         .expect("pass");
@@ -250,7 +256,7 @@ fn test_contentifiable_3() {
         let content_encoding = ContentEncoding::none();
         let content = idp_proto::serialize_and_encode_to_content(
             &s,
-            content_format.clone(),
+            Some(&content_format),
             content_encoding.clone(),
         )
         .expect("pass");
@@ -268,7 +274,7 @@ fn test_contentifiable_3() {
         let content_encoding = ContentEncoding::none();
         let content = idp_proto::serialize_and_encode_to_content(
             &s,
-            content_format.clone(),
+            Some(&content_format),
             content_encoding.clone(),
         )
         .expect("pass");
@@ -397,7 +403,7 @@ fn create_test_content_and_plum(
     let plum = plum_builder
         .with_plum_relations_and_plum_body_content_from(
             &dummy_data,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -405,6 +411,41 @@ fn create_test_content_and_plum(
         .expect("pass");
 
     (dummy_data, plum)
+}
+
+#[test]
+fn test_invalid_requested_content_format_0() {
+    // Just a made-up PlumHeadSeal.
+    let dependency_plum_head_seal = PlumHeadSeal {
+        value: idp_proto::Seal {
+            sha256sum: idp_proto::Sha256Sum {
+                value: vec![0, 2, 5, 9],
+            },
+        },
+    };
+    let dummy_data = DummyData {
+        name: "test_invalid_requested_content_format_0_name".to_string(),
+        dependency: dependency_plum_head_seal.clone(),
+    };
+
+    // This should fail because DummyData is only serde-serializable, and a text/plain-specific format isn't applicable.
+    let r = PlumBuilder::new().with_plum_relations_and_plum_body_content_from(
+        &dummy_data,
+        Some(&ContentFormat::charset_us_ascii()),
+        ContentEncoding::none(),
+    );
+    assert!(r.is_err());
+}
+
+#[test]
+fn test_invalid_requested_content_format_1() {
+    // This should fail because the string isn't ASCII as requested.
+    let r = PlumBuilder::new().with_plum_relations_and_plum_body_content_from(
+        &"test_invalid_requested_content_format_1 -- this is a UTF8 string -- 日本語",
+        Some(&ContentFormat::charset_us_ascii()),
+        ContentEncoding::none(),
+    );
+    assert!(r.is_err());
 }
 
 #[test]

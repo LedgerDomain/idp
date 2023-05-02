@@ -47,7 +47,7 @@ impl TestData {
         let content_1_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &content_1,
-                ContentFormat::charset_us_ascii(),
+                None,
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -56,7 +56,7 @@ impl TestData {
         let content_2_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &content_2,
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_us_ascii()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -66,7 +66,7 @@ impl TestData {
         let metadata_0_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &format!("Branch root, {}", Uuid::new_v4()),
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_utf_8()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -75,7 +75,7 @@ impl TestData {
         let metadata_1_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &format!("Initial statement, {}", Uuid::new_v4()),
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_us_ascii()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -87,7 +87,7 @@ impl TestData {
                     "Revised statement authored by the HIPPO lobby, {}",
                     Uuid::new_v4()
                 ),
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_us_ascii()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -134,7 +134,7 @@ impl TestData {
         let branch_node_0_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &branch_node_0,
-                ContentFormat::json(),
+                Some(&ContentFormat::json()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -159,7 +159,7 @@ impl TestData {
         let branch_node_1_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &branch_node_1,
-                ContentFormat::json(),
+                Some(&ContentFormat::json()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -184,7 +184,7 @@ impl TestData {
         let branch_node_2_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &branch_node_2,
-                ContentFormat::json(),
+                Some(&ContentFormat::json()),
                 ContentEncoding::none(),
             )
             .expect("pass")

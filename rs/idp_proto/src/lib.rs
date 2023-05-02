@@ -34,6 +34,7 @@ mod unix_nanoseconds;
 
 pub use crate::{
     content_classifiable::ContentClassifiable,
+    content_format::validate_is_serde_format,
     deserializable::{
         decode_and_deserialize_from_content, deserialize_using_serde_format, Deserializable,
     },
@@ -49,10 +50,7 @@ pub use crate::{
         Seal, Sha256Sum, UnixNanoseconds,
     },
     hashable::Hashable,
-    // plum_body_builder::PlumBodyBuilder,
     plum_builder::PlumBuilder,
-    // plum_head_builder::PlumHeadBuilder,
-    // plum_metadata_builder::PlumMetadataBuilder,
     plum_relation_flags::PlumRelationFlags,
     plum_relational::PlumRelational,
     plum_relations_builder::PlumRelationsBuilder,

@@ -134,14 +134,14 @@ impl PlumBuilder {
     pub fn with_plum_relations_and_plum_body_content_from<'a, T>(
         self,
         value: &T,
-        content_format: ContentFormat,
+        requested_content_format_o: Option<&ContentFormat>,
         content_encoding: ContentEncoding,
     ) -> Result<Self>
     where
         T: PlumRelational + Serializable,
     {
         self.with_plum_relations_from(value)?
-            .with_plum_body_content_from(value, content_format, content_encoding)
+            .with_plum_body_content_from(value, requested_content_format_o, content_encoding)
     }
     /// Convenience method which derives the plum relations from the given value.  This does not alter
     /// the plum relations nonce.
@@ -163,7 +163,7 @@ impl PlumBuilder {
     fn with_plum_body_content_from<T>(
         self,
         value: &T,
-        content_format: ContentFormat,
+        requested_content_format_o: Option<&ContentFormat>,
         mut content_encoding: ContentEncoding,
     ) -> Result<Self>
     where
@@ -172,7 +172,7 @@ impl PlumBuilder {
         content_encoding.normalize();
         Ok(self.with_plum_body_content(serialize_and_encode_to_content(
             value,
-            content_format,
+            requested_content_format_o,
             content_encoding,
         )?))
     }

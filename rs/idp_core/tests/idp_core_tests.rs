@@ -56,7 +56,7 @@ async fn test_datahost_create_plum_head() {
     let plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("test_datahost_create_plum_head, {}.", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -101,7 +101,7 @@ async fn test_datahost_create_plum_body() {
     let plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("test_datahost_create_plum_body, {}.", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -139,7 +139,7 @@ async fn test_datahost_create_plum() {
     let plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("test_datahost_create_plum, {}.", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -175,7 +175,7 @@ async fn test_datahost_create_plums_with_identical_bodies() {
     let plum_0 = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &string,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -184,7 +184,7 @@ async fn test_datahost_create_plums_with_identical_bodies() {
     let plum_1 = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &string,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -224,7 +224,7 @@ async fn test_datahost_branch_node() {
     let content_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_1,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -233,7 +233,7 @@ async fn test_datahost_branch_node() {
     let content_2_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_2,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -243,7 +243,7 @@ async fn test_datahost_branch_node() {
     let metadata_0_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("Branch root, {}", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -252,7 +252,7 @@ async fn test_datahost_branch_node() {
     let metadata_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("Initial statement, {}", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -264,7 +264,7 @@ async fn test_datahost_branch_node() {
                 "Revised statement authored by the HIPPO lobby, {}",
                 Uuid::new_v4()
             ),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -304,7 +304,7 @@ async fn test_datahost_branch_node() {
     let branch_node_0_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &branch_node_0,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -329,7 +329,7 @@ async fn test_datahost_branch_node() {
     let branch_node_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &branch_node_1,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -354,7 +354,7 @@ async fn test_datahost_branch_node() {
     let branch_node_2_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &branch_node_2,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -637,7 +637,7 @@ async fn test_datahost_dir_node() {
     let content_0_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_0,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -646,7 +646,7 @@ async fn test_datahost_dir_node() {
     let content_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_1,
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -669,7 +669,7 @@ async fn test_datahost_dir_node() {
     let dir_node_0_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &dir_node_0,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -688,7 +688,7 @@ async fn test_datahost_dir_node() {
     let dir_node_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &dir_node_1,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -708,7 +708,7 @@ async fn test_datahost_dir_node() {
     let dir_node_2_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &dir_node_2,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -729,7 +729,7 @@ async fn test_datahost_dir_node() {
     let dir_node_3_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &dir_node_3,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -749,7 +749,7 @@ async fn test_datahost_dir_node() {
     let dir_node_4_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &dir_node_4,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1086,7 +1086,7 @@ async fn test_plum_ref() {
     let content_0_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_0,
-            ContentFormat::msgpack(),
+            Some(&ContentFormat::msgpack()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1095,7 +1095,7 @@ async fn test_plum_ref() {
     let content_1_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &content_1,
-            ContentFormat::msgpack(),
+            Some(&ContentFormat::msgpack()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1186,7 +1186,7 @@ async fn test_path_state() {
     let plum0 = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("HIPPOs and OSTRICHes are enemies! {}", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1199,7 +1199,7 @@ async fn test_path_state() {
                 "No, HIPPOs and OSTRICHes are friends forever. {}",
                 Uuid::new_v4()
             ),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1256,7 +1256,7 @@ async fn build_and_store_random_branch_node_and_plum_with_ancestor(
     let metadata_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("BranchNode metadata {}", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1271,7 +1271,7 @@ async fn build_and_store_random_branch_node_and_plum_with_ancestor(
     let content_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &format!("BranchNode content {}", Uuid::new_v4()),
-            ContentFormat::charset_us_ascii(),
+            Some(&ContentFormat::charset_us_ascii()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1300,7 +1300,7 @@ async fn build_and_store_random_branch_node_and_plum_with_ancestor(
     let branch_node_plum = PlumBuilder::new()
         .with_plum_relations_and_plum_body_content_from(
             &branch_node,
-            ContentFormat::json(),
+            Some(&ContentFormat::json()),
             ContentEncoding::none(),
         )
         .expect("pass")
@@ -1770,7 +1770,7 @@ async fn test_branch() {
         let rando_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &format!("rando plum {}", Uuid::new_v4()),
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_us_ascii()),
                 ContentEncoding::none(),
             )
             .expect("pass")
@@ -2025,7 +2025,7 @@ async fn test_branch() {
         let non_branch_node_plum = PlumBuilder::new()
             .with_plum_relations_and_plum_body_content_from(
                 &format!("a mad hippo is a glad hippo; {}", Uuid::new_v4()),
-                ContentFormat::charset_us_ascii(),
+                Some(&ContentFormat::charset_us_ascii()),
                 ContentEncoding::none(),
             )
             .expect("pass")

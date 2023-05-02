@@ -152,9 +152,12 @@ fn serialize_and_encode<'a>(
 /// Serializes this content using the given format and sequence of encodings into a Content struct.
 pub fn serialize_and_encode_to_content(
     data: &dyn Serializable,
-    content_format: ContentFormat,
+    requested_content_format_o: Option<&ContentFormat>,
     mut content_encoding: ContentEncoding,
 ) -> Result<Content> {
+    // Determine the ContentFormat to use based on requested_content_format_o.
+    let content_format = data.determine_content_format(requested_content_format_o)?;
+    // Normalize ContentEncoding before it goes into the Content.
     content_encoding.normalize();
     // Parse the comma-separated list of encodings into an iterator of individual codecs.
     // No need to trim whitespace because the normalize() call above already does that.

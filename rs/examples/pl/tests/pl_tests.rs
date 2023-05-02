@@ -400,7 +400,7 @@ async fn test_plum_ref_call() {
             &idp_proto::PlumBuilder::new()
                 .with_plum_relations_and_plum_body_content_from(
                     &test_data.norm_squared_function,
-                    ContentFormat::msgpack(),
+                    Some(&ContentFormat::msgpack()),
                     ContentEncoding::none(),
                 )
                 .expect("pass")
@@ -417,7 +417,7 @@ async fn test_plum_ref_call() {
             &idp_proto::PlumBuilder::new()
                 .with_plum_relations_and_plum_body_content_from(
                     &test_data.exp_function,
-                    ContentFormat::msgpack(),
+                    Some(&ContentFormat::msgpack()),
                     ContentEncoding::none(),
                 )
                 .expect("pass")
@@ -434,7 +434,7 @@ async fn test_plum_ref_call() {
             &idp_proto::PlumBuilder::new()
                 .with_plum_relations_and_plum_body_content_from(
                     &test_data.cos_function,
-                    ContentFormat::msgpack(),
+                    Some(&ContentFormat::msgpack()),
                     ContentEncoding::none(),
                 )
                 .expect("pass")
@@ -451,7 +451,7 @@ async fn test_plum_ref_call() {
             &idp_proto::PlumBuilder::new()
                 .with_plum_relations_and_plum_body_content_from(
                     &test_data.sin_function,
-                    ContentFormat::msgpack(),
+                    Some(&ContentFormat::msgpack()),
                     ContentEncoding::none(),
                 )
                 .expect("pass")
