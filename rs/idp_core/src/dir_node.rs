@@ -19,7 +19,7 @@ impl ContentClassifiable for DirNode {
 }
 
 impl Contentifiable for DirNode {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &idp_proto::ContentFormat,
         writer: &mut dyn std::io::Write,

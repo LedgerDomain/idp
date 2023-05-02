@@ -1,6 +1,11 @@
 use crate::{ContentFormat, Hashable};
 
 impl ContentFormat {
+    /// Convenience method.  ContentEncoding::none() (whose string repr is "") represents no format (e.g.
+    /// for unstructured bytes, or otherwise unspecified format).
+    pub fn none() -> Self {
+        Self::from("".to_string())
+    }
     pub fn charset_us_ascii() -> Self {
         Self::from("charset=us-ascii".to_string())
     }

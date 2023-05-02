@@ -16,27 +16,22 @@ The tests run against a local SQLite database named `idp_core_tests.db`.  For fu
 -   Add an "has_broken_relations" boolean to the plum_heads table, so that efficient dependency breakage can be tracked.  Perhaps track the number of expected relations and the number of stored relations.
 -   Add "previous version" relation, which would be used e.g. in `BranchNode`, since when fetching a piece of data that's linked into a data structure via `PlumRef`, one wouldn't want the entire history of that data.
 -   Add non-DAG kinds of `PlumRelation`s where there can be cycles.  For example, "hyperlink to" could have a cycle in which two documents refer to one another.  Though actually this is not directly possible, because relations are addressed via `PlumHeadSeal`, and those can't be known in advance, so even forming a cycle of relations is infeasible.  It would require one level of indirection, such as a piece of mutable state being addressed via (e.g.) a URL.
+    -   Another approach would be to group the mutually dependent data within the same Plum, and then use (local) fragment query to address the different components within, though that solution may not apply to all scenarios, given that it affects how the Plum content itself is structured.  In this case, maybe there needs to be a notion of a "self" PlumRef.
 -   Efficient implementations of push and pull; use GRPC streaming to handle multiple requests within the same connection.  Though if there's some sort of keepalive, then streaming may not matter.
     -   Dumb implementations would simply assume that dependency trees can't be incomplete from below (meaning if a Plum is present all its dependencies are present).
     -   Correct implementations would do dependency completeness tracking.
 -   Each PathState should have a "governor" which indicates the specific service process that's used to interact with that PathState.  E.g. "Branch" for branch operations.  In general, a service process would effectively offer a specific API at that path.  Ideally, there would be an API discovery request that a client could make to figure out what's at that endpoint.
--   Add a content encoding field to Content (and associated structures/DB tables) so that content type and content encoding are separable.
 -   Make some special subtrait of ContentClassifiable which indicates that either (1) there's already a ContentFormat set for that type or (2) it's deterministically determinable from its type-specific contents.  E.g. if you always want certain structs to be formatted as "json", or strings to format as "charset=us-ascii" if possible and otherwise "charset=utf-8".
 -   Make setting of plum_created_at_o default to UnixNanoseconds::now() in PlumBuilder, and use a builder method to disable it.
 -   In `Datahost::branch_create` etc, use `load_plum_and_decode_and_deserialize` instead of the expanded sequence of operations.  Might need better error reporting from `load_plum_and_decode_and_deserialize` in order to service the same errors.
+-   Use the `erased-serde` crate to simplify `Contentifiable` and allow creation of a serialization format registration mechanism.
 
 ## To-don'ts (I.e. Done)
 
--   Create `PlumRef<T>` which uses a `PlumHeadSeal` to address a specific value, and which loads,
-    deserializes, and caches the value into memory, making for a very powerful abstraction.
--   Use the `async-lock` crate, as its RwLock guards are *actually* `Send`, unlike `parking_lot`'s.
-    Also it has upgradeable RwLock guards, which could be useful.
--   Switch to `sqlx` for DB backends -- this is because it's simpler, cleaner, and supports async.
-    In order to support multiple DB backends, a "DatahostStorage" trait should be defined which
-    defines all the storage operations, and each DB backend has an implementation (which unfortunately
-    has to be in its own crate in order to respect sqlx's compile-time SQL checking).
--   Add `PlumRef` capability to retrieve from remote `Datahost`.  This will need a notion of an address
-    of a remote datahost.  That should probably look like a URI.  It could be e.g.
+-   Create `PlumRef<T>` which uses a `PlumHeadSeal` to address a specific value, and which loads, deserializes, and caches the value into memory, making for a very powerful abstraction.
+-   Use the `async-lock` crate, as its RwLock guards are *actually* `Send`, unlike `parking_lot`'s. Also it has upgradeable RwLock guards, which could be useful.
+-   Switch to `sqlx` for DB backends -- this is because it's simpler, cleaner, and supports async. In order to support multiple DB backends, a "DatahostStorage" trait should be defined which defines all the storage operations, and each DB backend has an implementation (which unfortunately has to be in its own crate in order to respect sqlx's compile-time SQL checking).
+-   Add `PlumRef` capability to retrieve from remote `Datahost`.  This will need a notion of an address of a remote datahost.  That should probably look like a URI.  It could be e.g.
 
         idp://<hostname>[:port]/<plum-head-seal>
 
@@ -48,3 +43,4 @@ The tests run against a local SQLite database named `idp_core_tests.db`.  For fu
 
         idp://<hostname>[:port]/<plum-head-seal>#<fragment-query-string>
 
+-   Add a content encoding field to Content (and associated structures/DB tables) so that content type and content encoding are separable.

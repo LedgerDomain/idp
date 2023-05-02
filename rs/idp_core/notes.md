@@ -236,3 +236,14 @@ Notes on content type and content encoding
 
 References:
 -   https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+
+## 2023.05.01
+
+More on content format
+-   I have implemented `ContentClass`, `ContentFormat`, and `ContentEncoding`.  Together, `ContentClass` and `ContentFormat` imply a `ContentType` (in the sense of the HTTP `Content-Type` header).  `ContentClass` indicates the semantic type of data, and `ContentFormat` determines the serialization format.  `ContentEncoding` is a sequence of optional, additional encodings to apply to the serialized data (e.g. gzip, deflate, base64, etc).  The initial implementation has a couple of drawbacks:
+    -   Each data type has to implement a serialization method which will serialize the data using a specified `ContentFormat`.  This is obviously not ideal because it just means more boilerplate, and in 95% of cases for structured data, the impl of `serde::Serialize` is what should be used, with different `ContentFormat` values determining which serde serializer should be used.
+    -   There isn't a 1-to-1 correspondence between `ContentFormat` and serde serializers.  Examples:
+        -   `ContentClass`: `text/plain` and `ContentFormat`: `charset=us-ascii` is simply an ASCII string (all chars are guaranteed to be ASCII chars), and so there's no associated serde serializer.  Analogously `ContentFormat`: `charset=utf-8` is a UTF8 string.
+        -   `ContentClass`: `image` has many possible `ContentFormat` values, e.g. `png`, `jpeg`, etc.  However, none of those formats correspond to a serde serializer.
+    -   Some data types have an implied or default `ContentFormat`, or the system/user might have a preferred `ContentFormat` for generating new data (e.g. they might want it all to be human-readable JSON, or machine-readable protobuf or CBOR), but the initial implementation requires specifying `ContentFormat` for everything.
+-   In order to address the non-1-to-1-ness of serialization formats and serde serializers, there could be a formal notion of `SerializationFormat` which defines serialization and deserialization of data.  Each kind of serde serializer should be a `SerializationFormat` which applies to structured data (for which `serde::Serialize` and `serde::Deserialize` are implemented).  But there should also be data-type-specific `SerializationFormat`s, e.g. corresponding to `charset=us-ascii`, `charset=utf-8`, `png`, `jpeg`, etc.  There should also be a "none" (or "raw"?) `SerializationFormat`, e.g. for `application/octet-stream` or other `ContentClass`es which don't have an explicit format.

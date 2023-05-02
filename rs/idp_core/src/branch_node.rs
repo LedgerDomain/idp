@@ -70,7 +70,7 @@ impl ContentClassifiable for BranchNode {
 }
 
 impl Contentifiable for BranchNode {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &idp_proto::ContentFormat,
         writer: &mut dyn std::io::Write,

@@ -41,7 +41,7 @@ impl ContentClassifiable for DummyData {
 }
 
 impl Contentifiable for DummyData {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,

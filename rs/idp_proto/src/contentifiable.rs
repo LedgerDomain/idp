@@ -16,7 +16,7 @@ pub trait Contentifiable: ContentClassifiable {
     /// Serialize this content using the given format.
     // TODO: Use https://github.com/dtolnay/erased-serde instead, which apparently can easily handle
     // the serializer/deserializer format registration.
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
@@ -25,19 +25,19 @@ pub trait Contentifiable: ContentClassifiable {
 
 /// Impl of Contentifiable for common type String.
 impl Contentifiable for String {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
     ) -> Result<()> {
-        self.as_str().serialize(content_format, writer)
+        self.as_str().serialize_using_format(content_format, writer)
     }
 }
 
 /// Impl of Contentifiable for common type &str.
 // TODO: Is there a way to impl this for `str`?  I tried, but it didn't work.
 impl Contentifiable for &str {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
@@ -75,18 +75,19 @@ impl Contentifiable for &str {
 
 /// Impl of Contentifiable for common type Vec<u8>.
 impl Contentifiable for Vec<u8> {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
     ) -> Result<()> {
-        self.as_slice().serialize(content_format, writer)
+        self.as_slice()
+            .serialize_using_format(content_format, writer)
     }
 }
 
 /// Impl of Contentifiable for common type &[u8].
 impl Contentifiable for &[u8] {
-    fn serialize(
+    fn serialize_using_format(
         &self,
         content_format: &ContentFormat,
         writer: &mut dyn std::io::Write,
@@ -153,7 +154,7 @@ fn serialize_and_encode<'a>(
         None => {
             // Base case of recursion.
             // We've constructed the whole pipe of encoders.  Serialize into the beginning of the pipe.
-            data.serialize(content_format, writer)?;
+            data.serialize_using_format(content_format, writer)?;
         }
     }
     Ok(())
