@@ -1,4 +1,5 @@
-use crate::{DatahostStorageError, PathStateError};
+use crate::PathStateError;
+use idp_datahost_storage::DatahostStorageError;
 use idp_proto::PlumHeadSeal;
 
 #[derive(Debug, thiserror::Error)]

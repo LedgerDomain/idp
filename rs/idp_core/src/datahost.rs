@@ -1,8 +1,9 @@
 use crate::{
-    BranchError, BranchNode, DatahostStorage, DatahostStorageError, DatahostStorageTransaction,
-    DirNode, FragmentQueryResult, FragmentQueryable, LoadPlumAndDeserializeError, PathStateError,
+    BranchError, BranchNode, DirNode, FragmentQueryResult, FragmentQueryable,
+    LoadPlumAndDeserializeError, PathStateError,
 };
 use anyhow::Result;
+use idp_datahost_storage::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
     BranchSetHeadRequest, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
     PlumRelationFlags, PlumRelations, PlumRelationsSeal,

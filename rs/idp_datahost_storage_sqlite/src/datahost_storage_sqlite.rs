@@ -1,11 +1,11 @@
 use crate::{sqlite_transaction_mut, DatahostStorageSQLiteTransaction};
-use idp_core::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
     Content, ContentClass, ContentEncoding, ContentFormat, ContentMetadata, Nonce, Path, PathState,
     PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumMetadata, PlumMetadataSeal,
     PlumRelationFlags, PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum,
     UnixNanoseconds,
 };
+use idp_datahost_storage::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 
 pub struct DatahostStorageSQLite {
     pool: sqlx::SqlitePool,

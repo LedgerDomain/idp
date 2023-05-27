@@ -12,7 +12,9 @@ async-trait = "0.1.64"
 chrono = "0.4.19"
 derive_more = "0.99.17"
 futures = "0.3.26"
-idp_core = { path = "../idp_core", features = ["sqlx-error"] }
+idp_datahost_storage = { path = "../idp_datahost_storage", features = [
+    "sqlx-error",
+] }
 idp_proto = { path = "../idp_proto" }
 log = "0.4.14"
 sqlx = { version = "0.6.2", features = ["runtime-tokio-native-tls", "sqlite"] }

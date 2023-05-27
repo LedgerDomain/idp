@@ -3,9 +3,6 @@ mod branch_node;
 mod branch_node_builder;
 mod datacache;
 mod datahost;
-mod datahost_storage;
-mod datahost_storage_error;
-mod datahost_storage_transaction;
 mod dir_node;
 mod fragment;
 #[cfg(feature = "client")]
@@ -20,9 +17,6 @@ pub use branch_node::BranchNode;
 pub use branch_node_builder::BranchNodeBuilder;
 pub use datacache::Datacache;
 pub use datahost::Datahost;
-pub use datahost_storage::DatahostStorage;
-pub use datahost_storage_error::DatahostStorageError;
-pub use datahost_storage_transaction::{downcast_transaction_mut, DatahostStorageTransaction};
 pub use dir_node::DirNode;
 pub use fragment::{FragmentQueryResult, FragmentQueryable};
 #[cfg(feature = "client")]

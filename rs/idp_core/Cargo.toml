@@ -13,23 +13,21 @@ encoding-deflate = ["idp_proto/encoding-deflate"]
 encoding-gzip = ["idp_proto/encoding-gzip"]
 format-json = ["idp_proto/format-json"]
 format-msgpack = ["idp_proto/format-msgpack"]
-# This enables the SqlxError variant of DatahostStorageError.
-sqlx-error = ["dep:sqlx"]
+tonic = ["idp_datahost_storage/tonic", "dep:tonic"]
 
 [dependencies]
 anyhow = "1.0.69"
 async-lock = "2.6.0"
-async-trait = "0.1.64"
 chrono = { version = "0.4.19", features = ["serde"] }
 derive_more = "0.99.17"
+idp_datahost_storage = { path = "../idp_datahost_storage", features = [
+    "tonic",
+] }
 idp_proto = { path = "../idp_proto" }
 lazy_static = "1.4.0"
 log = "0.4.14"
 maplit = "1.0.2"
 serde = { version = "1.0.126", features = ["derive"] }
-sqlx = { version = "0.6.2", default-features = false, features = [
-    "runtime-tokio-native-tls",
-], optional = true }
 sync-unsafe-cell = "0.1.0"
 thiserror = "1.0.38"
 tokio-stream = { version = "0.1.11", optional = true }

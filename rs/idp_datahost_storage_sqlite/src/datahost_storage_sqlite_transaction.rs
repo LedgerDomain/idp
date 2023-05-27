@@ -1,5 +1,5 @@
 use futures::{future::BoxFuture, stream::BoxStream};
-use idp_core::{DatahostStorageError, DatahostStorageTransaction};
+use idp_datahost_storage::{DatahostStorageError, DatahostStorageTransaction};
 
 #[derive(
     Debug, derive_more::Deref, derive_more::DerefMut, derive_more::From, derive_more::Into,
@@ -22,7 +22,7 @@ impl DatahostStorageTransaction for DatahostStorageSQLiteTransaction {
 pub fn sqlite_transaction_mut<'a>(
     transaction: &'a mut dyn DatahostStorageTransaction,
 ) -> &'a mut DatahostStorageSQLiteTransaction {
-    idp_core::downcast_transaction_mut(transaction)
+    idp_datahost_storage::downcast_transaction_mut(transaction)
 }
 
 impl<'c> sqlx::Executor<'c> for &'c mut DatahostStorageSQLiteTransaction {
