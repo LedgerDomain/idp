@@ -12,6 +12,7 @@ encoding-deflate = ["dep:libflate"]
 encoding-gzip = ["dep:libflate"]
 format-json = ["dep:serde_json"]
 format-msgpack = ["dep:rmp-serde"]
+nonce-generate = ["dep:rand"]
 server = ["dep:tonic"]
 
 [dependencies]
@@ -24,6 +25,7 @@ log = "0.4.14"
 num-derive = "0.3"
 num-traits = "0.2"
 prost = "0.11.0"
+rand = { version = "0.8", optional = true }
 rmp-serde = { version = "0.15.5", optional = true }
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = { version = "1.0.96", optional = true }
