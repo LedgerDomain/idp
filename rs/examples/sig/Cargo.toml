@@ -1,0 +1,40 @@
+[package]
+name = "sig"
+version = "0.1.0"
+authors = ["Victor Dods <victor.dods@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.69"
+async-lock = "2.6.0"
+async-trait = "0.1.64"
+base64 = "0.13"
+derive_more = "0.99.17"
+did-method-key = "0.2.1"
+idp_core = { path = "../../idp_core", features = [
+    "format-json",
+    "format-msgpack",
+] }
+idp_proto = { path = "../../idp_proto", features = [
+    "format-json",
+    "format-msgpack",
+    "nonce-generate",
+] }
+lazy_static = "1.4"
+log = "0.4.14"
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0.96"
+sha2 = "0.9.5"
+ssi-dids = "0.1.1"
+ssi-jwk = "0.1.0"
+ssi-jws = "0.1.0"
+
+[dev-dependencies]
+# Always use this -- it gives much more useful backtraces when tests fail.
+anyhow = { version = "1", features = ["backtrace"] }
+ctor = "0.1.21"
+env_logger = "0.8.4"
+rmp-serde = "0.15.5"
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
