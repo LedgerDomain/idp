@@ -1,11 +1,11 @@
 use crate::{sqlite_transaction_mut, DatahostStorageSQLiteTransaction};
+use idp_datahost_storage::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
     Content, ContentClass, ContentEncoding, ContentFormat, ContentMetadata, Nonce, Path, PathState,
     PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumMetadata, PlumMetadataSeal,
     PlumRelationFlags, PlumRelationFlagsMapping, PlumRelations, PlumRelationsSeal, Seal, Sha256Sum,
     UnixNanoseconds,
 };
-use idp_datahost_storage::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 
 pub struct DatahostStorageSQLite {
     pool: sqlx::SqlitePool,
@@ -15,6 +15,10 @@ impl DatahostStorageSQLite {
     /// Connect to the SQLite DB at the given URL.  Note that the URL ":memory:" or "sqlite::memory:"
     /// opens an ephemeral, in-memory DB.
     pub async fn connect_and_run_migrations(url: &str) -> Result<Self, sqlx::Error> {
+        log::info!(
+            "DatahostStorageSQLite::connect_and_run_migrations({:?})",
+            url
+        );
         let pool = Self::pool_connect(url).await?;
         sqlx::migrate!().run(&pool).await?;
         Ok(Self { pool })

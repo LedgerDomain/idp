@@ -490,10 +490,7 @@
 		},
 		{
 			"label": "idp_proto test",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
@@ -653,6 +650,86 @@
 					]
 				}
 			]
+		},
+		{
+			"label": "example `sig` build",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"build",
+				"--package",
+				"sig",
+				"--all-features"
+			],
+			"presentation": {
+				"clear": true,
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "example `sig` check",
+			"group": "build",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"check",
+				"--package",
+				"sig",
+				"--all-features",
+				"--tests"
+			],
+			"presentation": {
+				"clear": true,
+				"revealProblems": "onProblem"
+			},
+			"options": {},
+			"problemMatcher": [
+				{
+					"base": "$rustc",
+					"fileLocation": [
+						"relative"
+					]
+				}
+			]
+		},
+		{
+			"label": "example `sig` test",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test",
+				"--package",
+				"sig",
+				"--all-features",
+				"--",
+				"--nocapture",
+				"test_plum_sig"
+			],
+			"presentation": {
+				"clear": true,
+				"revealProblems": "onProblem"
+			},
+			"options": {
+				"env": {
+					"RUST_BACKTRACE": "1",
+					"RUST_LOG": "idp=trace,sig=trace,debug"
+				}
+			},
+			"problemMatcher": []
 		}
 	]
 }

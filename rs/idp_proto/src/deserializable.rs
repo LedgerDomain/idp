@@ -135,7 +135,7 @@ fn decode_and_deserialize<'a, T: Deserializable>(
 
 /// Deserializes using the given format and sequence of encodings from a Content struct.
 pub fn decode_and_deserialize_from_content<T: Deserializable>(content: &Content) -> Result<T> {
-    log::debug!(
+    log::trace!(
         "decode_and_deserialize_from_content; content_format: {:?}, content_encoding: {:?}",
         content.content_metadata.content_format.as_str(),
         content.content_metadata.content_encoding

@@ -17,6 +17,7 @@ idp_core = { path = "../../idp_core", features = [
     "format-json",
     "format-msgpack",
 ] }
+idp_datahost_storage = { path = "../../idp_datahost_storage" }
 idp_proto = { path = "../../idp_proto", features = [
     "format-json",
     "format-msgpack",
@@ -36,5 +37,10 @@ ssi-jws = "0.1.0"
 anyhow = { version = "1", features = ["backtrace"] }
 ctor = "0.1.21"
 env_logger = "0.8.4"
+idp_datahost_storage = { path = "../../idp_datahost_storage", features = [
+    "sqlx-error",
+] }
+idp_datahost_storage_sqlite = { path = "../../idp_datahost_storage_sqlite" }
 rmp-serde = "0.15.5"
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "0.8.2", features = ["v4"] }

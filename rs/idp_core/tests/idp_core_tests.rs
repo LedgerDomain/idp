@@ -19,6 +19,7 @@ fn overall_init() {
 
 /// Convenience function for opening the DB whose URL is specified by the DATABASE_URL env var.
 /// If that var isn't set, then it defaults to using an in-memory DB.
+// TODO: Actually make this function do what the comment says.
 async fn datahost_from_env_var() -> Datahost {
     // Regarding `?mode=rwc`, see https://github.com/launchbadge/sqlx/issues/1114#issuecomment-827815038
     let database_url = "sqlite:idp_core_tests.db?mode=rwc";

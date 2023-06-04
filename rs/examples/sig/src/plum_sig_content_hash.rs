@@ -1,4 +1,4 @@
-use crate::SignedPlumContent;
+use crate::PlumSigContent;
 
 #[derive(
     Clone,
@@ -12,17 +12,17 @@ use crate::SignedPlumContent;
     PartialOrd,
     serde::Serialize,
 )]
-pub struct SignedPlumContentHash(Vec<u8>);
+pub struct PlumSigContentHash(Vec<u8>);
 
-impl From<&SignedPlumContent> for SignedPlumContentHash {
-    fn from(signed_plum_content: &SignedPlumContent) -> Self {
+impl From<&PlumSigContent> for PlumSigContentHash {
+    fn from(plum_sig_content: &PlumSigContent) -> Self {
         use sha2::Digest;
 
         // For now, a seal is only the Sha256Sum, but it could be other stuff later.
         let mut hasher = sha2::Sha256::new();
 
         use idp_proto::Hashable;
-        signed_plum_content.update_hasher(&mut hasher);
+        plum_sig_content.update_hasher(&mut hasher);
 
         Self(hasher.finalize().to_vec())
     }
