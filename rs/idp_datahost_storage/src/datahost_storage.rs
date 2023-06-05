@@ -1,7 +1,7 @@
 use crate::{DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
     Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal, PlumMetadata,
-    PlumMetadataSeal, PlumRelations, PlumRelationsSeal,
+    PlumMetadataSeal, PlumRelations, PlumRelationsSeal, UnixNanoseconds,
 };
 
 #[async_trait::async_trait]
@@ -68,6 +68,12 @@ pub trait DatahostStorage: Send + Sync {
 
         Ok(true)
     }
+
+    // TODO: Can this return an iterator?
+    async fn select_plum_heads(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+    ) -> Result<Vec<(UnixNanoseconds, PlumHeadSeal, PlumHead)>, DatahostStorageError>;
 
     async fn store_plum_head(
         &self,

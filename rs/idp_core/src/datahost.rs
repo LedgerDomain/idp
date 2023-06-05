@@ -6,7 +6,7 @@ use anyhow::Result;
 use idp_datahost_storage::{DatahostStorage, DatahostStorageError, DatahostStorageTransaction};
 use idp_proto::{
     BranchSetHeadRequest, Path, PathState, Plum, PlumBody, PlumBodySeal, PlumHead, PlumHeadSeal,
-    PlumRelationFlags, PlumRelations, PlumRelationsSeal,
+    PlumRelationFlags, PlumRelations, PlumRelationsSeal, UnixNanoseconds,
 };
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -94,6 +94,21 @@ impl Datahost {
             .await?;
         tx.finish().await?;
         Ok(has_plum)
+    }
+    pub async fn select_plum_heads(
+        &self,
+        transaction_o: Option<&mut dyn DatahostStorageTransaction>,
+    ) -> Result<Vec<(UnixNanoseconds, PlumHeadSeal, PlumHead)>> {
+        // Note that the self.datahost_storage_b.begin_transaction() simply returns a Future, it doesn't actually begin the transaction.
+        let mut tx =
+            EnsuredTransaction::new(transaction_o, self.datahost_storage_b.begin_transaction())
+                .await?;
+        let query_v = self
+            .datahost_storage_b
+            .select_plum_heads(tx.as_mut())
+            .await?;
+        tx.finish().await?;
+        Ok(query_v)
     }
     pub async fn store_plum_head(
         &self,

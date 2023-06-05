@@ -1,0 +1,24 @@
+[package]
+name = "idp-gui"
+version = "0.1.0"
+authors = ["Victor Dods <victor.dods@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.69"
+chrono = "0.4.19"
+env_logger = "0.10.0"
+iced = { version = "0.9.0", features = ["image", "debug"] }
+idp_core = { path = "../idp_core", features = ["format-json"] }
+idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
+idp_proto = { path = "../idp_proto", features = [
+    "format-json",
+    "nonce-generate",
+] }
+# This is a temp measure to handle futures without having to invoke a full async runtime.  It blocks on async
+# operations, which is not what you want to be doing in UI code.
+pollster = "0.3.0"
+sqlx = { version = "0.6.2", features = [
+    "runtime-async-std-native-tls",
+    "sqlite",
+] }

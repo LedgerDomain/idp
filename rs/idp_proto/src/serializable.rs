@@ -190,7 +190,10 @@ pub fn serialize_using_serde_format<T: Serializable + serde::Serialize>(
     match content_format.as_str() {
         "json" => {
             #[cfg(feature = "format-json")]
-            serde_json::to_writer(writer, value)?;
+            {
+                serde_json::to_writer(writer, value)?;
+                Ok(())
+            }
             #[cfg(not(feature = "format-json"))]
             anyhow::bail!(
                 "Unsupported ContentFormat {:?} (requires enabling the \"format-json\" crate feature)",
@@ -199,7 +202,10 @@ pub fn serialize_using_serde_format<T: Serializable + serde::Serialize>(
         }
         "msgpack" => {
             #[cfg(feature = "format-msgpack")]
-            rmp_serde::encode::write(writer, value)?;
+            {
+                rmp_serde::encode::write(writer, value)?;
+                Ok(())
+            }
             #[cfg(not(feature = "format-msgpack"))]
             anyhow::bail!(
                 "Unsupported ContentFormat {:?} (requires enabling the \"format-msgpack\" crate feature)",
@@ -207,8 +213,9 @@ pub fn serialize_using_serde_format<T: Serializable + serde::Serialize>(
             );
         }
         _ => {
+            let _ = value;
+            let _ = writer;
             anyhow::bail!("Unknown ContentFormat {:?}", content_format.as_str())
         }
     }
-    Ok(())
 }

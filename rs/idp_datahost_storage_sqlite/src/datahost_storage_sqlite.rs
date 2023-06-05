@@ -115,6 +115,30 @@ impl DatahostStorage for DatahostStorageSQLite {
         Ok(value != 0)
     }
 
+    async fn select_plum_heads(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+    ) -> Result<Vec<(UnixNanoseconds, PlumHeadSeal, PlumHead)>, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        Ok(sqlx::query!(
+            "SELECT row_inserted_at, plum_head_seal, plum_head_nonce_o, plum_metadata_seal, plum_relations_seal, plum_body_seal FROM plum_heads ORDER BY row_inserted_at"
+        )
+        .fetch_all(sqlite_transaction)
+        .await?
+        .into_iter()
+        .map(|row| (
+            row.row_inserted_at.into(),
+            row.plum_head_seal.into(),
+            PlumHead {
+                plum_head_nonce_o: row.plum_head_nonce_o.map(|v| Nonce::from(v)),
+                plum_metadata_seal: row.plum_metadata_seal.into(),
+                plum_relations_seal: row.plum_relations_seal.into(),
+                plum_body_seal: row.plum_body_seal.into(),
+            },
+        ))
+        .collect::<Vec<_>>())
+    }
+
     async fn store_plum_head(
         &self,
         transaction: &mut dyn DatahostStorageTransaction,

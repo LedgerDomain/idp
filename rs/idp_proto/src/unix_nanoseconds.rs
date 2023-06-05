@@ -24,6 +24,18 @@ impl From<UnixNanoseconds> for chrono::DateTime<chrono::Utc> {
     }
 }
 
+impl From<chrono::DateTime<chrono::Local>> for UnixNanoseconds {
+    fn from(dt: chrono::DateTime<chrono::Local>) -> Self {
+        dt.with_timezone(&chrono::Local).into()
+    }
+}
+
+impl From<UnixNanoseconds> for chrono::DateTime<chrono::Local> {
+    fn from(unix_nanoseconds: UnixNanoseconds) -> Self {
+        chrono::DateTime::<chrono::Utc>::from(unix_nanoseconds).with_timezone(&chrono::Local)
+    }
+}
+
 impl Hashable for UnixNanoseconds {
     /// Explicitly use little-endian byte order.
     fn update_hasher(&self, hasher: &mut sha2::Sha256) {

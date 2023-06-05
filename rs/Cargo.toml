@@ -9,6 +9,7 @@ members = [
     "examples/pl",
     "examples/sig",
     "idp",
+    "idp-gui",
     "idp_core",
     "idp_datahost_storage",
     "idp_datahost_storage_sqlite",

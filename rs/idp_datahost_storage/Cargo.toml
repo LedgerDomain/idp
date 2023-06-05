@@ -17,8 +17,9 @@ tonic = ["dep:tonic"]
 async-trait = "0.1.64"
 derive_more = "0.99.17"
 idp_proto = { path = "../idp_proto" }
-sqlx = { version = "0.6.2", default-features = false, features = [
-    "runtime-tokio-native-tls",
-], optional = true }
+# sqlx = { version = "0.6.2", default-features = false, features = [
+#     "runtime-tokio-native-tls",
+# ], optional = true }
+sqlx = { version = "0.6.2", default-features = false, optional = true }
 thiserror = "1.0.38"
 tonic = { version = "0.8.3", features = ["tls"], optional = true }

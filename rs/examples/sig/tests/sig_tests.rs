@@ -126,7 +126,6 @@ async fn test_plum_sig() {
         datahost_g.load_path_state(&path, None).await.expect("pass"),
         idp_proto::PathState {
             path: path.clone(),
-            owner_o: None,
             current_state_plum_head_seal: plum_sig_0_plum_head_seal.clone()
         }
     );
@@ -160,7 +159,6 @@ async fn test_plum_sig() {
         datahost_g.load_path_state(&path, None).await.expect("pass"),
         idp_proto::PathState {
             path: path.clone(),
-            owner_o: None,
             current_state_plum_head_seal: plum_sig_1_plum_head_seal.clone()
         }
     );
@@ -195,7 +193,6 @@ async fn test_plum_sig() {
         datahost_g.load_path_state(&path, None).await.expect("pass"),
         idp_proto::PathState {
             path: path.clone(),
-            owner_o: None,
             current_state_plum_head_seal: plum_sig_2_plum_head_seal.clone()
         }
     );
@@ -230,7 +227,6 @@ async fn test_plum_sig() {
         datahost_g.load_path_state(&path, None).await.expect("pass"),
         idp_proto::PathState {
             path: path.clone(),
-            owner_o: None,
             current_state_plum_head_seal: plum_sig_3_plum_head_seal.clone()
         }
     );

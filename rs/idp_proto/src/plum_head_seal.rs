@@ -25,6 +25,15 @@ impl From<&PlumHead> for PlumHeadSeal {
     }
 }
 
+impl From<Vec<u8>> for PlumHeadSeal {
+    fn from(byte_v: Vec<u8>) -> PlumHeadSeal {
+        if byte_v.len() != 32 {
+            panic!("programmer error: PlumHeadSeal must be 32 bytes long");
+        }
+        PlumHeadSeal::from(Seal::from(Sha256Sum::from(byte_v)))
+    }
+}
+
 impl Hashable for PlumHeadSeal {
     fn update_hasher(&self, hasher: &mut sha2::Sha256) {
         self.value.update_hasher(hasher);

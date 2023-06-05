@@ -28,6 +28,7 @@ idp_server = { path = "../idp_server", optional = true }
 anyhow = { version = "1", features = ["backtrace"] }
 async-lock = "2.6.0"
 env_logger = "0.8.4"
+idp_core = { path = "../idp_core", features = ["client"] }
 idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
 log = "0.4.14"
 serial_test = "0.5.1"

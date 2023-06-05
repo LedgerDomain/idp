@@ -75,6 +75,7 @@ pub fn deserialize_using_serde_format<T: serde::de::DeserializeOwned>(
             anyhow::bail!("Unsupported ContentFormat {:?} (requires enabling the \"format-msgpack\" crate feature)", content_format.as_str());
         }
         _ => {
+            let _ = reader;
             anyhow::bail!("Unknown ContentFormat {:?}", content_format.as_str());
         }
     }
