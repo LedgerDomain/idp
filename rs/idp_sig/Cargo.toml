@@ -1,5 +1,5 @@
 [package]
-name = "sig"
+name = "idp_sig"
 version = "0.1.0"
 authors = ["Victor Dods <victor.dods@gmail.com>"]
 edition = "2021"
@@ -13,16 +13,9 @@ async-trait = "0.1.64"
 base64 = "0.13"
 derive_more = "0.99.17"
 did-method-key = "0.2.1"
-idp_core = { path = "../../idp_core", features = [
-    "format-json",
-    "format-msgpack",
-] }
-idp_datahost_storage = { path = "../../idp_datahost_storage" }
-idp_proto = { path = "../../idp_proto", features = [
-    "format-json",
-    "format-msgpack",
-    "nonce-generate",
-] }
+idp_core = { path = "../idp_core" }
+idp_datahost_storage = { path = "../idp_datahost_storage" }
+idp_proto = { path = "../idp_proto", features = ["nonce-generate"] }
 lazy_static = "1.4"
 log = "0.4.14"
 serde = { version = "1.0.126", features = ["derive"] }
@@ -37,10 +30,15 @@ ssi-jws = "0.1.0"
 anyhow = { version = "1", features = ["backtrace"] }
 ctor = "0.1.21"
 env_logger = "0.8.4"
-idp_datahost_storage = { path = "../../idp_datahost_storage", features = [
+idp_core = { path = "../idp_core", features = [
+    "format-json",
+    # "format-msgpack",
+] }
+idp_datahost_storage = { path = "../idp_datahost_storage", features = [
     "sqlx-error",
 ] }
-idp_datahost_storage_sqlite = { path = "../../idp_datahost_storage_sqlite" }
+idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
 rmp-serde = "0.15.5"
+sqlx = { version = "0.6.2", features = ["runtime-tokio-native-tls"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "0.8.2", features = ["v4"] }

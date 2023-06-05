@@ -7,7 +7,6 @@
 resolver = "2"
 members = [
     "examples/pl",
-    "examples/sig",
     "idp",
     "idp-gui",
     "idp_core",
@@ -15,4 +14,5 @@ members = [
     "idp_datahost_storage_sqlite",
     "idp_proto",
     "idp_server",
+    "idp_sig",
 ]

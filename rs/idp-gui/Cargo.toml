@@ -15,6 +15,7 @@ idp_proto = { path = "../idp_proto", features = [
     "format-json",
     "nonce-generate",
 ] }
+idp_sig = { path = "../idp_sig" }
 # This is a temp measure to handle futures without having to invoke a full async runtime.  It blocks on async
 # operations, which is not what you want to be doing in UI code.
 pollster = "0.3.0"

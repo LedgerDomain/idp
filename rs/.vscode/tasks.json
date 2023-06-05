@@ -138,7 +138,8 @@
 		{
 			"label": "idp-gui build",
 			"group": {
-				"kind": "build"
+				"kind": "build",
+				"isDefault": true
 			},
 			"type": "shell",
 			"command": "cargo",
@@ -652,14 +653,14 @@
 			]
 		},
 		{
-			"label": "example `sig` build",
+			"label": "idp_sig build",
 			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
 				"build",
 				"--package",
-				"sig",
+				"idp_sig",
 				"--all-features"
 			],
 			"presentation": {
@@ -677,14 +678,14 @@
 			]
 		},
 		{
-			"label": "example `sig` check",
+			"label": "idp_sig check",
 			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
 				"check",
 				"--package",
-				"sig",
+				"idp_sig",
 				"--all-features",
 				"--tests"
 			],
@@ -703,21 +704,17 @@
 			]
 		},
 		{
-			"label": "example `sig` test",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"label": "idp_sig test",
+			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
 				"test",
 				"--package",
-				"sig",
+				"idp_sig",
 				"--all-features",
 				"--",
-				"--nocapture",
-				"test_plum_sig"
+				"--nocapture"
 			],
 			"presentation": {
 				"clear": true,

@@ -88,7 +88,7 @@ impl PlumPreview {
         // )));
 
         row = row.push(iced::widget::horizontal_space(10));
-        row = row.push(iced::widget::text("Content: "));
+        row = row.push(iced::widget::text("Content Preview: "));
         row = row.push(ContentPreview.view(&plum.plum_body.plum_body_content, datahost, debug));
 
         row

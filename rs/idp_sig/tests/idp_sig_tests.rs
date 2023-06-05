@@ -10,9 +10,11 @@ fn overall_init() {
 #[tokio::test]
 async fn test_sig() {
     // Generate a private key for signing.
-    let signer_priv_jwk = sig::KeyType::Secp256k1.generate_priv_jwk().expect("pass");
+    let signer_priv_jwk = idp_sig::KeyType::Secp256k1
+        .generate_priv_jwk()
+        .expect("pass");
     let signer_pub_jwk = signer_priv_jwk.to_public();
-    let signer_did = sig::did_key_from_jwk(&signer_pub_jwk).expect("pass");
+    let signer_did = idp_sig::did_key_from_jwk(&signer_pub_jwk).expect("pass");
     log::debug!("signer_did: {:?}", signer_did);
 
     // Make a Plum that will be signed.
@@ -28,8 +30,8 @@ async fn test_sig() {
         .expect("pass");
     let content_0_plum_head_seal = idp_proto::PlumHeadSeal::from(&content_0_plum);
 
-    let plum_sig = sig::PlumSig::new(
-        sig::PlumSigContent::new(content_0_plum_head_seal, None),
+    let plum_sig = idp_sig::PlumSig::new(
+        idp_sig::PlumSigContent::new(content_0_plum_head_seal, None),
         &signer_priv_jwk,
     )
     .await
@@ -45,13 +47,21 @@ async fn test_sig() {
 #[tokio::test]
 async fn test_plum_sig() {
     // Generate 2 private keys for signing.  Each one represents a different owner.
-    let signer_0_priv_jwk = sig::KeyType::Secp256k1.generate_priv_jwk().expect("pass");
+    let signer_0_priv_jwk = idp_sig::KeyType::Secp256k1
+        .generate_priv_jwk()
+        .expect("pass");
     let signer_0_pub_jwk = signer_0_priv_jwk.to_public();
-    let signer_0_did = sig::did_key_from_jwk(&signer_0_pub_jwk).expect("pass").did;
+    let signer_0_did = idp_sig::did_key_from_jwk(&signer_0_pub_jwk)
+        .expect("pass")
+        .did;
     log::debug!("signer_0_did: {:?}", signer_0_did);
-    let signer_1_priv_jwk = sig::KeyType::Secp256k1.generate_priv_jwk().expect("pass");
+    let signer_1_priv_jwk = idp_sig::KeyType::Secp256k1
+        .generate_priv_jwk()
+        .expect("pass");
     let signer_1_pub_jwk = signer_1_priv_jwk.to_public();
-    let signer_1_did = sig::did_key_from_jwk(&signer_1_pub_jwk).expect("pass").did;
+    let signer_1_did = idp_sig::did_key_from_jwk(&signer_1_pub_jwk)
+        .expect("pass")
+        .did;
     log::debug!("signer_1_did: {:?}", signer_1_did);
 
     let path = idp_proto::Path::from(format!("test_path_for_plum_sig_{}", uuid::Uuid::new_v4()));
@@ -59,7 +69,7 @@ async fn test_plum_sig() {
     // Create the Datahost that will store the Plum-s and PathState-s.
     let datahost_la = {
         // Regarding `?mode=rwc`, see https://github.com/launchbadge/sqlx/issues/1114#issuecomment-827815038
-        let database_url = "sqlite:sig_tests.db?mode=rwc";
+        let database_url = "sqlite:idp_sig_tests.db?mode=rwc";
         let datahost = idp_core::Datahost::open(
             idp_datahost_storage_sqlite::DatahostStorageSQLite::connect_and_run_migrations(
                 database_url,
@@ -103,7 +113,7 @@ async fn test_plum_sig() {
 
     // Must use without_previous for the first PlumSig in a chain.
     let plum_sig_0_plum_head_seal =
-        sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_without_previous(
+        idp_sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_without_previous(
             &signer_0_priv_jwk,
             content_plum_head_seal_v[0].clone(),
             &mut datahost_g,
@@ -113,7 +123,7 @@ async fn test_plum_sig() {
         .expect("pass");
 
     // Create the PathState.
-    sig::execute_path_state_plum_sig_create(
+    idp_sig::execute_path_state_plum_sig_create(
         &mut datahost_g,
         None,
         path.clone(),
@@ -129,12 +139,12 @@ async fn test_plum_sig() {
             current_state_plum_head_seal: plum_sig_0_plum_head_seal.clone()
         }
     );
-    sig::PlumSig::verify_chain(&plum_sig_0_plum_head_seal, &mut datahost_g, None)
+    idp_sig::PlumSig::verify_chain(&plum_sig_0_plum_head_seal, &mut datahost_g, None)
         .await
         .expect("pass");
 
     let plum_sig_1_plum_head_seal =
-        sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
+        idp_sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
             plum_sig_0_plum_head_seal,
             &signer_0_priv_jwk,
             signer_0_did.clone(),
@@ -146,7 +156,7 @@ async fn test_plum_sig() {
         .expect("pass");
 
     // Update the PathState.
-    sig::execute_path_state_plum_sig_update(
+    idp_sig::execute_path_state_plum_sig_update(
         &mut datahost_g,
         None,
         path.clone(),
@@ -162,12 +172,12 @@ async fn test_plum_sig() {
             current_state_plum_head_seal: plum_sig_1_plum_head_seal.clone()
         }
     );
-    sig::PlumSig::verify_chain(&plum_sig_1_plum_head_seal, &mut datahost_g, None)
+    idp_sig::PlumSig::verify_chain(&plum_sig_1_plum_head_seal, &mut datahost_g, None)
         .await
         .expect("pass");
 
     let plum_sig_2_plum_head_seal =
-        sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
+        idp_sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
             plum_sig_1_plum_head_seal,
             &signer_0_priv_jwk,
             // NOTE that the signer changed from signer_0_did to signer_1_did.
@@ -180,7 +190,7 @@ async fn test_plum_sig() {
         .expect("pass");
 
     // Update the PathState.
-    sig::execute_path_state_plum_sig_update(
+    idp_sig::execute_path_state_plum_sig_update(
         &mut datahost_g,
         None,
         path.clone(),
@@ -196,12 +206,12 @@ async fn test_plum_sig() {
             current_state_plum_head_seal: plum_sig_2_plum_head_seal.clone()
         }
     );
-    sig::PlumSig::verify_chain(&plum_sig_2_plum_head_seal, &mut datahost_g, None)
+    idp_sig::PlumSig::verify_chain(&plum_sig_2_plum_head_seal, &mut datahost_g, None)
         .await
         .expect("pass");
 
     let plum_sig_3_plum_head_seal =
-        sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
+        idp_sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_with_previous(
             plum_sig_2_plum_head_seal,
             // NOTE that the signer is now signer_1, which must match the previous OwnedData's owner.
             &signer_1_priv_jwk,
@@ -214,7 +224,7 @@ async fn test_plum_sig() {
         .expect("pass");
 
     // Update the PathState.
-    sig::execute_path_state_plum_sig_update(
+    idp_sig::execute_path_state_plum_sig_update(
         &mut datahost_g,
         None,
         path.clone(),
@@ -230,7 +240,7 @@ async fn test_plum_sig() {
             current_state_plum_head_seal: plum_sig_3_plum_head_seal.clone()
         }
     );
-    sig::PlumSig::verify_chain(&plum_sig_3_plum_head_seal, &mut datahost_g, None)
+    idp_sig::PlumSig::verify_chain(&plum_sig_3_plum_head_seal, &mut datahost_g, None)
         .await
         .expect("pass");
 }
