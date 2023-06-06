@@ -1,6 +1,6 @@
 use crate::{Message, PlumPreview};
 use iced::Element;
-use idp_core::{BranchNode, Datahost};
+use idp_core::{BranchNode, Datahost, DirNode};
 use idp_proto::{decode_and_deserialize_from_content, Content};
 use idp_sig::{OwnedData, PlumSig};
 
@@ -161,6 +161,25 @@ impl ContentView {
                     col = col.push(row);
                 }
 
+                col.into()
+            }
+            s if s == DirNode::content_class_str() => {
+                let dir_node: DirNode =
+                    decode_and_deserialize_from_content(content).expect("todo: handle error");
+                let mut col = iced::widget::column![];
+                for (entry_name, target_plum_head_seal) in dir_node.entry_m.iter() {
+                    let mut row = iced::widget::row![];
+                    row = row.push(iced::widget::text(format!("{}: ", entry_name)));
+                    row = PlumPreview.view(
+                        None,
+                        target_plum_head_seal,
+                        None,
+                        Some(row),
+                        datahost,
+                        debug,
+                    );
+                    col = col.push(row);
+                }
                 col.into()
             }
             _ => iced::widget::text("<no preview available>").into(),

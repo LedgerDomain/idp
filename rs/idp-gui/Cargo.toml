@@ -5,7 +5,7 @@ authors = ["Victor Dods <victor.dods@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.69"
+anyhow = { version = "1.0.69", features = ["backtrace"] }
 chrono = "0.4.19"
 env_logger = "0.10.0"
 iced = { version = "0.9.0", features = ["image", "debug"] }
@@ -16,6 +16,7 @@ idp_proto = { path = "../idp_proto", features = [
     "nonce-generate",
 ] }
 idp_sig = { path = "../idp_sig" }
+maplit = "1.0.2"
 # This is a temp measure to handle futures without having to invoke a full async runtime.  It blocks on async
 # operations, which is not what you want to be doing in UI code.
 pollster = "0.3.0"

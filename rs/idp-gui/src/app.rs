@@ -10,8 +10,9 @@ use iced::widget::{
 use iced::widget::{Button, Column, Container, Slider};
 use iced::Theme;
 use iced::{Color, Element, Font, Length, Renderer, Sandbox};
-use idp_core::BranchNode;
+use idp_core::{BranchNode, DirNode};
 use idp_proto::{ContentEncoding, ContentFormat, Nonce, PlumBuilder, UnixNanoseconds};
+use idp_sig::{OwnedData, PlumSig, PlumSigContent};
 
 pub struct App {
     plum_table_view: PlumTableView,
@@ -295,6 +296,176 @@ impl Sandbox for App {
                 )
                 .block_on()
                 .expect("pass");
+        }
+        // Make a PlumSig with an invalid signature
+        if false {
+            let legit_signer_priv_jwk = idp_sig::KeyType::Secp256k1
+                .generate_priv_jwk()
+                .expect("pass");
+            let legit_signer_pub_jwk = legit_signer_priv_jwk.to_public();
+            let legit_signer_did = idp_sig::did_key_from_jwk(&legit_signer_pub_jwk)
+                .expect("pass")
+                .did;
+
+            let plum_head_seal = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_metadata_nonce(Nonce::generate())
+                        .with_plum_created_at(UnixNanoseconds::now())
+                        .with_plum_relations_and_plum_body_content_from(
+                            &"here's some fraudulent data!".to_string(),
+                            None,
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
+
+            // Create a legit PlumSig.
+            let legit_plum_sig_p =
+                idp_sig::PlumSig::generate_and_store_plum_sig_owned_data_pair_without_previous(
+                    &legit_signer_priv_jwk,
+                    plum_head_seal.clone(),
+                    &mut datahost,
+                    None,
+                )
+                .block_on()
+                .unwrap();
+            // Load the PlumSig and its OwnedData so that it can be picked apart to attempt to
+            // construct a fraudulent PlumSig.
+            let legit_plum_sig: PlumSig = datahost
+                .load_plum_and_decode_and_deserialize(&legit_plum_sig_p, None)
+                .block_on()
+                .unwrap();
+            let legit_owned_data: OwnedData = datahost
+                .load_plum_and_decode_and_deserialize(&legit_plum_sig.content.plum, None)
+                .block_on()
+                .unwrap();
+
+            // Create a key for the attacker
+            let attacker_signer_priv_jwk = idp_sig::KeyType::Secp256k1
+                .generate_priv_jwk()
+                .expect("pass");
+            let attacker_signer_pub_jwk = attacker_signer_priv_jwk.to_public();
+            let attacker_signer_did = idp_sig::did_key_from_jwk(&attacker_signer_pub_jwk)
+                .expect("pass")
+                .did;
+
+            let fradulent_owned_data = OwnedData {
+                owner: attacker_signer_did.clone(),
+                data: legit_owned_data.data,
+                previous_owned_data_o: legit_owned_data.previous_owned_data_o,
+            };
+            let fradulent_owned_data_p = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_relations_and_plum_body_content_from(
+                            &fradulent_owned_data,
+                            Some(&idp_proto::ContentFormat::json()),
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
+            // By construction it's difficult to attempt to create a fraudulent PlumSig,
+            // so this attempt is contrived and silly.
+            let fradulent_plum_sig = PlumSig {
+                content: PlumSigContent {
+                    nonce: legit_plum_sig.content.nonce,
+                    plum: fradulent_owned_data_p,
+                    previous_plum_sig_o: legit_plum_sig.content.previous_plum_sig_o,
+                },
+                signature: legit_plum_sig.signature,
+            };
+            let fraudulent_plum_sig_p = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_relations_and_plum_body_content_from(
+                            &fradulent_plum_sig,
+                            Some(&idp_proto::ContentFormat::json()),
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
+            fradulent_plum_sig
+                .verify_against_known_signer(&legit_signer_pub_jwk)
+                .expect_err("pass");
+            fradulent_plum_sig
+                .verify_against_known_signer(&attacker_signer_pub_jwk)
+                .expect_err("pass");
+            fradulent_plum_sig
+                .verify_and_extract_signer()
+                .block_on()
+                .expect_err("pass");
+            PlumSig::verify_chain(&fraudulent_plum_sig_p, &mut datahost, None)
+                .block_on()
+                .expect_err("pass");
+        }
+        // Make some DirNode content
+        {
+            let plum0_head_seal = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_relations_and_plum_body_content_from(
+                            &"how do ostriches and hippos stack up?".to_string(),
+                            None,
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
+            let plum1_head_seal = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_relations_and_plum_body_content_from(
+                            &"they are arch-rivals.".to_string(),
+                            None,
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
+            let dir_node_plum_head_seal = datahost
+                .store_plum(
+                    &idp_proto::PlumBuilder::new()
+                        .with_plum_relations_and_plum_body_content_from(
+                            &DirNode {
+                                entry_m: maplit::btreemap! {
+                                    "question".to_string() => plum0_head_seal,
+                                    "answer".to_string() => plum1_head_seal,
+                                },
+                            },
+                            Some(&idp_proto::ContentFormat::json()),
+                            idp_proto::ContentEncoding::none(),
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap(),
+                    None,
+                )
+                .block_on()
+                .unwrap();
         }
 
         let view_stack_v = Vec::new();

@@ -145,21 +145,6 @@ impl PlumView {
                         debug,
                     );
                     col = col.push(row);
-
-                    // col = col.push(
-                    //     iced::widget::button::Button::new(iced::widget::text(format!(
-                    //         "{:?}: {}",
-                    //         plum_relations_flags, plum_relation_flags_mapping.target_plum_head_seal
-                    //     )))
-                    //     .on_press(Message::ForwardPressed(
-                    //         plum_relation_flags_mapping.target_plum_head_seal.clone(),
-                    //     )),
-                    // );
-
-                    // controls = controls.push(iced::widget::text(format!(
-                    //     "{:?}: {}",
-                    //     plum_relations_flags, plum_relation_flags_mapping.target_plum_head_seal
-                    // )));
                 }
                 col = col.push(iced::widget::horizontal_rule(1));
             }
@@ -198,24 +183,6 @@ impl PlumView {
                 col = col.push(iced::widget::text("Body Content Follows"));
                 col = col.push(iced::widget::horizontal_rule(1));
                 col = col.push(ContentView.view(&plum_body.plum_body_content, datahost, debug));
-                // match plum_body
-                //     .plum_body_content
-                //     .content_metadata
-                //     .content_class
-                //     .as_str()
-                // {
-                //     // TODO: Account for encoding
-                //     "text/plain" | "application/json" => {
-                //         col = col.push(iced::widget::text("Body Content Follows"));
-                //         col = col.push(iced::widget::horizontal_rule(1));
-                //         col = col.push(iced::widget::text(String::from_utf8_lossy(
-                //             plum_body.plum_body_content.content_byte_v.as_slice(),
-                //         )));
-                //     }
-                //     _ => {
-                //         col = col.push(iced::widget::text("Body Content: <Non-Textual Content>"));
-                //     }
-                // }
             }
         } else {
             col = col.push("Plum not present in this Datahost");
@@ -223,6 +190,5 @@ impl PlumView {
         // TODO: More stuff
 
         iced::widget::scrollable(col).into()
-        // controls.into()
     }
 }
