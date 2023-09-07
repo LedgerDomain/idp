@@ -39,6 +39,7 @@ idp_datahost_storage = { path = "../idp_datahost_storage", features = [
 ] }
 idp_datahost_storage_sqlite = { path = "../idp_datahost_storage_sqlite" }
 rmp-serde = "0.15.5"
-sqlx = { version = "0.6.2", features = ["runtime-tokio-native-tls"] }
+# Only the binary should choose a "runtime-*" feature for sqlx.  In this case, the binary is the test.
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "0.8.2", features = ["v4"] }

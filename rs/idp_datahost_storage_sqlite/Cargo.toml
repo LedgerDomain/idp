@@ -17,5 +17,4 @@ idp_datahost_storage = { path = "../idp_datahost_storage", features = [
 ] }
 idp_proto = { path = "../idp_proto" }
 log = "0.4.14"
-# sqlx = { version = "0.6.2", features = ["runtime-tokio-native-tls", "sqlite"] }
 sqlx = { version = "0.6.2", features = ["sqlite"] }
