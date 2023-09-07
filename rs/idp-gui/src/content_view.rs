@@ -1,5 +1,6 @@
 use crate::{Message, PlumPreview};
 use iced::Element;
+use iced_native::Alignment;
 use idp_core::{BranchNode, Datahost, DirNode};
 use idp_proto::{decode_and_deserialize_from_content, Content};
 use idp_sig::{OwnedData, PlumSig};
@@ -17,7 +18,10 @@ impl ContentView {
         match content.content_metadata.content_class.as_str() {
             "text/plain" | "application/json" => iced::widget::text(format!(
                 "{}",
-                String::from_utf8_lossy(content.content_byte_v.as_slice())
+                match std::str::from_utf8(content.content_byte_v.as_slice()) {
+                    Ok(s) => s,
+                    Err(_) => "<invalid UTF-8>",
+                }
             ))
             .into(),
             s if s == BranchNode::content_class_str() => {
@@ -25,10 +29,9 @@ impl ContentView {
                     decode_and_deserialize_from_content(content).expect("todo: handle error");
                 let mut col = iced::widget::column![];
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Ancestor: "));
                     if let Some(ancestor) = branch_node.ancestor_o.as_ref() {
-                        // row = row.push(PlumHeadSealView.view(ancestor, debug));
                         row = PlumPreview.view(None, ancestor, None, Some(row), datahost, debug);
                     } else {
                         row = row.push(iced::widget::text("None"));
@@ -36,9 +39,8 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Metadata: "));
-                    // row = row.push(PlumHeadSealView.view(&branch_node.metadata, debug));
                     row = PlumPreview.view(
                         None,
                         &branch_node.metadata,
@@ -50,10 +52,9 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Content: "));
                     if let Some(content) = branch_node.content_o.as_ref() {
-                        // row = row.push(PlumHeadSealView.view(content, debug));
                         row = PlumPreview.view(None, content, None, Some(row), datahost, debug);
                     } else {
                         row = row.push(iced::widget::text("None"));
@@ -68,19 +69,19 @@ impl ContentView {
                     decode_and_deserialize_from_content(content).expect("todo: handle error");
                 let mut col = iced::widget::column![];
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text(format!("Owner: {}", owned_data.owner)));
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Data: "));
                     row =
                         PlumPreview.view(None, &owned_data.data, None, Some(row), datahost, debug);
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Previous: "));
                     if let Some(previous_owned_data) = owned_data.previous_owned_data_o.as_ref() {
                         row = PlumPreview.view(
@@ -104,7 +105,7 @@ impl ContentView {
                     decode_and_deserialize_from_content(content).expect("todo: handle error");
                 let mut col = iced::widget::column![];
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text(format!(
                         "Nonce: {}",
                         plum_sig.content.nonce
@@ -112,7 +113,7 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Plum: "));
                     row = PlumPreview.view(
                         None,
@@ -125,7 +126,7 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text("Previous: "));
                     if let Some(previous_plum_sig) = plum_sig.content.previous_plum_sig_o.as_ref() {
                         row = PlumPreview.view(
@@ -142,7 +143,7 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text(format!(
                         "Signature: {}",
                         plum_sig.signature
@@ -150,7 +151,7 @@ impl ContentView {
                     col = col.push(row);
                 }
                 {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     use pollster::FutureExt;
                     // TODO: Should verify the whole chain
                     let is_verified = plum_sig.verify_and_extract_signer().block_on().is_ok();
@@ -168,7 +169,7 @@ impl ContentView {
                     decode_and_deserialize_from_content(content).expect("todo: handle error");
                 let mut col = iced::widget::column![];
                 for (entry_name, target_plum_head_seal) in dir_node.entry_m.iter() {
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text(format!("{}: ", entry_name)));
                     row = PlumPreview.view(
                         None,

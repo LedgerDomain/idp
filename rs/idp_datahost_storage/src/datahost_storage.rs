@@ -74,6 +74,13 @@ pub trait DatahostStorage: Send + Sync {
         &self,
         transaction: &mut dyn DatahostStorageTransaction,
     ) -> Result<Vec<(UnixNanoseconds, PlumHeadSeal, PlumHead)>, DatahostStorageError>;
+    /// Returns row_inserted_at, row_updated_at, and PathState.
+    // TODO: Consider returning PathStateRow or some other struct instead of a tuple.
+    // TODO: Can this return an iterator?
+    async fn select_path_states(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+    ) -> Result<Vec<(UnixNanoseconds, UnixNanoseconds, PathState)>, DatahostStorageError>;
 
     async fn store_plum_head(
         &self,

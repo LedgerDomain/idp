@@ -1,5 +1,6 @@
 use crate::{ContentView, Message, PlumPreview};
 use iced::Element;
+use iced_native::Alignment;
 use idp_core::Datahost;
 use idp_proto::{Plum, PlumHeadSeal, PlumRelationFlags, UnixNanoseconds};
 
@@ -134,7 +135,7 @@ impl PlumView {
                     )
                     .unwrap();
 
-                    let mut row = iced::widget::row![];
+                    let mut row = iced::widget::row![].align_items(Alignment::Center);
                     row = row.push(iced::widget::text(format!("{:?}", plum_relations_flags)));
                     let row = PlumPreview.view(
                         None,

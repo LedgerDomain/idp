@@ -138,6 +138,27 @@ impl DatahostStorage for DatahostStorageSQLite {
         ))
         .collect::<Vec<_>>())
     }
+    async fn select_path_states(
+        &self,
+        transaction: &mut dyn DatahostStorageTransaction,
+    ) -> Result<Vec<(UnixNanoseconds, UnixNanoseconds, PathState)>, DatahostStorageError> {
+        let sqlite_transaction = sqlite_transaction_mut(transaction);
+        Ok(sqlx::query!(
+            "SELECT row_inserted_at, row_updated_at, path, current_state_plum_head_seal FROM path_states ORDER BY row_updated_at"
+        )
+        .fetch_all(sqlite_transaction)
+        .await?
+        .into_iter()
+        .map(|row| (
+            row.row_inserted_at.into(),
+            row.row_updated_at.into(),
+            PathState {
+                path: row.path.into(),
+                current_state_plum_head_seal: row.current_state_plum_head_seal.into(),
+            },
+        ))
+        .collect::<Vec<_>>())
+    }
 
     async fn store_plum_head(
         &self,

@@ -15,10 +15,11 @@ impl From<chrono::DateTime<chrono::Utc>> for UnixNanoseconds {
 impl From<UnixNanoseconds> for chrono::DateTime<chrono::Utc> {
     fn from(unix_nanoseconds: UnixNanoseconds) -> Self {
         Self::from_utc(
-            chrono::NaiveDateTime::from_timestamp(
+            chrono::NaiveDateTime::from_timestamp_opt(
                 unix_nanoseconds.value / 1_000_000_000,
                 (unix_nanoseconds.value % 1_000_000_000) as u32,
-            ),
+            )
+            .unwrap(),
             chrono::Utc,
         )
     }
