@@ -34,5 +34,6 @@ env_logger = "0.8.4"
 idp_datahost_storage_sqlite = { path = "../../idp_datahost_storage_sqlite" }
 idp_proto = { path = "../../idp_proto" }
 rmp-serde = "0.15.5"
-sqlx = { version = "0.6.2", features = ["runtime-async-std-native-tls"] }
+# Only the binary should choose a "runtime-*" feature for sqlx.
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
