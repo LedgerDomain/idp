@@ -2,6 +2,8 @@
 
 Rust SDK for Indoor Data Plumbing
 
+See [a slide deck describing the Indoor Data Plumbing concept](https://docs.google.com/presentation/d/16azx22pCv_JvRslsRaSUPUSqTLQjyJ8oQZ-7-J3t1gw/edit?usp=sharing).
+
 ## Rust Crate Contents
 
 -   `idp` -- Top-level module for crate, which imports the `idp_*` crates as submodules and has client/server integration tests.

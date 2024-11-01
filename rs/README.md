@@ -1,5 +1,7 @@
 # Rust workspace for Indoor Data Plumbing
 
+See [a slide deck describing the Indoor Data Plumbing concept](https://docs.google.com/presentation/d/16azx22pCv_JvRslsRaSUPUSqTLQjyJ8oQZ-7-J3t1gw/edit?usp=sharing).
+
 ## Contents
 
 -   `examples` -- Example programs using Indoor Data Plumbing.
