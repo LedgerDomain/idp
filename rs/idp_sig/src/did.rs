@@ -1,5 +1,4 @@
-pub use crate::JWS;
-pub use anyhow::{Error, Result};
+pub use anyhow::Result;
 
 /// Get the did:key:<method-specific-identifier> from a (public) JWK.
 pub fn did_key_from_jwk(jwk: &ssi_jwk::JWK) -> Result<ssi_dids::PrimaryDIDURL> {

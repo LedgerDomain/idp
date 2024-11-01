@@ -2,20 +2,23 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "all build",
-			"group": "build",
+			"label": "all check",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
 			"type": "shell",
 			"command": "cargo",
 			"args": [
-				"test",
+				"check",
+				"--workspace",
 				"--all-features",
-				"--no-run"
+				"--tests"
 			],
 			"presentation": {
 				"clear": true,
 				"revealProblems": "onProblem"
 			},
-			"options": {},
 			"problemMatcher": [
 				{
 					"base": "$rustc",
@@ -32,6 +35,7 @@
 			"command": "cargo",
 			"args": [
 				"test",
+				"--workspace",
 				"--all-features"
 			],
 			"presentation": {
@@ -44,32 +48,6 @@
 					"RUST_LOG": "idp=trace,debug"
 				}
 			},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
-			"label": "idp build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp",
-				"--all-features",
-				"--no-run"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
 			"problemMatcher": [
 				{
 					"base": "$rustc",
@@ -137,10 +115,7 @@
 		},
 		{
 			"label": "idp-gui build",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"group": "build",
 			"type": "shell",
 			"command": "cargo",
 			"args": [
@@ -174,32 +149,6 @@
 				"idp-gui",
 				"--all-features",
 				"--tests"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
-			"label": "idp_client build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp_client",
-				"--all-features",
-				"--no-run"
 			],
 			"presentation": {
 				"clear": true,
@@ -272,32 +221,6 @@
 			]
 		},
 		{
-			"label": "idp_core build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp_core",
-				"--all-features",
-				"--no-run"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
 			"label": "idp_core check",
 			"group": "build",
 			"type": "shell",
@@ -344,32 +267,6 @@
 					"RUST_LOG": "idp=trace,debug"
 				}
 			},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
-			"label": "idp_datahost_storage_sqlite build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp_datahost_storage_sqlite",
-				"--all-features",
-				"--no-run"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
 			"problemMatcher": [
 				{
 					"base": "$rustc",
@@ -438,32 +335,6 @@
 			]
 		},
 		{
-			"label": "idp_proto build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp_proto",
-				"--all-features",
-				"--no-run"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
 			"label": "idp_proto check",
 			"group": "build",
 			"type": "shell",
@@ -520,32 +391,6 @@
 			]
 		},
 		{
-			"label": "idp_server build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"test",
-				"--package",
-				"idp_server",
-				"--all-features",
-				"--no-run"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
 			"label": "idp_server check",
 			"group": "build",
 			"type": "shell",
@@ -556,31 +401,6 @@
 				"idp_server",
 				"--all-features",
 				"--tests"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
-			"label": "example `pl` build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"build",
-				"--package",
-				"pl",
-				"--all-features"
 			],
 			"presentation": {
 				"clear": true,
@@ -643,31 +463,6 @@
 					"RUST_LOG": "idp=trace,pl=trace,debug"
 				}
 			},
-			"problemMatcher": [
-				{
-					"base": "$rustc",
-					"fileLocation": [
-						"relative"
-					]
-				}
-			]
-		},
-		{
-			"label": "idp_sig build",
-			"group": "build",
-			"type": "shell",
-			"command": "cargo",
-			"args": [
-				"build",
-				"--package",
-				"idp_sig",
-				"--all-features"
-			],
-			"presentation": {
-				"clear": true,
-				"revealProblems": "onProblem"
-			},
-			"options": {},
 			"problemMatcher": [
 				{
 					"base": "$rustc",

@@ -1,6 +1,6 @@
 # idp-gui
 
-GUI browser for Indoor Data Plumbing.
+GUI browser for Indoor Data Plumbing -- this is an early and incomplete POC with terrible engineer-designed UI/UX, so please judge it on that basis only.
 
 ## Notes
 
