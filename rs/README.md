@@ -8,6 +8,8 @@ See [a slide deck describing the Indoor Data Plumbing concept](https://docs.goog
     -   `pl` -- A basic, interpreted programming language which demonstrates use of `PlumRef`.
 -   `idp` -- Crate for Indoor Data Plumbing SDK (Rust).
 -   `idp_core` -- Crate for Indoor Data Plumbing core and client SDK (Rust).
+-   `idp_datahost_storage` -- Indoor Data Plumbing `DatahostStorage` trait definition and associated types.  Specific storage mechanisms are provided by implementing this trait.
 -   `idp_datahost_storage_sqlite` -- Implementation of the `DatahostStorage` trait providing a SQLite DB for `Datahost` persistence.
 -   `idp_proto` -- Crate for Indoor Data Plumbing proto SDK (Rust)
 -   `idp_server` -- Crate for Indoor Data Plumbing server SDK (Rust)
+-   `idp_sig` -- POC for signed, versioned data.
