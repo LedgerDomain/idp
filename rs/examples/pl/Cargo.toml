@@ -21,7 +21,7 @@ idp_proto = { path = "../../idp_proto", features = [
 ] }
 log = "0.4.14"
 # TEMP HACK until this is handled internally in idp_proto or idp_core
-rmp-serde = "0.15.5"
+rmp-serde = "1.1.1"
 serde = { version = "1.0.126", features = ["derive"] }
 # TEMP HACK until this is handled internally in idp_proto or idp_core
 serde_json = "1.0.96"
@@ -33,7 +33,7 @@ ctor = "0.1.21"
 env_logger = "0.8.4"
 idp_datahost_storage_sqlite = { path = "../../idp_datahost_storage_sqlite" }
 idp_proto = { path = "../../idp_proto" }
-rmp-serde = "0.15.5"
+rmp-serde = "1.1.1"
 # Only the binary should choose a "runtime-*" feature for sqlx.
 sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }

@@ -17,7 +17,7 @@ idp_proto = { path = "../idp_proto", features = ["server"] }
 log = "0.4.14"
 maplit = "1.0.2"
 # NOTE: This will go away when branch methods are put into Datahost
-rmp-serde = "0.15.5"
+rmp-serde = "1.1.1"
 tokio = "1.25.0"
 tokio-stream = "0.1.11"
 tonic = { version = "0.8.3", features = ["tls"] }
